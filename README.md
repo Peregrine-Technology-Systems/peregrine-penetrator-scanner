@@ -102,3 +102,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## Ethics
 
 All tools are for **authorized testing only**. Explicit written permission is required before scanning any target. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
