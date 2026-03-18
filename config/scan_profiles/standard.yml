@@ -1,0 +1,24 @@
+name: standard
+description: "Standard scan - Full ZAP + Nuclei + Nikto + ffuf discovery"
+estimated_duration_minutes: 30
+phases:
+  - name: discovery
+    tools:
+      - tool: ffuf
+        wordlist: /usr/share/seclists/Discovery/Web-Content/common.txt
+        timeout: 300
+        threads: 40
+      - tool: nikto
+        timeout: 300
+    parallel: true
+  - name: active_scan
+    tools:
+      - tool: zap
+        mode: full
+        timeout: 900
+  - name: targeted
+    tools:
+      - tool: nuclei
+        severity_filter: critical,high,medium
+        timeout: 600
+        templates: []

@@ -1,0 +1,41 @@
+{
+  "commandline": "ffuf -u https://example.com/FUZZ -w common.txt -o results.json -of json",
+  "results": [
+    {
+      "input": { "FUZZ": "admin" },
+      "position": 1,
+      "status": 200,
+      "length": 4523,
+      "words": 312,
+      "lines": 89,
+      "content-type": "text/html",
+      "redirectlocation": "",
+      "url": "https://example.com/admin",
+      "host": "example.com"
+    },
+    {
+      "input": { "FUZZ": ".env" },
+      "position": 2,
+      "status": 200,
+      "length": 1234,
+      "words": 45,
+      "lines": 20,
+      "content-type": "text/plain",
+      "redirectlocation": "",
+      "url": "https://example.com/.env",
+      "host": "example.com"
+    },
+    {
+      "input": { "FUZZ": "backup" },
+      "position": 3,
+      "status": 403,
+      "length": 287,
+      "words": 21,
+      "lines": 10,
+      "content-type": "text/html",
+      "redirectlocation": "",
+      "url": "https://example.com/backup",
+      "host": "example.com"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  scanner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      - RAILS_ENV=production
+      - SCAN_PROFILE=${SCAN_PROFILE:-standard}
+      - TARGET_NAME=${TARGET_NAME:-Default Target}
+      - TARGET_URLS=${TARGET_URLS:-["http://dvwa:80"]}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-2525}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-pentest@peregrine-tech.com}
+      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - NVD_API_KEY=${NVD_API_KEY:-}
+      - GCS_BUCKET=${GCS_BUCKET:-}
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-}
+    volumes:
+      - scan-results:/app/storage/reports
+      - scan-tmp:/app/tmp
+    networks:
+      - pentest-net
+    depends_on:
+      - dvwa
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    ports:
+      - "8080:80"
+    networks:
+      - pentest-net
+
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - pentest-net
+    profiles:
+      - testing
+
+volumes:
+  scan-results:
+  scan-tmp:
+
+networks:
+  pentest-net:
+    driver: bridge

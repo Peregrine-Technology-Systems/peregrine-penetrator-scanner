@@ -1,0 +1,5 @@
+config:
+  gcp:project: pentest-dev
+  gcp:region: us-central1
+  pentest-platform:schedule: "0 2 * * 1"
+  pentest-platform:scan_profile: standard

@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Assessment Report &mdash; <%= target.name %></title>
+  <style>
+    /* ================================================================
+       RESET & BASE
+       ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-primary: <%= brand[:primary_color] %>;
+      --color-primary-light: #2a4a7f;
+      --color-primary-lighter: #ebf0f7;
+      --color-accent: <%= brand[:accent_color] %>;
+      --color-critical: #e53e3e;
+      --color-critical-bg: #fff5f5;
+      --color-high: #dd6b20;
+      --color-high-bg: #fffaf0;
+      --color-medium: #d69e2e;
+      --color-medium-bg: #fffff0;
+      --color-low: #3182ce;
+      --color-low-bg: #ebf8ff;
+      --color-info: #718096;
+      --color-info-bg: #f7fafc;
+      --color-text: #1a202c;
+      --color-text-secondary: #4a5568;
+      --color-text-muted: #718096;
+      --color-border: #e2e8f0;
+      --color-border-light: #edf2f7;
+      --color-bg: #ffffff;
+      --color-bg-subtle: #f7fafc;
+      --color-bg-muted: #edf2f7;
+      --color-success: #38a169;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      --font-mono: "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+      --shadow-lg: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04);
+      --radius: 8px;
+      --radius-sm: 4px;
+    }
+
+    html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--color-text);
+      background: var(--color-bg-subtle);
+      line-height: 1.6;
+    }
+
+    a { color: var(--color-primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ================================================================
+       LAYOUT
+       ================================================================ */
+    .report-container {
+      max-width: 1080px;
+      margin: 0 auto;
+      background: var(--color-bg);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .section {
+      padding: 2.5rem 3rem;
+    }
+
+    .section + .section {
+      border-top: 1px solid var(--color-border-light);
+    }
+
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--color-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.95rem;
+    }
+
+    .section-title::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 1.2em;
+      background: var(--color-accent);
+      border-radius: 2px;
+    }
+
+    /* ================================================================
+       COVER PAGE
+       ================================================================ */
+    .cover {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 60%, #2d5fa0 100%);
+      color: #ffffff;
+      padding: 4rem 3rem 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.03) 100%);
+    }
+
+    .cover-brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 3rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-logo {
+      width: 48px;
+      height: 48px;
+      background: rgba(255,255,255,0.15);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -0.02em;
+    }
+
+    .cover-company {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      opacity: 0.9;
+    }
+
+    .cover-title {
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 0.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-subtitle {
+      font-size: 1.15rem;
+      font-weight: 400;
+      opacity: 0.85;
+      margin-bottom: 2.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.25rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cover-meta-item {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+
+    .cover-meta-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.65;
+      margin-bottom: 0.25rem;
+    }
+
+    .cover-meta-value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .cover-classification {
+      margin-top: 2rem;
+      padding: 0.5rem 1rem;
+      background: rgba(229, 62, 62, 0.2);
+      border: 1px solid rgba(229, 62, 62, 0.4);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 700;
+      display: inline-block;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ================================================================
+       EXECUTIVE SUMMARY DASHBOARD
+       ================================================================ */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    /* Risk Score */
+    .risk-gauge {
+      text-align: center;
+      padding: 1.5rem;
+      background: var(--color-bg-subtle);
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+    }
+
+    .risk-gauge-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    .risk-score-circle {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      margin: 0 auto 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .risk-score-value {
+      font-size: 2.8rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .risk-score-max {
+      font-size: 0.8rem;
+      opacity: 0.6;
+      margin-top: 2px;
+    }
+
+    .risk-score-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+    }
+
+    /* Donut Chart */
+    .donut-chart {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      margin: 1.25rem auto 0;
+      position: relative;
+    }
+
+    .donut-hole {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      background: var(--color-bg-subtle);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .donut-total {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--color-text);
+      line-height: 1;
+    }
+
+    .donut-total-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+    }
+
+    /* Metric Cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .metric-card {
+      padding: 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-border);
+      background: var(--color-bg);
+    }
+
+    .metric-card-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .metric-card-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--color-text);
+      line-height: 1.1;
+    }
+
+    .metric-card-detail {
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .metric-card--critical {
+      border-left: 4px solid var(--color-critical);
+    }
+
+    .metric-card--accent {
+      border-left: 4px solid var(--color-primary);
+    }
+
+    /* Severity Legend */
+    .severity-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .severity-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+    }
+
+    .severity-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .severity-dot--critical { background: var(--color-critical); }
+    .severity-dot--high { background: var(--color-high); }
+    .severity-dot--medium { background: var(--color-medium); }
+    .severity-dot--low { background: var(--color-low); }
+    .severity-dot--info { background: var(--color-info); }
+
+    /* ================================================================
+       FINDINGS TABLE
+       ================================================================ */
+    .findings-table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+
+    .findings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .findings-table th {
+      background: var(--color-primary);
+      color: #ffffff;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.7rem;
+      padding: 0.85rem 1rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .findings-table th:first-child {
+      border-top-left-radius: var(--radius);
+    }
+
+    .findings-table th:last-child {
+      border-top-right-radius: var(--radius);
+    }
+
+    .findings-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--color-border-light);
+      vertical-align: top;
+    }
+
+    .findings-table tbody tr:hover {
+      background: var(--color-bg-subtle);
+    }
+
+    .findings-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .finding-title-cell {
+      font-weight: 500;
+      max-width: 320px;
+    }
+
+    .finding-url-cell {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-text-secondary);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .finding-tool-cell {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+    }
+
+    .finding-ref-cell {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+
+    /* ================================================================
+       SEVERITY BADGES
+       ================================================================ */
+    .severity-badge {
+      display: inline-block;
+      padding: 0.2em 0.65em;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .severity-badge--critical {
+      background: var(--color-critical);
+      color: #ffffff;
+    }
+
+    .severity-badge--high {
+      background: var(--color-high);
+      color: #ffffff;
+    }
+
+    .severity-badge--medium {
+      background: var(--color-medium);
+      color: #ffffff;
+    }
+
+    .severity-badge--low {
+      background: var(--color-low);
+      color: #ffffff;
+    }
+
+    .severity-badge--info {
+      background: var(--color-info);
+      color: #ffffff;
+    }
+
+    /* ================================================================
+       DETAILED FINDING CARDS
+       ================================================================ */
+    .finding-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    .finding-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      background: var(--color-bg-subtle);
+      border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .finding-card-number {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      background: var(--color-bg-muted);
+      padding: 0.2em 0.5em;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    .finding-card-title {
+      flex: 1;
+    }
+
+    .finding-card-title h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-text);
+      margin-bottom: 0.25rem;
+    }
+
+    .finding-card-meta {
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.25rem;
+    }
+
+    .finding-card-meta span {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .finding-card-body {
+      padding: 1.25rem 1.5rem;
+    }
+
+    .finding-field {
+      margin-bottom: 1rem;
+    }
+
+    .finding-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .finding-field-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    .finding-field-value {
+      font-size: 0.9rem;
+      color: var(--color-text);
+    }
+
+    .finding-url {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--color-primary);
+      word-break: break-all;
+    }
+
+    .finding-refs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .finding-ref-tag {
+      display: inline-block;
+      padding: 0.15em 0.55em;
+      background: var(--color-bg-muted);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-text-secondary);
+      font-weight: 500;
+    }
+
+    .finding-scores {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .finding-score-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+    }
+
+    .finding-score-label {
+      color: var(--color-text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .finding-score-value {
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    .kev-badge {
+      display: inline-block;
+      padding: 0.15em 0.5em;
+      background: var(--color-critical);
+      color: #ffffff;
+      border-radius: var(--radius-sm);
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Evidence expandable */
+    .evidence-details {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      margin-top: 0.5rem;
+    }
+
+    .evidence-details summary {
+      padding: 0.6rem 0.85rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-primary);
+      background: var(--color-bg-subtle);
+      border-radius: var(--radius-sm);
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .evidence-details summary::before {
+      content: "\25B6";
+      font-size: 0.6rem;
+      transition: transform 0.2s;
+    }
+
+    .evidence-details[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    .evidence-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .evidence-content {
+      padding: 0.85rem;
+      background: var(--color-bg);
+      border-top: 1px solid var(--color-border-light);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--color-text-secondary);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    /* AI Assessment */
+    .ai-assessment {
+      background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+      border: 1px solid #c3d9f7;
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .ai-assessment-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-primary);
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .ai-assessment-body {
+      font-size: 0.85rem;
+      color: var(--color-text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Finding border colors by severity */
+    .finding-card--critical { border-left: 4px solid var(--color-critical); }
+    .finding-card--high { border-left: 4px solid var(--color-high); }
+    .finding-card--medium { border-left: 4px solid var(--color-medium); }
+    .finding-card--low { border-left: 4px solid var(--color-low); }
+    .finding-card--info { border-left: 4px solid var(--color-info); }
+
+    /* ================================================================
+       TOOL SUMMARY
+       ================================================================ */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .tool-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      background: var(--color-bg);
+    }
+
+    .tool-card-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--color-text);
+      margin-bottom: 0.35rem;
+    }
+
+    .tool-card-stat {
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+    }
+
+    .tool-card-stat strong {
+      color: var(--color-text);
+    }
+
+    /* ================================================================
+       FOOTER
+       ================================================================ */
+    .report-footer {
+      background: var(--color-primary);
+      color: rgba(255,255,255,0.7);
+      padding: 1.5rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+    }
+
+    .report-footer-classification {
+      color: var(--color-accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* ================================================================
+       NO FINDINGS STATE
+       ================================================================ */
+    .no-findings {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--color-text-muted);
+    }
+
+    .no-findings-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    /* ================================================================
+       PRINT STYLES
+       ================================================================ */
+    @media print {
+      html { font-size: 12px; }
+      body { background: #ffffff; }
+
+      .report-container {
+        box-shadow: none;
+        max-width: 100%;
+      }
+
+      .cover {
+        padding: 2.5rem 2rem 2rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .section {
+        padding: 1.5rem 2rem;
+      }
+
+      .finding-card {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .evidence-details[open] .evidence-content {
+        max-height: none;
+        overflow: visible;
+      }
+
+      .report-footer {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .severity-badge,
+      .kev-badge {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      a { color: var(--color-text); }
+      a::after { content: none; }
+    }
+
+    /* ================================================================
+       RESPONSIVE
+       ================================================================ */
+    @media (max-width: 768px) {
+      .section { padding: 1.5rem 1.25rem; }
+      .cover { padding: 2rem 1.25rem; }
+      .cover-title { font-size: 1.6rem; }
+      .cover-meta { grid-template-columns: 1fr 1fr; }
+      .dashboard { grid-template-columns: 1fr; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .report-footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <%
+    # Compute values for the template
+    total_findings = findings.size
+    critical_count = severity_counts["critical"].to_i
+    high_count = severity_counts["high"].to_i
+    medium_count = severity_counts["medium"].to_i
+    low_count = severity_counts["low"].to_i
+    info_count = severity_counts["info"].to_i
+
+    # Risk score: weighted formula (0-100)
+    risk_score = [
+      (critical_count * 25) + (high_count * 15) + (medium_count * 8) + (low_count * 3) + (info_count * 0.5),
+      100
+    ].min.round
+
+    risk_label = case risk_score
+                 when 0..15 then "Low"
+                 when 16..40 then "Moderate"
+                 when 41..65 then "High"
+                 else "Critical"
+                 end
+
+    risk_color = case risk_score
+                 when 0..15 then "var(--color-low)"
+                 when 16..40 then "var(--color-medium)"
+                 when 41..65 then "var(--color-high)"
+                 else "var(--color-critical)"
+                 end
+
+    # Donut chart: compute conic gradient segments
+    donut_segments = []
+    offset = 0
+    if total_findings > 0
+      [
+        [critical_count, "var(--color-critical)"],
+        [high_count, "var(--color-high)"],
+        [medium_count, "var(--color-medium)"],
+        [low_count, "var(--color-low)"],
+        [info_count, "var(--color-info)"]
+      ].each do |count, color|
+        next if count == 0
+        pct = (count.to_f / total_findings * 100).round(1)
+        donut_segments << "#{color} #{offset}% #{offset + pct}%"
+        offset += pct
+      end
+    end
+    donut_gradient = donut_segments.any? ? donut_segments.join(", ") : "var(--color-bg-muted) 0% 100%"
+
+    # Scan duration
+    duration_seconds = scan.duration.to_i
+    if duration_seconds > 3600
+      duration_display = "#{duration_seconds / 3600}h #{(duration_seconds % 3600) / 60}m"
+    elsif duration_seconds > 60
+      duration_display = "#{duration_seconds / 60}m #{duration_seconds % 60}s"
+    else
+      duration_display = "#{duration_seconds}s"
+    end
+
+    # Tools used
+    tools_used = findings.map(&:source_tool).compact.uniq
+    tools_count = tools_used.size
+    tool_finding_counts = findings.group_by(&:source_tool).transform_values(&:size)
+  %>
+
+  <div class="report-container">
+    <!-- ============================================================
+         COVER PAGE
+         ============================================================ -->
+    <div class="cover">
+      <div class="cover-brand">
+        <div class="cover-logo">
+          <% if brand[:logo_url] %>
+            <img src="<%= brand[:logo_url] %>" alt="" style="width: 40px; height: 40px; object-fit: contain;">
+          <% else %>
+            PT
+          <% end %>
+        </div>
+        <div class="cover-company"><%= brand[:company_name] %></div>
+      </div>
+
+      <div class="cover-title">Web Application<br>Security Assessment</div>
+      <div class="cover-subtitle">Penetration Test Report &mdash; <%= target.name %></div>
+
+      <div class="cover-meta">
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Target</div>
+          <div class="cover-meta-value"><%= target.name %></div>
+        </div>
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Scan Profile</div>
+          <div class="cover-meta-value"><%= scan.profile&.titleize || "Standard" %></div>
+        </div>
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Date</div>
+          <div class="cover-meta-value"><%= (scan.completed_at || generated_at).strftime("%B %d, %Y") %></div>
+        </div>
+        <div class="cover-meta-item">
+          <div class="cover-meta-label">Report ID</div>
+          <div class="cover-meta-value" style="font-family: var(--font-mono); font-size: 0.85rem;"><%= scan.id.to_s.first(8) %></div>
+        </div>
+      </div>
+
+      <div class="cover-classification"><%= brand[:footer_text] %></div>
+    </div>
+
+    <!-- ============================================================
+         EXECUTIVE SUMMARY
+         ============================================================ -->
+    <div class="section">
+      <div class="section-title">Executive Summary</div>
+
+      <div class="dashboard">
+        <div>
+          <!-- Risk Score Gauge -->
+          <div class="risk-gauge">
+            <div class="risk-gauge-label">Overall Risk Score</div>
+            <div class="risk-score-circle" style="background: conic-gradient(<%= risk_color %> 0% <%= risk_score %>%, var(--color-bg-muted) <%= risk_score %>% 100%);">
+              <div style="width: 100px; height: 100px; border-radius: 50%; background: var(--color-bg-subtle); display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                <div class="risk-score-value" style="color: <%= risk_color %>;"><%= risk_score %></div>
+                <div class="risk-score-max">/ 100</div>
+              </div>
+            </div>
+            <div class="risk-score-label" style="color: <%= risk_color %>;"><%= risk_label %> Risk</div>
+
+            <!-- Severity Donut Chart -->
+            <div class="donut-chart" style="background: conic-gradient(<%= donut_gradient %>);">
+              <div class="donut-hole">
+                <div class="donut-total"><%= total_findings %></div>
+                <div class="donut-total-label">Findings</div>
+              </div>
+            </div>
+
+            <div class="severity-legend" style="justify-content: center; margin-top: 0.75rem;">
+              <% if critical_count > 0 %>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--critical"></div> <%= critical_count %></div>
+              <% end %>
+              <% if high_count > 0 %>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--high"></div> <%= high_count %></div>
+              <% end %>
+              <% if medium_count > 0 %>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--medium"></div> <%= medium_count %></div>
+              <% end %>
+              <% if low_count > 0 %>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--low"></div> <%= low_count %></div>
+              <% end %>
+              <% if info_count > 0 %>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--info"></div> <%= info_count %></div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <!-- Metric Cards -->
+          <div class="metrics-grid">
+            <div class="metric-card metric-card--critical">
+              <div class="metric-card-label">Critical Findings</div>
+              <div class="metric-card-value" style="color: var(--color-critical);"><%= critical_count %></div>
+              <div class="metric-card-detail">Require immediate remediation</div>
+            </div>
+            <div class="metric-card metric-card--accent">
+              <div class="metric-card-label">Total Findings</div>
+              <div class="metric-card-value"><%= total_findings %></div>
+              <div class="metric-card-detail"><%= high_count %> high, <%= medium_count %> medium, <%= low_count %> low</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card-label">Tools Executed</div>
+              <div class="metric-card-value"><%= tools_count %></div>
+              <div class="metric-card-detail"><%= tools_used.first(3).join(", ") %><%= ", ..." if tools_count > 3 %></div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card-label">Scan Duration</div>
+              <div class="metric-card-value"><%= duration_display %></div>
+              <div class="metric-card-detail">
+                <% if scan.started_at %>
+                  Started <%= scan.started_at.strftime("%H:%M %Z") %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Severity Breakdown Bar -->
+          <% if total_findings > 0 %>
+            <div style="margin-top: 1.5rem;">
+              <div class="finding-field-label" style="margin-bottom: 0.5rem;">Severity Distribution</div>
+              <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--color-bg-muted);">
+                <% if critical_count > 0 %><div style="width: <%= (critical_count.to_f / total_findings * 100).round(1) %>%; background: var(--color-critical);"></div><% end %>
+                <% if high_count > 0 %><div style="width: <%= (high_count.to_f / total_findings * 100).round(1) %>%; background: var(--color-high);"></div><% end %>
+                <% if medium_count > 0 %><div style="width: <%= (medium_count.to_f / total_findings * 100).round(1) %>%; background: var(--color-medium);"></div><% end %>
+                <% if low_count > 0 %><div style="width: <%= (low_count.to_f / total_findings * 100).round(1) %>%; background: var(--color-low);"></div><% end %>
+                <% if info_count > 0 %><div style="width: <%= (info_count.to_f / total_findings * 100).round(1) %>%; background: var(--color-info);"></div><% end %>
+              </div>
+              <div class="severity-legend" style="margin-top: 0.5rem;">
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--critical"></div> Critical (<%= critical_count %>)</div>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--high"></div> High (<%= high_count %>)</div>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--medium"></div> Medium (<%= medium_count %>)</div>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--low"></div> Low (<%= low_count %>)</div>
+                <div class="severity-legend-item"><div class="severity-dot severity-dot--info"></div> Info (<%= info_count %>)</div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         FINDINGS SUMMARY TABLE
+         ============================================================ -->
+    <% if findings.any? %>
+      <div class="section">
+        <div class="section-title">Findings Summary</div>
+        <div class="findings-table-wrapper">
+          <table class="findings-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th style="width: 80px;">Severity</th>
+                <th>Title</th>
+                <th>URL</th>
+                <th>Tool</th>
+                <th>Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% findings.each_with_index do |finding, idx| %>
+                <tr>
+                  <td style="font-family: var(--font-mono); color: var(--color-text-muted); font-size: 0.8rem;"><%= idx + 1 %></td>
+                  <td>
+                    <span class="severity-badge severity-badge--<%= finding.severity %>"><%= finding.severity %></span>
+                  </td>
+                  <td class="finding-title-cell"><%= finding.title %></td>
+                  <td class="finding-url-cell" title="<%= finding.url %>"><%= finding.url %></td>
+                  <td class="finding-tool-cell"><%= finding.source_tool %></td>
+                  <td class="finding-ref-cell">
+                    <%= finding.cwe_id ? "CWE-#{finding.cwe_id}" : "" %>
+                    <%= finding.cve_id ? "/ #{finding.cve_id}" : "" %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           DETAILED FINDINGS
+           ============================================================ -->
+      <div class="section">
+        <div class="section-title">Detailed Findings</div>
+
+        <% findings.each_with_index do |finding, idx| %>
+          <div class="finding-card finding-card--<%= finding.severity %>">
+            <div class="finding-card-header">
+              <div class="finding-card-number">#<%= idx + 1 %></div>
+              <span class="severity-badge severity-badge--<%= finding.severity %>"><%= finding.severity %></span>
+              <div class="finding-card-title">
+                <h3><%= finding.title %></h3>
+                <div class="finding-card-meta">
+                  <% if finding.source_tool %>
+                    <span>Tool: <strong><%= finding.source_tool %></strong></span>
+                  <% end %>
+                  <% if finding.parameter %>
+                    <span>Parameter: <strong><%= finding.parameter %></strong></span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <div class="finding-card-body">
+              <% if finding.url %>
+                <div class="finding-field">
+                  <div class="finding-field-label">Affected URL</div>
+                  <div class="finding-url"><%= finding.url %></div>
+                </div>
+              <% end %>
+
+              <%
+                has_refs = finding.cwe_id || finding.cve_id
+                has_scores = finding.cvss_score || finding.epss_score || finding.kev_known_exploited
+              %>
+
+              <% if has_refs || has_scores %>
+                <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
+                  <% if has_refs %>
+                    <div class="finding-field">
+                      <div class="finding-field-label">References</div>
+                      <div class="finding-refs">
+                        <% if finding.cwe_id %>
+                          <span class="finding-ref-tag">CWE-<%= finding.cwe_id %></span>
+                        <% end %>
+                        <% if finding.cve_id %>
+                          <span class="finding-ref-tag"><%= finding.cve_id %></span>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+
+                  <% if has_scores %>
+                    <div class="finding-field">
+                      <div class="finding-field-label">Risk Scores</div>
+                      <div class="finding-scores">
+                        <% if finding.cvss_score %>
+                          <div class="finding-score-item">
+                            <span class="finding-score-label">CVSS</span>
+                            <span class="finding-score-value"><%= finding.cvss_score %></span>
+                          </div>
+                        <% end %>
+                        <% if finding.epss_score %>
+                          <div class="finding-score-item">
+                            <span class="finding-score-label">EPSS</span>
+                            <span class="finding-score-value"><%= (finding.epss_score * 100).round(1) %>%</span>
+                          </div>
+                        <% end %>
+                        <% if finding.kev_known_exploited %>
+                          <span class="kev-badge">KEV: Known Exploited</span>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <% if finding.evidence.present? %>
+                <div class="finding-field">
+                  <div class="finding-field-label">Evidence</div>
+                  <details class="evidence-details">
+                    <summary>View Evidence</summary>
+                    <div class="evidence-content"><%= finding.evidence.is_a?(Hash) ? JSON.pretty_generate(finding.evidence) : finding.evidence %></div>
+                  </details>
+                </div>
+              <% end %>
+
+              <% if finding.ai_assessment.present? %>
+                <div class="finding-field">
+                  <div class="ai-assessment">
+                    <div class="ai-assessment-header">AI-Assisted Assessment</div>
+                    <div class="ai-assessment-body">
+                      <% if finding.ai_assessment.is_a?(Hash) %>
+                        <% if finding.ai_assessment["summary"] %>
+                          <p><%= finding.ai_assessment["summary"] %></p>
+                        <% end %>
+                        <% if finding.ai_assessment["recommendation"] %>
+                          <p style="margin-top: 0.5rem;"><strong>Recommendation:</strong> <%= finding.ai_assessment["recommendation"] %></p>
+                        <% end %>
+                      <% else %>
+                        <p><%= finding.ai_assessment %></p>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="section">
+        <div class="section-title">Findings</div>
+        <div class="no-findings">
+          <div class="no-findings-icon">&#10003;</div>
+          <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">No Vulnerabilities Detected</p>
+          <p>The automated scan completed without identifying any security findings.</p>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- ============================================================
+         TOOL EXECUTION SUMMARY
+         ============================================================ -->
+    <% if tools_used.any? %>
+      <div class="section">
+        <div class="section-title">Tool Execution Summary</div>
+        <div class="tools-grid">
+          <% tools_used.sort.each do |tool_name| %>
+            <div class="tool-card">
+              <div class="tool-card-name"><%= tool_name %></div>
+              <div class="tool-card-stat">Findings: <strong><%= tool_finding_counts[tool_name] || 0 %></strong></div>
+              <%
+                tool_findings = findings.select { |f| f.source_tool == tool_name }
+                tool_severities = tool_findings.group_by(&:severity).transform_values(&:size)
+                severity_parts = []
+                %w[critical high medium low info].each do |sev|
+                  severity_parts << "#{tool_severities[sev]} #{sev}" if tool_severities[sev]
+                end
+              %>
+              <% if severity_parts.any? %>
+                <div class="tool-card-stat" style="margin-top: 0.2rem;"><%= severity_parts.join(", ") %></div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- ============================================================
+         FOOTER
+         ============================================================ -->
+    <div class="report-footer">
+      <div class="report-footer-classification"><%= brand[:footer_text] %></div>
+      <div>
+        Generated <%= generated_at.strftime("%B %d, %Y at %H:%M %Z") %> | <%= brand[:company_name] %>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
