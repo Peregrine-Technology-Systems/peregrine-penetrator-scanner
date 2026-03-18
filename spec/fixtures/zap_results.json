@@ -1,0 +1,56 @@
+{
+  "site": [
+    {
+      "alerts": [
+        {
+          "pluginid": "10021",
+          "alert": "X-Content-Type-Options Header Missing",
+          "name": "X-Content-Type-Options Header Missing",
+          "riskcode": "1",
+          "confidence": "2",
+          "riskdesc": "Low (Medium)",
+          "desc": "The Anti-MIME-Sniffing header X-Content-Type-Options was not set to 'nosniff'.",
+          "solution": "Ensure that the application/web server sets the Content-Type header appropriately.",
+          "reference": "https://owasp.org/www-community/Security_Headers",
+          "cweid": "693",
+          "wascid": "15",
+          "instances": [
+            {
+              "uri": "https://example.com/api/users",
+              "method": "GET",
+              "param": "",
+              "evidence": ""
+            }
+          ]
+        },
+        {
+          "pluginid": "40012",
+          "alert": "Cross Site Scripting (Reflected)",
+          "name": "Cross Site Scripting (Reflected)",
+          "riskcode": "3",
+          "confidence": "3",
+          "riskdesc": "High (High)",
+          "desc": "Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code.",
+          "solution": "Phase: Architecture and Design - Use a vetted library for output encoding.",
+          "reference": "https://owasp.org/www-community/attacks/xss/",
+          "cweid": "79",
+          "wascid": "8",
+          "instances": [
+            {
+              "uri": "https://example.com/search?q=test",
+              "method": "GET",
+              "param": "q",
+              "evidence": "<script>alert(1)</script>"
+            },
+            {
+              "uri": "https://example.com/search?q=test2",
+              "method": "GET",
+              "param": "q",
+              "evidence": "<img src=x onerror=alert(1)>"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "host": "example.com",
+  "ip": "93.184.216.34",
+  "port": "443",
+  "banner": "nginx/1.18.0",
+  "vulnerabilities": [
+    {
+      "id": "999103",
+      "OSVDB": "0",
+      "method": "GET",
+      "url": "/",
+      "msg": "The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type."
+    },
+    {
+      "id": "999100",
+      "OSVDB": "3092",
+      "method": "GET",
+      "url": "/.git/config",
+      "msg": "Git configuration file found. This file may contain sensitive information such as repository URLs and branch names."
+    }
+  ]
+}

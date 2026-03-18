@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: app
+    environment:
+      - RAILS_ENV=development
+    volumes:
+      - ..:/app
+      - bundle-cache:/usr/local/bundle
+    command: bash
+    stdin_open: true
+    tty: true
+    networks:
+      - pentest-net
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    ports:
+      - "8080:80"
+    networks:
+      - pentest-net
+
+volumes:
+  bundle-cache:
+
+networks:
+  pentest-net:
+    driver: bridge

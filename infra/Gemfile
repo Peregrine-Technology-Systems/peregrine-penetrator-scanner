@@ -1,0 +1,4 @@
+source "https://rubygems.org"
+
+gem "pulumi", "~> 3.0"
+gem "pulumi-gcp", "~> 7.0"

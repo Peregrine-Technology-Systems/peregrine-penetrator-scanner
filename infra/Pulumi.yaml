@@ -1,0 +1,9 @@
+name: pentest-platform
+runtime:
+  name: ruby
+description: GCP infrastructure for the penetration testing platform
+config:
+  gcp:project:
+    description: GCP project ID
+  gcp:region:
+    default: us-central1

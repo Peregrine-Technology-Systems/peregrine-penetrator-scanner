@@ -1,0 +1,14 @@
+.git
+.github
+tmp/
+log/
+storage/
+.bundle
+vendor/bundle
+node_modules
+*.md
+!README.md
+docker/docker-compose*.yml
+spec/
+.rspec
+.rubocop.yml
