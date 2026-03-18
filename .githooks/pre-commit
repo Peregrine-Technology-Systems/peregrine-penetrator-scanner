@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit hook: generate PDFs from changed Markdown files
+# Requires: pandoc, xelatex (from MacTeX/basictex or texlive)
+
+PDF_DIR="docs/pdf"
+
+# Check for pandoc
+if ! command -v pandoc &>/dev/null; then
+  echo "[pre-commit] pandoc not found — skipping PDF generation"
+  echo "  Install with: brew install pandoc"
+  exit 0
+fi
+
+# Check for xelatex
+if ! command -v xelatex &>/dev/null; then
+  # Try macOS path helper for TeX
+  if [ -x /usr/libexec/path_helper ]; then
+    eval "$(/usr/libexec/path_helper)"
+  fi
+  if ! command -v xelatex &>/dev/null; then
+    echo "[pre-commit] xelatex not found — skipping PDF generation"
+    echo "  Install with: brew install basictex"
+    exit 0
+  fi
+fi
+
+mkdir -p "$PDF_DIR"
+
+# Find staged .md files (added or modified)
+CHANGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' || true)
+
+if [ -z "$CHANGED_MD" ]; then
+  exit 0
+fi
+
+echo "[pre-commit] Generating PDFs for changed Markdown files..."
+
+GENERATED=0
+for md_file in $CHANGED_MD; do
+  # Skip CLAUDE.md and template files
+  if [[ "$md_file" == "CLAUDE.md" ]] || [[ "$md_file" == .github/* ]]; then
+    continue
+  fi
+
+  # Build output filename: README.md → docs/pdf/README.pdf
+  basename=$(basename "$md_file" .md)
+  # Prefix with directory for nested files: docs/DESIGN.md → docs/pdf/docs-DESIGN.pdf
+  dirname=$(dirname "$md_file")
+  if [ "$dirname" != "." ]; then
+    pdf_name="${dirname//\//-}-${basename}.pdf"
+  else
+    pdf_name="${basename}.pdf"
+  fi
+  pdf_path="${PDF_DIR}/${pdf_name}"
+
+  echo "  $md_file → $pdf_path"
+
+  pandoc "$md_file" \
+    -o "$pdf_path" \
+    --pdf-engine=xelatex \
+    -V geometry:margin=1in \
+    -V mainfont="Helvetica" \
+    -V monofont="Menlo" \
+    -V fontsize=11pt \
+    -V colorlinks=true \
+    -V linkcolor=blue \
+    -V urlcolor=blue \
+    --highlight-style=tango \
+    2>/dev/null || {
+      echo "  [warning] Failed to generate PDF for $md_file (continuing)"
+      continue
+    }
+
+  git add "$pdf_path"
+  GENERATED=$((GENERATED + 1))
+done
+
+if [ "$GENERATED" -gt 0 ]; then
+  echo "[pre-commit] Generated $GENERATED PDF(s)"
+fi

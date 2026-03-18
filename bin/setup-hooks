@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Configure git to use project hooks directory
+git config core.hooksPath .githooks
+echo "Git hooks configured: .githooks/"
+
+# Verify dependencies
+if command -v pandoc &>/dev/null; then
+  echo "pandoc: $(pandoc --version | head -1)"
+else
+  echo "WARNING: pandoc not installed (brew install pandoc)"
+fi
+
+if command -v xelatex &>/dev/null; then
+  echo "xelatex: found"
+elif [ -x /usr/libexec/path_helper ]; then
+  eval "$(/usr/libexec/path_helper)"
+  if command -v xelatex &>/dev/null; then
+    echo "xelatex: found (via path_helper)"
+  else
+    echo "WARNING: xelatex not installed (brew install basictex)"
+  fi
+else
+  echo "WARNING: xelatex not installed (brew install basictex)"
+fi
+
+echo "Done. Pre-commit hook will generate PDFs from Markdown files."
