@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe Scanners::DawnScanner do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }
-  let(:scan) { create(:scan, :running, target: target) }
+  let(:scan) { create(:scan, :running, target:) }
   let(:tool_config) { { timeout: 120 } }
   let(:scanner) { described_class.new(scan, tool_config) }
   let(:success_result) { { stdout: '', stderr: '', exit_code: 0, success: true } }
@@ -16,7 +16,7 @@ RSpec.describe Scanners::DawnScanner do
   describe '#run' do
     before do
       allow(scanner).to receive(:run_command).and_return(success_result)
-      allow(ResultParsers::DawnParser).to receive_message_chain(:new, :parse).and_return([])
+      allow(ResultParsers::DawnParser).to receive(:new).and_return(instance_double(ResultParsers::DawnParser, parse: []))
     end
 
     it 'builds the correct dawn command' do

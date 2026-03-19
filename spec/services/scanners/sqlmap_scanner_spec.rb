@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe Scanners::SqlmapScanner do
   let(:target) { create(:target, urls: ['https://example.com/page?id=1'].to_json) }
-  let(:scan) { create(:scan, :running, target: target) }
+  let(:scan) { create(:scan, :running, target:) }
   let(:tool_config) { { level: 2, risk: 2, timeout: 600 } }
   let(:scanner) { described_class.new(scan, tool_config) }
   let(:success_result) { { stdout: '', stderr: '', exit_code: 0, success: true } }
@@ -16,7 +16,7 @@ RSpec.describe Scanners::SqlmapScanner do
   describe '#run' do
     before do
       allow(scanner).to receive(:run_command).and_return(success_result)
-      allow(ResultParsers::SqlmapParser).to receive_message_chain(:new, :parse).and_return([])
+      allow(ResultParsers::SqlmapParser).to receive(:new).and_return(instance_double(ResultParsers::SqlmapParser, parse: []))
     end
 
     it 'builds the correct sqlmap command' do
@@ -71,7 +71,7 @@ RSpec.describe Scanners::SqlmapScanner do
 
     it 'parses results for each URL' do
       parsed = [{ source_tool: 'sqlmap', title: 'SQL Injection - boolean-based blind', severity: 'high' }]
-      allow(ResultParsers::SqlmapParser).to receive_message_chain(:new, :parse).and_return(parsed)
+      allow(ResultParsers::SqlmapParser).to receive(:new).and_return(instance_double(ResultParsers::SqlmapParser, parse: parsed))
 
       result = scanner.run
       expect(result[:success]).to be true

@@ -80,15 +80,15 @@ RSpec.describe CveClients::NvdClient do
 
     it 'falls back to v3.0' do
       data = cve_data.merge('metrics' => {
-        'cvssMetricV30' => [{ 'cvssData' => { 'baseScore' => 9.8 } }]
-      })
+                              'cvssMetricV30' => [{ 'cvssData' => { 'baseScore' => 9.8 } }]
+                            })
       expect(client.extract_cvss(data)).to eq(9.8)
     end
 
     it 'falls back to v2' do
       data = cve_data.merge('metrics' => {
-        'cvssMetricV2' => [{ 'cvssData' => { 'baseScore' => 7.5 } }]
-      })
+                              'cvssMetricV2' => [{ 'cvssData' => { 'baseScore' => 7.5 } }]
+                            })
       expect(client.extract_cvss(data)).to eq(7.5)
     end
 

@@ -21,10 +21,10 @@ RSpec.describe AiAnalyzer do
     let(:target) { scan.target }
     let!(:findings) do
       [
-        create(:finding, scan: scan, source_tool: 'zap', severity: 'high',
-               title: 'XSS in search', url: 'https://example.com/search', cwe_id: 'CWE-79'),
-        create(:finding, scan: scan, source_tool: 'nuclei', severity: 'critical',
-               title: 'SQL Injection', url: 'https://example.com/api', cwe_id: 'CWE-89')
+        create(:finding, scan:, source_tool: 'zap', severity: 'high',
+                         title: 'XSS in search', url: 'https://example.com/search', cwe_id: 'CWE-79'),
+        create(:finding, scan:, source_tool: 'nuclei', severity: 'critical',
+                         title: 'SQL Injection', url: 'https://example.com/api', cwe_id: 'CWE-89')
       ]
     end
 
@@ -81,14 +81,14 @@ RSpec.describe AiAnalyzer do
   describe '#generate_executive_summary' do
     let(:scan) do
       create(:scan, :completed, summary: {
-        'total_findings' => 5,
-        'by_severity' => { 'critical' => 1, 'high' => 2, 'medium' => 2 }
-      })
+               'total_findings' => 5,
+               'by_severity' => { 'critical' => 1, 'high' => 2, 'medium' => 2 }
+             })
     end
 
     before do
-      create(:finding, scan: scan, source_tool: 'zap', severity: 'critical',
-             title: 'RCE Vulnerability', url: 'https://example.com/admin', duplicate: false)
+      create(:finding, scan:, source_tool: 'zap', severity: 'critical',
+                       title: 'RCE Vulnerability', url: 'https://example.com/admin', duplicate: false)
     end
 
     it 'generates and saves executive summary' do
@@ -124,16 +124,16 @@ RSpec.describe AiAnalyzer do
   describe '#analyze_scan' do
     let(:scan) do
       create(:scan, :completed, summary: {
-        'total_findings' => 2,
-        'by_severity' => { 'high' => 1, 'medium' => 1 }
-      })
+               'total_findings' => 2,
+               'by_severity' => { 'high' => 1, 'medium' => 1 }
+             })
     end
 
     before do
-      create(:finding, scan: scan, source_tool: 'zap', severity: 'high',
-             title: 'XSS', url: 'https://example.com', duplicate: false)
-      create(:finding, scan: scan, source_tool: 'nuclei', severity: 'medium',
-             title: 'Info Disclosure', url: 'https://example.com', duplicate: false)
+      create(:finding, scan:, source_tool: 'zap', severity: 'high',
+                       title: 'XSS', url: 'https://example.com', duplicate: false)
+      create(:finding, scan:, source_tool: 'nuclei', severity: 'medium',
+                       title: 'Info Disclosure', url: 'https://example.com', duplicate: false)
     end
 
     it 'triages findings and generates executive summary' do
