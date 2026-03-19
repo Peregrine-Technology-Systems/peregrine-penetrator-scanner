@@ -10,12 +10,13 @@
 - Separate GCP project (`peregrine-pentest-dev`) with dedicated service account
 
 ### CI/CD Pipeline
-- Fixed CI trigger branch name (`develop` → `development`)
-- Auto-merge for development and staging PRs after CI passes
-- Promotion workflow: development → staging (auto-merge) → main (manual), uses WORKFLOW_PAT
-- Docker image build on staging branch (not just main)
-- Branch protection with required `test` status check on all branches
-- Removed duplicate lint job
+- Migrated from GitHub Actions to Buildkite (`.buildkite/pipeline.yml`)
+- Test, lint, Docker build, and promotion all run on Buildkite agents (`gcp` queue)
+- Docker builds use registry-based BuildKit cache for speed across agents
+- Auto-merge for development → staging promotion PRs
+- Manual merge required for staging → main promotion
+- Branch protection updated to require Buildkite status checks
+- Secrets managed via GCP Secret Manager (`web-app-penetration-test--*` in ci-runners-de)
 
 ### Report Fixes
 - Fixed PDF generation: added `texlive-latex-extra` for `soul.sty` package

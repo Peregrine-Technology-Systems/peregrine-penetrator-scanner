@@ -238,72 +238,63 @@ gcloud scheduler jobs pause pentest-scanner-schedule --region us-central1
 gcloud scheduler jobs resume pentest-scanner-schedule --region us-central1
 ```
 
-## CI/CD Pipeline
+## CI/CD Pipeline (Buildkite)
 
-Two GitHub Actions workflows automate building and deploying:
+CI/CD runs on Buildkite using agents in the `ci-runners-de` GCP project on the `gcp` queue.
 
-### CI Workflow (`.github/workflows/ci.yml`)
-
-Triggers on pushes and PRs to `develop`, `staging`, and `main`:
-
-1. **test** -- Sets up Ruby 3.2.2, creates test DB, runs RSpec and RuboCop, uploads coverage
-2. **lint** -- Runs RuboCop in parallel
-3. **docker** -- (main branch only) Builds Docker image and pushes to Artifact Registry, tagged with `latest` and the commit SHA
-
-### Deploy Workflow (`.github/workflows/deploy.yml`)
-
-Triggers after a successful CI run on `main`:
-
-1. Authenticates to GCP
-2. Updates the Cloud Run Job image to the newly built commit SHA tag
-
-### Flow
+### Pipeline (`.buildkite/pipeline.yml`)
 
 ```
-Push to main --> CI (test + lint + docker build/push) --> Deploy (update Cloud Run Job)
+Push/PR → Test + Lint (parallel) → Docker Build (staging/main) → Promote
 ```
 
-### GitHub Secrets Required
+| Step | Trigger | Description |
+|------|---------|-------------|
+| **Test** | All branches | `bundle exec rspec` in Docker container |
+| **Lint** | All branches | `bundle exec rubocop` in Docker container |
+| **Docker Build** | staging, main | Build + push to Artifact Registry with registry-based BuildKit cache |
+| **Promote to staging** | development | Auto-creates PR, enables auto-merge |
+| **Promote to main** | staging | Creates PR, requires manual merge |
 
-Configure these in your repository settings under Settings > Secrets and Variables > Actions:
+### Docker Image Tags
 
-| Secret | Description |
-|--------|-------------|
-| `GCP_SA_KEY` | Service account JSON key with permissions for Artifact Registry, Cloud Run, and project access |
-| `GCP_PROJECT` | GCP project ID |
+Images are pushed to `us-central1-docker.pkg.dev/peregrine-pentest-dev/pentest/scanner` with tags:
 
-To create the service account key:
+| Tag | When |
+|-----|------|
+| `latest` | Every build |
+| `$BUILDKITE_COMMIT` | Every build (commit SHA) |
+| `staging` | Builds on staging branch |
+| `production` | Builds on main branch |
+
+### Secrets (GCP Secret Manager)
+
+Secrets are stored in `ci-runners-de` using the convention `{pipeline-slug}--{secret-name}`:
+
+| Secret | Value |
+|--------|-------|
+| `web-app-penetration-test--gcp-project` | `peregrine-pentest-dev` |
+| `web-app-penetration-test--docker-registry` | `us-central1-docker.pkg.dev/peregrine-pentest-dev/pentest` |
+
+Auto-exported as `GCP_PROJECT` and `DOCKER_REGISTRY` on pipeline steps.
+
+### Cross-Project Access
+
+The Buildkite agent service account (`buildkite-agent@ci-runners-de.iam.gserviceaccount.com`) has `roles/artifactregistry.writer` on the `peregrine-pentest-dev` Artifact Registry.
+
+### Adding Secrets
 
 ```bash
-# Create a CI/CD service account (separate from the scanner SA)
-gcloud iam service-accounts create github-actions \
-  --display-name="GitHub Actions CI/CD"
+# Create secret
+echo -n "value" | gcloud secrets create \
+  web-app-penetration-test--my-secret \
+  --data-file=- --project=ci-runners-de
 
-CI_SA="github-actions@${GCP_PROJECT}.iam.gserviceaccount.com"
-
-# Grant roles
-gcloud projects add-iam-policy-binding $GCP_PROJECT \
-  --member="serviceAccount:${CI_SA}" \
-  --role="roles/artifactregistry.writer"
-
-gcloud projects add-iam-policy-binding $GCP_PROJECT \
-  --member="serviceAccount:${CI_SA}" \
-  --role="roles/run.admin"
-
-gcloud projects add-iam-policy-binding $GCP_PROJECT \
-  --member="serviceAccount:${CI_SA}" \
-  --role="roles/iam.serviceAccountUser"
-
-# Generate key file
-gcloud iam service-accounts keys create /tmp/gcp-sa-key.json \
-  --iam-account=${CI_SA}
-
-# Set as GitHub secret (using gh CLI)
-gh secret set GCP_SA_KEY < /tmp/gcp-sa-key.json
-gh secret set GCP_PROJECT --body "$GCP_PROJECT"
-
-# Delete local key file immediately
-rm /tmp/gcp-sa-key.json
+# Grant agent access
+gcloud secrets add-iam-policy-binding web-app-penetration-test--my-secret \
+  --member="serviceAccount:buildkite-agent@ci-runners-de.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor" \
+  --project=ci-runners-de
 ```
 
 ## Monitoring and Logs
