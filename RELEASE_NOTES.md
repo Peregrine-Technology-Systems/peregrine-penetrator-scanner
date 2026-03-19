@@ -12,7 +12,7 @@
 ### CI/CD Pipeline
 - Fixed CI trigger branch name (`develop` → `development`)
 - Auto-merge for development and staging PRs after CI passes
-- Promotion workflow: development → staging (auto-merge) → main (manual)
+- Promotion workflow: development → staging (auto-merge) → main (manual), uses WORKFLOW_PAT
 - Docker image build on staging branch (not just main)
 - Branch protection with required `test` status check on all branches
 - Removed duplicate lint job
