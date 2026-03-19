@@ -54,6 +54,9 @@ module ReportGenerators
       template = Rails.root.join('config/report_templates/pentest_report.latex')
       date = @scan.completed_at&.strftime('%B %d, %Y') || Time.current.strftime('%B %d, %Y')
 
+      summary = @scan.summary || {}
+      sev = summary['by_severity'] || {}
+
       args = [
         'pandoc', md_path,
         '-o', pdf_path,
@@ -65,7 +68,13 @@ module ReportGenerators
         '-V', 'fontsize=11pt',
         '--highlight-style=tango',
         '-V', "title=#{@target.name}",
-        '-V', "date=#{date}"
+        '-V', "date=#{date}",
+        '-V', "sev_critical=#{sev['critical'].to_i}",
+        '-V', "sev_high=#{sev['high'].to_i}",
+        '-V', "sev_medium=#{sev['medium'].to_i}",
+        '-V', "sev_low=#{sev['low'].to_i}",
+        '-V', "sev_info=#{sev['info'].to_i}",
+        '-V', "sev_total=#{summary['total_findings'].to_i}"
       ]
 
       args.shelljoin

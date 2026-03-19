@@ -114,7 +114,7 @@ module ReportGenerators
       lines << ''
 
       @findings.each_with_index do |f, idx|
-        cwe = f.cwe_id.present? ? " | #{f.cwe_id}" : ''
+        cwe = f.cwe_id.present? ? " | [#{f.cwe_id}](https://cwe.mitre.org/data/definitions/#{f.cwe_id.to_s.delete_prefix('CWE-')}.html)" : ''
         lines << "#{idx + 1}. **#{f.severity.upcase}** — #{f.title}"
         lines << "   - URL: #{f.url}" if f.url.present?
         lines << "   - Tool: #{f.source_tool}#{cwe}"
@@ -140,8 +140,8 @@ module ReportGenerators
         lines << "| URL | `#{f.url}` |" if f.url.present?
         lines << "| Tool | #{f.source_tool} |"
         lines << "| Parameter | `#{f.parameter}` |" if f.parameter.present?
-        lines << "| CWE | CWE-#{f.cwe_id} |" if f.cwe_id.present?
-        lines << "| CVE | #{f.cve_id} |" if f.cve_id.present?
+        lines << "| CWE | [#{f.cwe_id}](https://cwe.mitre.org/data/definitions/#{f.cwe_id.to_s.delete_prefix('CWE-')}.html) |" if f.cwe_id.present?
+        lines << "| CVE | [#{f.cve_id}](https://nvd.nist.gov/vuln/detail/#{f.cve_id}) |" if f.cve_id.present?
         lines << "| CVSS | #{f.cvss_score} |" if f.cvss_score.present?
         lines << "| EPSS | #{format_epss(f.epss_score)} |" if f.epss_score.present?
         if f.kev_known_exploited
