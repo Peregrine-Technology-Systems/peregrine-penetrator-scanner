@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe Report do
   describe 'validations' do
-    it { is_expected.to validate_inclusion_of(:format).in_array(%w[json html pdf]) }
+    it { is_expected.to validate_inclusion_of(:format).in_array(%w[json markdown html pdf]) }
     it { is_expected.to validate_inclusion_of(:status).in_array(%w[pending generating completed failed]) }
   end
 

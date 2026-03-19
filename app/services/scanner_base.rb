@@ -45,18 +45,37 @@ class ScannerBase
     timeout ||= tool_config[:timeout] || 600
     logger.info("[#{tool_name}] Running: #{command}")
 
-    stdout, stderr, status = Open3.capture3(command, timeout:)
+    pid = nil
+    stdout = ''
+    stderr = ''
+    status = nil
+
+    Open3.popen3(command) do |_stdin, out, err, wait_thr|
+      pid = wait_thr.pid
+      _stdin.close
+
+      begin
+        Timeout.timeout(timeout) do
+          stdout = out.read
+          stderr = err.read
+          status = wait_thr.value
+        end
+      rescue Timeout::Error
+        Process.kill('TERM', pid) rescue nil
+        sleep(1)
+        Process.kill('KILL', pid) rescue nil
+        return { stdout: stdout, stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
+      end
+    end
 
     {
-      stdout:,
-      stderr:,
-      exit_code: status.exitstatus,
-      success: status.success?
+      stdout: stdout,
+      stderr: stderr,
+      exit_code: status&.exitstatus,
+      success: status&.success? || false
     }
   rescue Errno::ENOENT => e
     { stdout: '', stderr: "Command not found: #{e.message}", exit_code: 127, success: false }
-  rescue Timeout::Error
-    { stdout: '', stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
   end
 
   def target_urls

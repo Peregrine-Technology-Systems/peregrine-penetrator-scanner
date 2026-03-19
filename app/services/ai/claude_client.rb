@@ -3,18 +3,20 @@
 module Ai
   class ClaudeClient
     def initialize
-      @client = Anthropic::Client.new(api_key: ENV.fetch('ANTHROPIC_API_KEY'))
+      @client = Anthropic::Client.new(access_token: ENV.fetch('ANTHROPIC_API_KEY'))
       @model = ENV.fetch('CLAUDE_MODEL', 'claude-sonnet-4-20250514')
     end
 
     def call_claude(prompt)
-      response = @client.messages.create(
-        model: @model,
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }]
+      response = @client.messages(
+        parameters: {
+          model: @model,
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: prompt }]
+        }
       )
 
-      response.content.first.text
+      response.dig('content', 0, 'text')
     end
 
     def parse_json_response(text)
