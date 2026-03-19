@@ -1,32 +1,40 @@
 name: thorough
 description: "Comprehensive scan - All tools, all templates, deep crawl"
-estimated_duration_minutes: 120
+estimated_duration_minutes: 180
+rate_limit: 5
 phases:
   - name: discovery
     tools:
       - tool: ffuf
-        wordlist: /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
-        timeout: 600
-        threads: 40
+        wordlist: /usr/share/seclists/Discovery/Web-Content/common.txt
+        timeout: 900
+        threads: 1
+        rate: 5
         extensions: ".php,.asp,.aspx,.jsp,.html,.js,.json,.xml,.txt,.bak,.old,.conf,.sql,.log"
       - tool: nikto
-        timeout: 600
+        timeout: 900
         tuning: "1234567890abc"
+        pause: 2
     parallel: true
   - name: active_scan
     tools:
       - tool: zap
         mode: full
-        timeout: 1800
+        timeout: 2400
+        delay_ms: 500
         ajax_spider: true
   - name: targeted
     tools:
       - tool: nuclei
         severity_filter: critical,high,medium,low
-        timeout: 1200
+        timeout: 1800
+        rate_limit: 5
+        bulk_size: 2
         templates: []
       - tool: sqlmap
         level: 3
         risk: 2
-        timeout: 1200
+        timeout: 1800
+        delay: 2
+        threads: 1
     parallel: true

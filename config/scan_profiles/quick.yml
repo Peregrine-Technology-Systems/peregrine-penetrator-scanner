@@ -1,6 +1,7 @@
 name: quick
 description: "Fast baseline scan - ZAP baseline + Nuclei critical templates only"
 estimated_duration_minutes: 10
+rate_limit: 10
 phases:
   - name: discovery
     tools: []
@@ -9,9 +10,12 @@ phases:
       - tool: zap
         mode: baseline
         timeout: 300
+        delay_ms: 100
   - name: targeted
     tools:
       - tool: nuclei
         severity_filter: critical,high
         timeout: 300
+        rate_limit: 10
+        bulk_size: 5
         templates: []

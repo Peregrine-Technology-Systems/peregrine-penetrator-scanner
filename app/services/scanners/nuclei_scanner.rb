@@ -25,6 +25,8 @@ module Scanners
       cmd = "nuclei -l #{urls_file} -jsonl -o #{output_file} -silent"
 
       cmd += " -severity #{tool_config[:severity_filter]}" if tool_config[:severity_filter]
+      cmd += " -rate-limit #{tool_config[:rate_limit]}" if tool_config[:rate_limit]
+      cmd += " -bulk-size #{tool_config[:bulk_size]}" if tool_config[:bulk_size]
 
       tool_config[:templates].each { |t| cmd += " -t #{Shellwords.escape(t)}" } if tool_config[:templates].present?
 

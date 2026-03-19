@@ -24,13 +24,16 @@ module Scanners
     private
 
     def build_command(mode, url, output_file)
+      delay_ms = tool_config[:delay_ms] || 0
+      delay_flag = delay_ms.positive? ? " -z \"-config scanner.delayInMs=#{delay_ms}\"" : ''
+
       case mode
       when 'baseline'
-        "zap-baseline.py -t #{Shellwords.escape(url)} -J #{output_file} -I"
+        "zap-baseline.py -t #{Shellwords.escape(url)} -J #{output_file} -I#{delay_flag}"
       when 'full'
-        "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{output_file} -I"
+        "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{output_file} -I#{delay_flag}"
       when 'api'
-        "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{output_file} -I"
+        "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{output_file} -I#{delay_flag}"
       else
         raise ArgumentError, "Unknown ZAP mode: #{mode}"
       end

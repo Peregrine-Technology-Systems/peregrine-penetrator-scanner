@@ -33,8 +33,11 @@ module Scanners
       level = tool_config[:level] || 1
       risk = tool_config[:risk] || 1
 
+      delay = tool_config[:delay] || 1
+      threads = tool_config[:threads] || 1
+
       "sqlmap -u #{Shellwords.escape(url)} --batch --level=#{level} --risk=#{risk} " \
-        "--output-dir=#{output_dir_path} --forms --crawl=2 --threads=4"
+        "--output-dir=#{output_dir_path} --forms --crawl=2 --threads=#{threads} --delay=#{delay}"
     end
 
     def parse_results(output_dir_path, url)
