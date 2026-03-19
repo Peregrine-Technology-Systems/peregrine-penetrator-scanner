@@ -50,9 +50,9 @@ class ScannerBase
     stderr = ''
     status = nil
 
-    Open3.popen3(command) do |_stdin, out, err, wait_thr|
+    Open3.popen3(command) do |stdin_stream, out, err, wait_thr|
       pid = wait_thr.pid
-      _stdin.close
+      stdin_stream.close
 
       heartbeat = start_heartbeat(pid)
 
@@ -63,18 +63,16 @@ class ScannerBase
           status = wait_thr.value
         end
       rescue Timeout::Error
-        Process.kill('TERM', pid) rescue nil
-        sleep(1)
-        Process.kill('KILL', pid) rescue nil
-        return { stdout: stdout, stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
+        kill_process(pid)
+        return { stdout:, stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
       ensure
         heartbeat&.kill
       end
     end
 
     {
-      stdout: stdout,
-      stderr: stderr,
+      stdout:,
+      stderr:,
       exit_code: status&.exitstatus,
       success: status&.success? || false
     }
@@ -93,6 +91,19 @@ class ScannerBase
   end
 
   private
+
+  def kill_process(pid)
+    Process.kill('TERM', pid)
+  rescue StandardError
+    nil
+  ensure
+    sleep(1)
+    begin
+      Process.kill('KILL', pid)
+    rescue StandardError
+      nil
+    end
+  end
 
   def start_heartbeat(pid)
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)

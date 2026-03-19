@@ -18,6 +18,11 @@
 - Branch protection updated to require Buildkite status checks
 - Secrets managed via GCP Secret Manager (`web-app-penetration-test--*` in ci-runners-de)
 
+### Code Quality
+- Zero RuboCop offenses across all 94 files (was 33 pre-existing)
+- Report generators refactored: extracted MarkdownFormatters, MarkdownSections, MethodologyContent, MarkdownConverter, ReportStyles, ComponentStyles modules
+- Scanner base and orchestrator methods extracted for clarity
+
 ### Report Fixes
 - Fixed PDF generation: added `texlive-latex-extra` for `soul.sty` package
 - PDF generation now raises error instead of silently saving markdown as `.pdf`
