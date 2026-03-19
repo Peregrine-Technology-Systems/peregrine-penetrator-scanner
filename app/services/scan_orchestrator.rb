@@ -19,7 +19,7 @@ class ScanOrchestrator
   end
 
   def execute
-    scan.update!(status: 'running', started_at: Time.current)
+    mark_running
     Rails.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
 
     profile.phases.each do |phase|
@@ -28,8 +28,7 @@ class ScanOrchestrator
     end
 
     FindingNormalizer.new(scan).normalize
-    scan.update!(status: 'completed', completed_at: Time.current,
-                 summary: ScanSummaryBuilder.new(scan).build)
+    mark_completed
     Rails.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
     scan
   rescue StandardError => e
@@ -39,6 +38,15 @@ class ScanOrchestrator
   end
 
   private
+
+  def mark_running
+    scan.update!(status: 'running', started_at: Time.current)
+  end
+
+  def mark_completed
+    scan.update!(status: 'completed', completed_at: Time.current,
+                 summary: ScanSummaryBuilder.new(scan).build)
+  end
 
   def run_phase(phase)
     if phase.parallel && phase.tools.length > 1

@@ -18,16 +18,14 @@ module Scanners
         result = run_command(cmd, timeout: tool_config[:timeout])
 
         # ZAP returns 2 for warnings found (not an error)
-        unless result[:success] || result[:exit_code] == 2
-          return { success: false, error: result[:stderr], findings: [] }
-        end
+        return { success: false, error: result[:stderr], findings: [] } unless result[:success] || result[:exit_code] == 2
       end
 
       # Copy results from ZAP wrk dir to our output dir
       FileUtils.cp(zap_output.to_s, local_output.to_s) if File.exist?(zap_output)
 
       findings = parse_results(local_output)
-      { success: true, findings: findings, output_file: local_output.to_s }
+      { success: true, findings:, output_file: local_output.to_s }
     end
 
     private
@@ -44,9 +42,7 @@ module Scanners
               raise ArgumentError, "Unknown ZAP mode: #{mode}"
             end
 
-      if tool_config[:delay_ms]
-        cmd += " -z \"-config scanner.delayInMs=#{tool_config[:delay_ms]}\""
-      end
+      cmd += " -z \"-config scanner.delayInMs=#{tool_config[:delay_ms]}\"" if tool_config[:delay_ms]
 
       cmd
     end

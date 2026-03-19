@@ -3,6 +3,8 @@ require 'json'
 module ReportGenerators
   class MarkdownReport
     include Helpers
+    include MarkdownFormatters
+    include MarkdownSections
 
     def initialize(scan:, findings:, target:)
       @scan = scan
@@ -53,55 +55,69 @@ module ReportGenerators
     end
 
     def executive_summary_section
-      summary = @scan.summary || {}
-      severity_counts = summary['by_severity'] || {}
-      total = @findings.size
-      critical = severity_counts['critical'].to_i
-      high = severity_counts['high'].to_i
-      medium = severity_counts['medium'].to_i
-      low = severity_counts['low'].to_i
-      info = severity_counts['info'].to_i
-
-      risk_score = [
-        (critical * 25) + (high * 15) + (medium * 8) + (low * 3) + (info * 0.5),
-        100
-      ].min.round
-
-      risk_label = case risk_score
-                   when 0..15 then 'Low'
-                   when 16..40 then 'Moderate'
-                   when 41..65 then 'High'
-                   else 'Critical'
-                   end
-
+      severity_counts = extract_severity_counts
+      risk_score, risk_label = compute_risk_score_and_label(severity_counts)
       tools_used = @findings.map(&:source_tool).compact.uniq
-      duration = format_duration(@scan.duration)
 
       lines = []
       lines << '## Executive Summary'
       lines << ''
       lines << "**Overall Risk Level: #{risk_label}** (Score: #{risk_score}/100)"
       lines << ''
-      lines << '### Key Metrics'
+      lines.concat(metrics_table(severity_counts))
       lines << ''
-      lines << '| Metric | Count |'
-      lines << '|--------|------:|'
-      lines << "| Total Findings | #{total} |"
-      lines << "| Critical | #{critical} |"
-      lines << "| High | #{high} |"
-      lines << "| Medium | #{medium} |"
-      lines << "| Low | #{low} |"
-      lines << "| Informational | #{info} |"
-      lines << ''
-      lines << "**Scan Duration:** #{duration}"
+      lines << "**Scan Duration:** #{format_duration(@scan.duration)}"
       lines << "**Tools Executed:** #{tools_used.join(', ')}" if tools_used.any?
 
-      if summary['executive_summary'].present?
+      executive_text = (@scan.summary || {})['executive_summary']
+      if executive_text.present?
         lines << ''
-        lines << summary['executive_summary'].to_s
+        lines << executive_text.to_s
       end
 
       lines.join("\n")
+    end
+
+    def extract_severity_counts
+      summary = @scan.summary || {}
+      summary['by_severity'] || {}
+    end
+
+    def compute_risk_score_and_label(counts)
+      critical = counts['critical'].to_i
+      high = counts['high'].to_i
+      medium = counts['medium'].to_i
+      low = counts['low'].to_i
+      info = counts['info'].to_i
+
+      score = [
+        (critical * 25) + (high * 15) + (medium * 8) + (low * 3) + (info * 0.5),
+        100
+      ].min.round
+
+      label = case score
+              when 0..15 then 'Low'
+              when 16..40 then 'Moderate'
+              when 41..65 then 'High'
+              else 'Critical'
+              end
+
+      [score, label]
+    end
+
+    def metrics_table(counts)
+      [
+        '### Key Metrics',
+        '',
+        '| Metric | Count |',
+        '|--------|------:|',
+        "| Total Findings | #{@findings.size} |",
+        "| Critical | #{counts['critical'].to_i} |",
+        "| High | #{counts['high'].to_i} |",
+        "| Medium | #{counts['medium'].to_i} |",
+        "| Low | #{counts['low'].to_i} |",
+        "| Informational | #{counts['info'].to_i} |"
+      ]
     end
 
     def findings_summary_section
@@ -114,14 +130,25 @@ module ReportGenerators
       lines << ''
 
       @findings.each_with_index do |f, idx|
-        cwe = f.cwe_id.present? ? " | [#{f.cwe_id}](https://cwe.mitre.org/data/definitions/#{f.cwe_id.to_s.delete_prefix('CWE-')}.html)" : ''
-        lines << "#{idx + 1}. **#{f.severity.upcase}** — #{f.title}"
-        lines << "   - URL: #{f.url}" if f.url.present?
-        lines << "   - Tool: #{f.source_tool}#{cwe}"
-        lines << ''
+        lines.concat(finding_summary_lines(f, idx))
       end
 
       lines.join("\n")
+    end
+
+    def finding_summary_lines(finding, idx)
+      cwe_suffix = if finding.cwe_id.present?
+                     cwe_num = finding.cwe_id.to_s.delete_prefix('CWE-')
+                     " | [#{finding.cwe_id}](https://cwe.mitre.org/data/definitions/#{cwe_num}.html)"
+                   else
+                     ''
+                   end
+      lines = []
+      lines << "#{idx + 1}. **#{finding.severity.upcase}** — #{finding.title}"
+      lines << "   - URL: #{finding.url}" if finding.url.present?
+      lines << "   - Tool: #{finding.source_tool}#{cwe_suffix}"
+      lines << ''
+      lines
     end
 
     MAX_DETAILED_FINDINGS = 50
@@ -144,250 +171,74 @@ module ReportGenerators
         lines << ''
         lines << "### #{idx + 1}. [#{f.severity.upcase}] #{f.title}"
         lines << ''
-        lines << '| Field | Value |'
-        lines << '|-------|-------|'
-        lines << "| Severity | #{f.severity.upcase} |"
-        lines << "| URL | `#{f.url}` |" if f.url.present?
-        lines << "| Tool | #{f.source_tool} |"
-        lines << "| Parameter | `#{f.parameter}` |" if f.parameter.present?
-        lines << "| CWE | [#{f.cwe_id}](https://cwe.mitre.org/data/definitions/#{f.cwe_id.to_s.delete_prefix('CWE-')}.html) |" if f.cwe_id.present?
-        lines << "| CVE | [#{f.cve_id}](https://nvd.nist.gov/vuln/detail/#{f.cve_id}) |" if f.cve_id.present?
-        lines << "| CVSS | #{f.cvss_score} |" if f.cvss_score.present?
-        lines << "| EPSS | #{format_epss(f.epss_score)} |" if f.epss_score.present?
-        if f.kev_known_exploited
-          lines << '| KEV | **ACTIVELY EXPLOITED** |'
-        end
-
-        if f.evidence.present?
-          lines << ''
-          lines << '#### Description / Evidence'
-          lines << ''
-          if f.evidence.is_a?(Hash)
-            desc = f.evidence['description'] || f.evidence['desc']
-            if desc.present?
-              lines << sanitize_text(desc.to_s)
-            else
-              f.evidence.each do |key, val|
-                lines << "**#{key.to_s.titleize}:** #{sanitize_text(val.to_s)}" if val.present?
-              end
-            end
-          else
-            lines << sanitize_text(f.evidence.to_s)
-          end
-        end
-
-        if f.ai_assessment.present?
-          lines << ''
-          lines << '#### AI Assessment'
-          lines << ''
-          if f.ai_assessment.is_a?(Hash)
-            if f.ai_assessment['summary'].present?
-              lines << f.ai_assessment['summary'].to_s
-            end
-            if f.ai_assessment['recommendation'].present?
-              lines << ''
-              lines << '#### Remediation'
-              lines << ''
-              lines << f.ai_assessment['recommendation'].to_s
-            end
-          else
-            lines << f.ai_assessment.to_s
-          end
-        end
+        lines.concat(finding_metadata_table(f))
+        lines.concat(finding_evidence(f))
+        lines.concat(finding_ai_assessment(f))
       end
 
       lines.join("\n")
     end
 
-    def methodology_section
+    def finding_metadata_table(finding)
       lines = []
-      lines << '## Test Methodology'
-      lines << ''
-      lines << methodology_intro
-      lines << ''
-      lines << phase_overview
-      lines << ''
-      lines << tool_descriptions_table
-      lines << ''
-      lines << enrichment_section
-      lines << ''
-      lines << owasp_mapping_section
-
-      lines.join("\n")
+      lines << '| Field | Value |'
+      lines << '|-------|-------|'
+      lines << "| Severity | #{finding.severity.upcase} |"
+      lines << "| URL | `#{finding.url}` |" if finding.url.present?
+      lines << "| Tool | #{finding.source_tool} |"
+      lines << "| Parameter | `#{finding.parameter}` |" if finding.parameter.present?
+      append_cve_metadata(lines, finding)
+      lines
     end
 
-    def appendix_section
-      lines = []
-      lines << '## Appendix'
-      lines << ''
-      lines << '### Tool Versions'
-      lines << ''
-      lines << '| Tool | Version |'
-      lines << '|------|---------|'
-      lines << '| OWASP ZAP | 2.17.0 (latest stable) |'
-      lines << '| Nuclei | 3.7.1 (latest stable) |'
-      lines << '| sqlmap | 1.10.3 (latest stable) |'
-      lines << '| ffuf | 2.1.0 (latest stable) |'
-      lines << '| Nikto | 2.6.0 (latest stable) |'
-      lines << ''
-      lines << '### Scan Configuration'
-      lines << ''
-      lines << "- **Profile:** #{@scan.profile&.titleize || 'Standard'}"
-      lines << "- **Target URLs:** #{@target.url_list.join(', ')}"
-      lines << "- **Started:** #{@scan.started_at&.strftime('%Y-%m-%d %H:%M %Z') || 'N/A'}"
-      lines << "- **Completed:** #{@scan.completed_at&.strftime('%Y-%m-%d %H:%M %Z') || 'N/A'}"
-      lines << "- **Duration:** #{format_duration(@scan.duration)}"
-
-      tool_statuses = @scan.tool_statuses || {}
-      if tool_statuses.any?
-        lines << ''
-        lines << '### Tool Execution Status'
-        lines << ''
-        lines << '| Tool | Status |'
-        lines << '|------|--------|'
-        tool_statuses.each do |name, info|
-          stat = info.is_a?(Hash) ? info['status'] || info[:status] : info.to_s
-          lines << "| #{sanitize(name)} | #{sanitize(stat)} |"
-        end
+    def append_cve_metadata(lines, finding)
+      if finding.cwe_id.present?
+        cwe_num = finding.cwe_id.to_s.delete_prefix('CWE-')
+        lines << "| CWE | [#{finding.cwe_id}](https://cwe.mitre.org/data/definitions/#{cwe_num}.html) |"
       end
-
-      lines << ''
-      lines << '### Disclaimer'
-      lines << ''
-      lines << 'This penetration test was performed with explicit written authorization. '
-      lines << 'The assessment was limited to the agreed-upon scope and test window. '
-      lines << 'Findings represent vulnerabilities identified by automated scanning tools '
-      lines << 'at the time of testing and may not represent a comprehensive view of all '
-      lines << 'security issues. New vulnerabilities may emerge as software is updated or '
-      lines << 'as new attack techniques are discovered.'
-      lines << ''
-      lines << "**#{@brand[:footer_text]}**"
-      lines << ''
-      lines << "*Report generated #{Time.current.strftime('%B %d, %Y at %H:%M %Z')}*"
-      lines << "*Report ID: #{@scan.id}*"
-
-      lines.join("\n")
+      lines << "| CVE | [#{finding.cve_id}](https://nvd.nist.gov/vuln/detail/#{finding.cve_id}) |" if finding.cve_id.present?
+      lines << "| CVSS | #{finding.cvss_score} |" if finding.cvss_score.present?
+      lines << "| EPSS | #{format_epss(finding.epss_score)} |" if finding.epss_score.present?
+      lines << '| KEV | **ACTIVELY EXPLOITED** |' if finding.kev_known_exploited
     end
 
-    # --- Helper methods ---
+    def finding_evidence(finding)
+      return [] if finding.evidence.blank?
 
-    def format_date(time)
-      time&.strftime('%B %d, %Y') || 'N/A'
-    end
-
-    def format_duration(seconds)
-      return 'N/A' unless seconds
-
-      s = seconds.to_i
-      if s > 3600
-        "#{s / 3600}h #{(s % 3600) / 60}m"
-      elsif s > 60
-        "#{s / 60}m #{s % 60}s"
+      lines = ['', '#### Description / Evidence', '']
+      if finding.evidence.is_a?(Hash)
+        lines.concat(finding_evidence_hash(finding.evidence))
       else
-        "#{s}s"
+        lines << sanitize_text(finding.evidence.to_s)
+      end
+      lines
+    end
+
+    def finding_evidence_hash(evidence)
+      desc = evidence['description'] || evidence['desc']
+      return [sanitize_text(desc.to_s)] if desc.present?
+
+      evidence.filter_map do |key, val|
+        "**#{key.to_s.titleize}:** #{sanitize_text(val.to_s)}" if val.present?
       end
     end
 
-    def format_epss(score)
-      return '' unless score
+    def finding_ai_assessment(finding)
+      return [] if finding.ai_assessment.blank?
 
-      "#{(score * 100).round(1)}%"
-    end
-
-    def truncate_url(url, max_length)
-      return '' if url.blank?
-
-      url.length > max_length ? "#{url[0..max_length]}..." : url
-    end
-
-    def escape_pipes(text)
-      return '' if text.blank?
-
-      text.gsub('|', '\\|')
-    end
-
-    def sanitize(text)
-      return '' if text.blank?
-
-      text.to_s
-          .gsub('|', '-')
-          .gsub('\\n', ' ')
-          .gsub("\n", ' ')
-          .gsub(':(', '')
-          .gsub(':)', '')
-          .gsub(/[{}]/, '')
-          .strip
-          .truncate(100)
-    end
-
-    def sanitize_text(text)
-      return '' if text.blank?
-
-      text.to_s
-          .gsub('\\n', ' ')
-          .gsub("\n", ' ')
-          .gsub(':(', '')
-          .gsub(':)', '')
-    end
-
-    def methodology_intro
-      'This assessment employed a multi-layered scanning methodology combining five ' \
-        'specialized security testing tools orchestrated in three phases: discovery, ' \
-        'active scanning, and targeted exploitation testing. Results are aggregated, ' \
-        'deduplicated using SHA-256 fingerprinting, enriched with CVE intelligence ' \
-        '(NVD, CISA KEV, EPSS), and analyzed using AI-assisted triage to prioritize ' \
-        'remediation efforts.'
-    end
-
-    def phase_overview
-      <<~MARKDOWN
-        ### Scanning Phases
-
-        | Phase | Name | Tools | Description |
-        |-------|------|-------|-------------|
-        | 1 | Discovery | ffuf + Nikto | Content discovery and server audit run in parallel to map the attack surface |
-        | 2 | Active Scanning | OWASP ZAP | Full DAST scan with active crawling and attack injection |
-        | 3 | Targeted Testing | Nuclei + sqlmap | Template-based CVE scanning and SQL injection testing in parallel |
-      MARKDOWN
-    end
-
-    def tool_descriptions_table
-      <<~MARKDOWN
-        ### Tool Descriptions
-
-        | Tool | Category | Description |
-        |------|----------|-------------|
-        | OWASP ZAP | DAST Scanner | Full dynamic application security testing -- crawls and tests for XSS, CSRF, SQL injection, misconfigurations |
-        | Nuclei | CVE & Template Scanner | 11,000+ vulnerability signatures, known CVEs, misconfigurations, default credentials |
-        | sqlmap | SQL Injection Specialist | Systematic SQL injection testing across blind, error-based, UNION, stacked, and time-based techniques |
-        | ffuf | Content Discovery | High-speed fuzzer for hidden paths, backup files, admin panels, undocumented API endpoints |
-        | Nikto | Server Audit | 6,700+ checks for outdated software, dangerous HTTP methods, insecure headers |
-      MARKDOWN
-    end
-
-    def enrichment_section
-      <<~MARKDOWN
-        ### Intelligence Enrichment
-
-        - **AI-Assisted Analysis (Claude):** Contextual triage, false-positive assessment, remediation prioritization, and executive summary generation
-        - **CVE Intelligence:** NVD for CVSS scores, CISA KEV for active exploitation status, EPSS for exploitation probability, OSV for open-source risks
-      MARKDOWN
-    end
-
-    def owasp_mapping_section
-      <<~MARKDOWN
-        ### OWASP Top 10 Coverage
-
-        | ID | Category | Tools | Tests |
-        |----|----------|-------|-------|
-        | A01 | Broken Access Control | ZAP | Path traversal, forced browsing, IDOR, CORS misconfiguration |
-        | A02 | Cryptographic Failures | ZAP, Nikto | Insecure transport, weak TLS, missing HSTS |
-        | A03 | Injection | ZAP, sqlmap | XSS (reflected, stored, DOM), SQL injection (all types), command injection |
-        | A05 | Security Misconfiguration | ZAP, Nikto, Nuclei | Missing security headers, directory listing, verbose errors, default configs |
-        | A06 | Vulnerable Components | Nuclei | Known CVE detection across 11,000+ templates |
-        | A07 | Auth Failures | ZAP | Session management, insecure cookies, login over HTTP |
-        | A09 | Logging & Monitoring | ZAP, Nikto | Information leakage, stack traces, version disclosure |
-      MARKDOWN
+      lines = ['', '#### AI Assessment', '']
+      if finding.ai_assessment.is_a?(Hash)
+        lines << finding.ai_assessment['summary'].to_s if finding.ai_assessment['summary'].present?
+        if finding.ai_assessment['recommendation'].present?
+          lines << ''
+          lines << '#### Remediation'
+          lines << ''
+          lines << finding.ai_assessment['recommendation'].to_s
+        end
+      else
+        lines << finding.ai_assessment.to_s
+      end
+      lines
     end
   end
 end

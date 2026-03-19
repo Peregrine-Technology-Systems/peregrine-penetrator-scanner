@@ -16,6 +16,25 @@ RSpec.describe AiAnalyzer do
     { 'content' => [{ 'text' => text }] }
   end
 
+  def triage_response_json
+    [
+      {
+        'false_positive_likelihood' => 'low',
+        'business_impact' => 'Data theft possible',
+        'priority' => 'immediate',
+        'remediation' => 'Sanitize input',
+        'attack_chain' => 'Chain with SQLi'
+      },
+      {
+        'false_positive_likelihood' => 'low',
+        'business_impact' => 'Full database compromise',
+        'priority' => 'immediate',
+        'remediation' => 'Use parameterized queries',
+        'attack_chain' => 'Direct exploitation'
+      }
+    ]
+  end
+
   describe '#triage_findings' do
     let(:scan) { create(:scan, :running) }
     let(:target) { scan.target }
@@ -29,28 +48,11 @@ RSpec.describe AiAnalyzer do
     end
 
     it 'sends findings to Claude and updates ai_assessment' do
-      response_json = [
-        {
-          'false_positive_likelihood' => 'low',
-          'business_impact' => 'Data theft possible',
-          'priority' => 'immediate',
-          'remediation' => 'Sanitize input',
-          'attack_chain' => 'Chain with SQLi'
-        },
-        {
-          'false_positive_likelihood' => 'low',
-          'business_impact' => 'Full database compromise',
-          'priority' => 'immediate',
-          'remediation' => 'Use parameterized queries',
-          'attack_chain' => 'Direct exploitation'
-        }
-      ]
-
-      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response(response_json.to_json))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response(triage_response_json.to_json))
 
       analyzer.triage_findings(findings, target)
-
       findings.each(&:reload)
+
       expect(findings.first.ai_assessment['priority']).to eq('immediate')
       expect(findings.last.ai_assessment['remediation']).to eq('Use parameterized queries')
     end
