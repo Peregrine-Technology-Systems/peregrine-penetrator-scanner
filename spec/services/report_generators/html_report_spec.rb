@@ -58,7 +58,7 @@ RSpec.describe ReportGenerators::HtmlReport do
 
     it 'converts markdown headers to HTML headers' do
       expect(output).to include('<h2>')
-      expect(output).to include('Executive Summary')
+      expect(output).to include('Metrics')
     end
 
     it 'converts bold text to strong tags' do
@@ -138,13 +138,13 @@ RSpec.describe ReportGenerators::HtmlReport do
       before do
         allow(report).to receive(:pandoc_available?).and_return(true)
         allow(Open3).to receive(:capture3).and_return(
-          ['<h2>Executive Summary</h2>', '', instance_double(Process::Status, success?: true)]
+          ['<h2>Metrics</h2>', '', instance_double(Process::Status, success?: true)]
         )
       end
 
       it 'uses pandoc output' do
         output = report.generate
-        expect(output).to include('Executive Summary')
+        expect(output).to include('Metrics')
       end
     end
 
@@ -159,7 +159,7 @@ RSpec.describe ReportGenerators::HtmlReport do
       it 'falls back to basic conversion' do
         output = report.generate
         expect(output).to include('<h2>')
-        expect(output).to include('Executive Summary')
+        expect(output).to include('Metrics')
       end
     end
   end
