@@ -28,6 +28,9 @@ module Scanners
 
       tool_config[:templates].each { |t| cmd += " -t #{Shellwords.escape(t)}" } if tool_config[:templates].present?
 
+      cmd += " -rate-limit #{tool_config[:rate_limit]}" if tool_config[:rate_limit]
+      cmd += " -bulk-size #{tool_config[:bulk_size]}" if tool_config[:bulk_size]
+
       cmd
     end
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Scan Reliability
+- Rate limiting on all scan profiles (quick: 10 req/s, standard: 8 req/s, thorough: 5 req/s) based on nginx 10 req/s limit
+- Heartbeat logging during long-running tool execution (logs elapsed time every 60s)
+- AI analysis capped at top 50 findings for triage (prevents hanging on large result sets)
+
 ### Docker & Deployment
 - Fixed OWASP ZAP integration: use official ghcr.io image, `/zap/wrk` output directory, python3 symlink, pyyaml dependency
 - Updated tool versions: ZAP 2.17.0, Nuclei 3.7.1, sqlmap 1.10.3, ffuf 2.1.0, Nikto 2.6.0
