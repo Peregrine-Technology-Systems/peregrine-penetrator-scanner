@@ -15,7 +15,8 @@ module ReportGenerators
 
     def generate
       sections = []
-      sections << executive_summary_section
+      sections << metrics_section
+      sections << executive_summary_text
       sections << findings_summary_section
       sections << '\newpage'
       sections << detailed_findings_section
@@ -54,30 +55,28 @@ module ReportGenerators
       MARKDOWN
     end
 
-    def executive_summary_section
+    def metrics_section
       severity_counts = extract_severity_counts
       risk_score, risk_label = compute_risk_score_and_label(severity_counts)
       tools_used = @findings.map(&:source_tool).compact.uniq
 
-      lines = []
-      lines << '## Executive Summary'
-      lines << ''
-      lines << "**Version:** #{report_version}"
-      lines << ''
+      lines = ['## Metrics', '', "**Version:** #{report_version}", '']
       lines << "**Overall Risk Level: #{risk_label}** (Score: #{risk_score}/100)"
       lines << ''
       lines.concat(metrics_table(severity_counts))
       lines << ''
+      lines << '*Note: Informational findings are available at higher service tiers via the online portal.*'
+      lines << ''
       lines << "**Scan Duration:** #{format_duration(@scan.duration)}"
       lines << "**Tools Executed:** #{tools_used.join(', ')}" if tools_used.any?
-
-      executive_text = (@scan.summary || {})['executive_summary']
-      if executive_text.present?
-        lines << ''
-        lines << executive_text.to_s
-      end
-
       lines.join("\n")
+    end
+
+    def executive_summary_text
+      text = (@scan.summary || {})['executive_summary']
+      return nil if text.blank?
+
+      "## Executive Summary\n\n#{text}"
     end
 
     def extract_severity_counts
@@ -117,8 +116,7 @@ module ReportGenerators
         "| Critical | #{counts['critical'].to_i} |",
         "| High | #{counts['high'].to_i} |",
         "| Medium | #{counts['medium'].to_i} |",
-        "| Low | #{counts['low'].to_i} |",
-        "| Informational | #{counts['info'].to_i} |"
+        "| Low | #{counts['low'].to_i} |"
       ]
     end
 

@@ -33,8 +33,10 @@
 - Fixed PDF generation: removed unused `soul.sty`, switched to DejaVu Sans font (available in container)
 - PDF generation now raises error instead of silently saving markdown as `.pdf`
 - Added Peregrine logo to HTML report header
-- Info-level findings filtered from reports (critical/high/medium/low only)
+- Info-level findings filtered from reports with portal upsell note
 - PDF generation raises error on failure instead of saving markdown as .pdf
+- Report section renamed from Executive Summary to Metrics; AI summary separate
+- Cover and back page: Peregrine gold branding
 - Email notification: fixed auth method (`:login`), added 10s timeout
 
 ### Scan Reliability

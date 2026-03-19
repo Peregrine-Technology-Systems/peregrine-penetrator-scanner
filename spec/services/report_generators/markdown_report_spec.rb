@@ -44,7 +44,7 @@ RSpec.describe ReportGenerators::MarkdownReport do
     end
 
     it 'includes the executive summary section' do
-      expect(output).to include('## Executive Summary')
+      expect(output).to include('## Metrics')
       expect(output).to include('Overall Risk Level')
     end
 
