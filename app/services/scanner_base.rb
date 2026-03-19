@@ -54,6 +54,8 @@ class ScannerBase
       pid = wait_thr.pid
       _stdin.close
 
+      heartbeat = start_heartbeat(pid)
+
       begin
         Timeout.timeout(timeout) do
           stdout = out.read
@@ -65,6 +67,8 @@ class ScannerBase
         sleep(1)
         Process.kill('KILL', pid) rescue nil
         return { stdout: stdout, stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
+      ensure
+        heartbeat&.kill
       end
     end
 
@@ -89,6 +93,24 @@ class ScannerBase
   end
 
   private
+
+  def start_heartbeat(pid)
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Thread.new do
+      loop do
+        sleep(60)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+        minutes = (elapsed / 60).floor
+        seconds = (elapsed % 60).floor
+        begin
+          Process.kill(0, pid)
+          logger.info("[#{tool_name}] Still running... (elapsed: #{minutes}m #{seconds}s)")
+        rescue Errno::ESRCH
+          break
+        end
+      end
+    end
+  end
 
   def update_status(status, error = nil)
     statuses = scan.tool_statuses || {}
