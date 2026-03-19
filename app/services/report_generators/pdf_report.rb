@@ -33,12 +33,12 @@ module ReportGenerators
       if status.success? && File.exist?(pdf_path)
         File.binread(pdf_path)
       else
-        Rails.logger.warn("[PdfReport] pandoc failed (exit #{status.exitstatus}): #{stderr}")
-        md_content
+        Rails.logger.error("[PdfReport] pandoc failed (exit #{status.exitstatus}): #{stderr}")
+        raise "PDF generation failed: #{stderr.lines.first&.strip}"
       end
     rescue StandardError => e
-      Rails.logger.warn("[PdfReport] PDF generation failed (#{e.message}), falling back to Markdown")
-      @md_generator.generate
+      Rails.logger.error("[PdfReport] PDF generation failed: #{e.message}")
+      raise
     end
 
     def filename

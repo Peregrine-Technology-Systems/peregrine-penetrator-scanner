@@ -12,7 +12,7 @@ class ReportGenerator
 
   def initialize(scan)
     @scan = scan
-    @findings = scan.findings.non_duplicate.order(severity_order)
+    @findings = scan.findings.non_duplicate.where.not(severity: 'info').order(severity_order)
     @target = scan.target
   end
 

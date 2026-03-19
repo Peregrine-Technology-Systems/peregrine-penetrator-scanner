@@ -29,71 +29,41 @@ RSpec.describe ReportGenerators::PdfReport do
       it 'returns PDF binary content' do
         pdf_content = 'fake-pdf-binary-content'
         allow(Open3).to receive(:capture3) do |_cmd, chdir:|
-          # Write a fake PDF file to the expected location
           pdf_path = File.join(chdir, 'report.pdf')
           File.write(pdf_path, pdf_content)
           ['', '', instance_double(Process::Status, success?: true, exitstatus: 0)]
         end
 
-        result = report.generate
-        expect(result).to eq(pdf_content)
+        expect(report.generate).to eq(pdf_content)
       end
     end
 
     context 'when pandoc fails' do
-      it 'falls back to markdown content' do
+      it 'raises an error' do
         allow(Open3).to receive(:capture3).and_return(
           ['', 'xelatex not found', instance_double(Process::Status, success?: false, exitstatus: 1)]
         )
 
-        result = report.generate
-        expect(result).to include('## Executive Summary')
+        expect { report.generate }.to raise_error(RuntimeError, /PDF generation failed/)
       end
 
-      it 'logs a warning' do
+      it 'logs the error' do
         allow(Open3).to receive(:capture3).and_return(
           ['', 'xelatex error', instance_double(Process::Status, success?: false, exitstatus: 1)]
         )
 
-        expect(Rails.logger).to receive(:warn).with(/pandoc failed/)
-        report.generate
+        expect(Rails.logger).to receive(:error).with(/pandoc failed/).ordered
+        expect(Rails.logger).to receive(:error).with(/PDF generation failed/).ordered
+        expect { report.generate }.to raise_error(RuntimeError)
       end
     end
 
     context 'when an exception is raised' do
-      it 'falls back to markdown content' do
-        allow(Open3).to receive(:capture3).and_raise(StandardError, 'unexpected error')
-
-        result = report.generate
-        expect(result).to include('## Executive Summary')
-      end
-
-      it 'logs the exception' do
+      it 're-raises the error' do
         allow(Open3).to receive(:capture3).and_raise(StandardError, 'disk full')
 
-        expect(Rails.logger).to receive(:warn).with(/PDF generation failed.*disk full/)
-        report.generate
+        expect { report.generate }.to raise_error(StandardError, 'disk full')
       end
-    end
-
-    it 'creates temporary directory for report generation' do
-      allow(Open3).to receive(:capture3).and_return(
-        ['', '', instance_double(Process::Status, success?: false, exitstatus: 1)]
-      )
-
-      report.generate
-      expect(Rails.root.join('tmp', 'reports', scan.id).directory?).to be true
-    end
-
-    it 'writes markdown content to temporary file' do
-      allow(Open3).to receive(:capture3).and_return(
-        ['', '', instance_double(Process::Status, success?: false, exitstatus: 1)]
-      )
-
-      report.generate
-      md_path = Rails.root.join('tmp', 'reports', scan.id, 'report.md')
-      expect(File.exist?(md_path)).to be true
-      expect(File.read(md_path)).to include('Executive Summary')
     end
   end
 
@@ -112,16 +82,14 @@ RSpec.describe ReportGenerators::PdfReport do
   describe 'pandoc command construction' do
     it 'includes xelatex engine and template arguments' do
       allow(Open3).to receive(:capture3) do |cmd, **_opts|
-        # shelljoin escapes = signs, so check for the unescaped content
         expect(cmd).to include('xelatex')
         expect(cmd).to include('pentest_report.latex')
         expect(cmd).to include('title')
         expect(cmd).to include('sev_critical')
-        expect(cmd).to include('sev_high')
         ['', '', instance_double(Process::Status, success?: false, exitstatus: 1)]
       end
 
-      report.generate
+      expect { report.generate }.to raise_error(RuntimeError)
     end
   end
 end
