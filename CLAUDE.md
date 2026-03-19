@@ -54,6 +54,10 @@ NotificationService (Slack webhook + email)
 - **Finding** — belongs_to Scan, source_tool, severity, title, url, cwe_id, fingerprint, evidence (JSON)
 - **Report** — belongs_to Scan, format (json/html/pdf), gcs_path, status
 
+## CI/CD
+
+CI runs on Buildkite (not GitHub Actions). Pipeline config: `.buildkite/pipeline.yml`. Pipeline slug: `web-app-penetration-test`, org: `chaudhuri-and-co`. Secrets are in GCP Secret Manager in the `ci-runners-de` project, following the `{pipeline-slug}--{secret-name}` naming convention.
+
 ## Security & Ethics
 
 - All tools in this repo are for **authorized testing only** — explicit written permission required before use against any target.
