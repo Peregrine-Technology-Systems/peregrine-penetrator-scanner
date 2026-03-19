@@ -8,6 +8,8 @@
 - AI analysis capped at top 50 findings for triage (prevents hanging on large result sets)
 
 ### Docker & Deployment
+- Added pandoc + texlive-xetex to Docker image for in-container PDF generation
+- Fixed ZAP startup: symlink `/zap` → `/opt/zap` (scripts hardcode `/zap/zap-x.sh`)
 - Fixed OWASP ZAP integration: use official ghcr.io image, `/zap/wrk` output directory, python3 symlink, pyyaml dependency
 - Updated tool versions: ZAP 2.17.0, Nuclei 3.7.1, sqlmap 1.10.3, ffuf 2.1.0, Nikto 2.6.0
 - Fixed Nikto Perl dependencies (`libjson-perl`, `libxml-writer-perl`)
@@ -24,6 +26,12 @@
 - Colored section headers, footer rules, project title in footer
 - Widow/orphan control, page breaks before major sections
 - Test methodology appendix with OWASP Top 10 mapping
+- TikZ severity donut chart with color legend on dedicated page
+- Clickable CWE references (linked to cwe.mitre.org)
+- Clickable CVE references (linked to nvd.nist.gov)
+- Detailed findings capped at top 50 per report (full data in JSON)
+- Sanitized tool status output and evidence text for LaTeX compatibility
+- License changed from MIT to Business Source License 1.1
 - TikZ severity donut chart with color legend on dedicated page
 - Clickable CWE references (linked to cwe.mitre.org)
 - Clickable CVE references (linked to nvd.nist.gov)
