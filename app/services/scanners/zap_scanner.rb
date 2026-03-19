@@ -33,16 +33,22 @@ module Scanners
     private
 
     def build_command(mode, url, report_name)
-      case mode
-      when 'baseline'
-        "zap-baseline.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
-      when 'full'
-        "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
-      when 'api'
-        "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
-      else
-        raise ArgumentError, "Unknown ZAP mode: #{mode}"
+      cmd = case mode
+            when 'baseline'
+              "zap-baseline.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
+            when 'full'
+              "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
+            when 'api'
+              "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
+            else
+              raise ArgumentError, "Unknown ZAP mode: #{mode}"
+            end
+
+      if tool_config[:delay_ms]
+        cmd += " -z \"-config scanner.delayInMs=#{tool_config[:delay_ms]}\""
       end
+
+      cmd
     end
 
     def parse_results(output_file)
