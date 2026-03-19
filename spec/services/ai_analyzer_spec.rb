@@ -1,8 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe AiAnalyzer do
-  let(:mock_client) { instance_double('Anthropic::Client') }
-  let(:mock_messages) { instance_double('Anthropic::Client::Messages') }
+  let(:mock_anthropic_client) { instance_double(Anthropic::Client) }
   let(:analyzer) { described_class.new }
 
   before do
@@ -10,13 +9,11 @@ RSpec.describe AiAnalyzer do
     allow(ENV).to receive(:fetch).with('ANTHROPIC_API_KEY').and_return('test-api-key')
     allow(ENV).to receive(:fetch).with('CLAUDE_MODEL', 'claude-sonnet-4-20250514').and_return('claude-sonnet-4-20250514')
 
-    allow(Anthropic::Client).to receive(:new).and_return(mock_client)
-    allow(mock_client).to receive(:messages).and_return(mock_messages)
+    allow(Anthropic::Client).to receive(:new).and_return(mock_anthropic_client)
   end
 
   def mock_claude_response(text)
-    content_block = instance_double('Anthropic::ContentBlock', text: text)
-    instance_double('Anthropic::Response', content: [content_block])
+    { 'content' => [{ 'text' => text }] }
   end
 
   describe '#triage_findings' do
@@ -49,7 +46,7 @@ RSpec.describe AiAnalyzer do
         }
       ]
 
-      allow(mock_messages).to receive(:create).and_return(mock_claude_response(response_json.to_json))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response(response_json.to_json))
 
       analyzer.triage_findings(findings, target)
 
@@ -60,7 +57,7 @@ RSpec.describe AiAnalyzer do
 
     it 'handles JSON wrapped in markdown code blocks' do
       response_text = "```json\n[{\"false_positive_likelihood\":\"high\",\"business_impact\":\"None\",\"priority\":\"accept_risk\",\"remediation\":\"N/A\",\"attack_chain\":\"None\"}]\n```"
-      allow(mock_messages).to receive(:create).and_return(mock_claude_response(response_text))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response(response_text))
 
       analyzer.triage_findings([findings.first], target)
 
@@ -69,13 +66,13 @@ RSpec.describe AiAnalyzer do
     end
 
     it 'handles API failures gracefully' do
-      allow(mock_messages).to receive(:create).and_raise(StandardError, 'API rate limit exceeded')
+      allow(mock_anthropic_client).to receive(:messages).and_raise(StandardError, 'API rate limit exceeded')
 
       expect { analyzer.triage_findings(findings, target) }.not_to raise_error
     end
 
     it 'handles invalid JSON response gracefully' do
-      allow(mock_messages).to receive(:create).and_return(mock_claude_response('not valid json'))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response('not valid json'))
 
       expect { analyzer.triage_findings(findings, target) }.not_to raise_error
     end
@@ -96,7 +93,7 @@ RSpec.describe AiAnalyzer do
 
     it 'generates and saves executive summary' do
       summary_text = 'The overall security posture is concerning...'
-      allow(mock_messages).to receive(:create).and_return(mock_claude_response(summary_text))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response(summary_text))
 
       result = analyzer.generate_executive_summary(scan)
 
@@ -106,7 +103,7 @@ RSpec.describe AiAnalyzer do
     end
 
     it 'merges summary with existing summary data' do
-      allow(mock_messages).to receive(:create).and_return(mock_claude_response('Executive summary here'))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response('Executive summary here'))
 
       analyzer.generate_executive_summary(scan)
 
@@ -116,7 +113,7 @@ RSpec.describe AiAnalyzer do
     end
 
     it 'handles API failure gracefully and returns nil' do
-      allow(mock_messages).to receive(:create).and_raise(StandardError, 'API down')
+      allow(mock_anthropic_client).to receive(:messages).and_raise(StandardError, 'API down')
 
       result = analyzer.generate_executive_summary(scan)
 
@@ -144,7 +141,7 @@ RSpec.describe AiAnalyzer do
         { 'false_positive_likelihood' => 'low', 'business_impact' => 'High', 'priority' => 'immediate', 'remediation' => 'Fix XSS', 'attack_chain' => 'N/A' },
         { 'false_positive_likelihood' => 'medium', 'business_impact' => 'Medium', 'priority' => 'short_term', 'remediation' => 'Fix disclosure', 'attack_chain' => 'N/A' }
       ]
-      allow(mock_messages).to receive(:create)
+      allow(mock_anthropic_client).to receive(:messages)
         .and_return(
           mock_claude_response(triage_response.to_json),
           mock_claude_response('Executive summary text')
@@ -167,7 +164,7 @@ RSpec.describe AiAnalyzer do
         'api_targets' => [],
         'misconfig_targets' => []
       }
-      allow(mock_messages).to receive(:create).and_return(mock_claude_response(suggestions.to_json))
+      allow(mock_anthropic_client).to receive(:messages).and_return(mock_claude_response(suggestions.to_json))
 
       result = analyzer.suggest_additional_tests(scan, ['https://example.com/api/users'])
 
@@ -175,7 +172,7 @@ RSpec.describe AiAnalyzer do
     end
 
     it 'returns empty hash on failure' do
-      allow(mock_messages).to receive(:create).and_raise(StandardError, 'API error')
+      allow(mock_anthropic_client).to receive(:messages).and_raise(StandardError, 'API error')
 
       result = analyzer.suggest_additional_tests(scan, [])
 

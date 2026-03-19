@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Cloud Development Environment
+- GCP VM-based dev environment (`./cloud/dev` CLI) for remote Docker builds and scans
+- 200GB persistent data disk for Docker layer cache, BuildKit cache, and scan results
+- Differential tar sync for efficient code transfer to VM
+- Auto-idle shutdown after 10 minutes of inactivity
+- Separate GCP project (`peregrine-pentest-dev`) with dedicated service account
+
+### CI/CD Pipeline
+- Fixed CI trigger branch name (`develop` → `development`)
+- Auto-merge for development and staging PRs after CI passes
+- Promotion workflow: development → staging (auto-merge) → main (manual)
+- Docker image build on staging branch (not just main)
+- Branch protection with required `test` status check on all branches
+- Removed duplicate lint job
+
+### Report Fixes
+- Fixed PDF generation: added `texlive-latex-extra` for `soul.sty` package
+- PDF generation now raises error instead of silently saving markdown as `.pdf`
+- Added Peregrine logo to HTML report header
+- Info-level findings filtered from reports (critical/high/medium/low only)
+- Email notification: fixed auth method (`:login`), added 10s timeout
+
 ### Scan Reliability
 - Rate limiting on all scan profiles (quick: 10 req/s, standard: 8 req/s, thorough: 5 req/s) based on nginx 10 req/s limit
 - Heartbeat logging during long-running tool execution (logs elapsed time every 60s)

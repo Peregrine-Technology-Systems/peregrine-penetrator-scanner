@@ -5,7 +5,7 @@ RSpec.describe Scanners::NucleiScanner do
   let(:scan) { create(:scan, :running, target: target) }
   let(:tool_config) { { timeout: 600 } }
   let(:scanner) { described_class.new(scan, tool_config) }
-  let(:success_status) { instance_double(Process::Status, exitstatus: 0, success?: true) }
+  let(:success_result) { { stdout: '', stderr: '', exit_code: 0, success: true } }
 
   describe '#tool_name' do
     it 'returns nuclei' do
@@ -15,7 +15,7 @@ RSpec.describe Scanners::NucleiScanner do
 
   describe '#run' do
     before do
-      allow(Open3).to receive(:capture3).and_return(['', '', success_status])
+      allow(scanner).to receive(:run_command).and_return(success_result)
       allow(ResultParsers::NucleiParser).to receive_message_chain(:new, :parse).and_return([])
     end
 
@@ -26,11 +26,11 @@ RSpec.describe Scanners::NucleiScanner do
     end
 
     it 'builds the correct nuclei command' do
-      expect(Open3).to receive(:capture3) do |cmd, **_opts|
+      expect(scanner).to receive(:run_command) do |cmd, **_opts|
         expect(cmd).to include('nuclei -l')
         expect(cmd).to include('-jsonl')
         expect(cmd).to include('-silent')
-        ['', '', success_status]
+        success_result
       end
 
       scanner.run
@@ -40,9 +40,9 @@ RSpec.describe Scanners::NucleiScanner do
       let(:tool_config) { { severity_filter: 'critical,high', timeout: 600 } }
 
       it 'includes severity flag' do
-        expect(Open3).to receive(:capture3) do |cmd, **_opts|
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
           expect(cmd).to include('-severity critical,high')
-          ['', '', success_status]
+          success_result
         end
 
         scanner.run
@@ -53,9 +53,9 @@ RSpec.describe Scanners::NucleiScanner do
       let(:tool_config) { { templates: ['/path/to/template.yaml'], timeout: 600 } }
 
       it 'includes template flags' do
-        expect(Open3).to receive(:capture3) do |cmd, **_opts|
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
           expect(cmd).to include('-t /path/to/template.yaml')
-          ['', '', success_status]
+          success_result
         end
 
         scanner.run
@@ -76,8 +76,8 @@ RSpec.describe Scanners::NucleiScanner do
     end
 
     it 'always returns success even if command fails' do
-      failure_status = instance_double(Process::Status, exitstatus: 1, success?: false)
-      allow(Open3).to receive(:capture3).and_return(['', '', failure_status])
+      failure_result = { stdout: '', stderr: '', exit_code: 1, success: false }
+      allow(scanner).to receive(:run_command).and_return(failure_result)
 
       result = scanner.run
       expect(result[:success]).to be true
