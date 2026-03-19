@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FAILED=0
+
+# ============================================================
+# DOCS-ONLY BYPASS: skip tests/coverage if only docs changed
+# ============================================================
+ALL_STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+CODE_FILES=$(echo "$ALL_STAGED" | grep -E '\.(rb|rake|yml|yaml|erb|latex|Gemfile)$' | grep -v 'spec/' || true)
+DOCS_ONLY=false
+if [ -z "$CODE_FILES" ]; then
+  DOCS_ONLY=true
+  echo "📝 Docs-only commit — skipping tests and coverage"
+fi
+
+# ============================================================
+# 1. RELEASE_NOTES.md must be updated if code files changed
+# ============================================================
+CODE_CHANGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(rb|yml|yaml|rake|erb|latex)$' | grep -v 'spec/' || true)
+NOTES_CHANGED=$(git diff --cached --name-only | grep 'RELEASE_NOTES.md' || true)
+
+if [ -n "$CODE_CHANGED" ] && [ -z "$NOTES_CHANGED" ]; then
+  echo "❌ RELEASE_NOTES.md not updated"
+  echo "   Code files changed but RELEASE_NOTES.md was not modified."
+  echo "   Add a line under '## Unreleased' describing your change."
+  echo ""
+  echo "   Changed files:"
+  echo "$CODE_CHANGED" | sed 's/^/     /'
+  echo ""
+  FAILED=1
+fi
+
+# ============================================================
+# 2. All tests must pass (skip for docs-only)
+# ============================================================
+if [ "$DOCS_ONLY" = false ]; then
+  echo "Running tests..."
+  if ! bundle exec rspec --format progress --no-color 2>/dev/null; then
+    echo "❌ Tests failed"
+    echo "   All tests must pass before committing."
+    FAILED=1
+  else
+    echo "✅ Tests passed"
+  fi
+
+  # ============================================================
+  # 3. Coverage must be >= 90% (skip for docs-only)
+  # ============================================================
+  COVERAGE=$(grep -o 'Line Coverage: [0-9.]*%' coverage/index.html 2>/dev/null | grep -o '[0-9.]*' || echo "0")
+  if [ -n "$COVERAGE" ]; then
+    COVERAGE_INT=${COVERAGE%.*}
+    if [ "$COVERAGE_INT" -lt 90 ]; then
+      echo "❌ Coverage ${COVERAGE}% is below 90% minimum"
+      FAILED=1
+    else
+      echo "✅ Coverage: ${COVERAGE}%"
+    fi
+  fi
+fi
+
+# ============================================================
+# 4. PDF generation from Markdown (if .md files changed)
+# ============================================================
+if command -v pandoc &>/dev/null; then
+  CHANGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | grep -v 'CLAUDE.md' | grep -v '.github/' || true)
+  if [ -n "$CHANGED_MD" ]; then
+    if [ -x /usr/libexec/path_helper ]; then
+      eval "$(/usr/libexec/path_helper)"
+    fi
+    if command -v xelatex &>/dev/null; then
+      mkdir -p docs/pdf
+      GENERATED=0
+      for md_file in $CHANGED_MD; do
+        basename=$(basename "$md_file" .md)
+        dirname=$(dirname "$md_file")
+        if [ "$dirname" != "." ]; then
+          pdf_name="${dirname//\//-}-${basename}.pdf"
+        else
+          pdf_name="${basename}.pdf"
+        fi
+        pdf_path="docs/pdf/${pdf_name}"
+        pandoc "$md_file" -o "$pdf_path" --pdf-engine=xelatex \
+          -V geometry:margin=1in -V mainfont=Helvetica -V monofont=Menlo \
+          -V fontsize=11pt -V colorlinks=true --highlight-style=tango \
+          2>/dev/null && git add "$pdf_path" && GENERATED=$((GENERATED + 1)) || true
+      done
+      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s)"
+    fi
+  fi
+fi
+
+# ============================================================
+# Result
+# ============================================================
+if [ "$FAILED" -ne 0 ]; then
+  echo ""
+  echo "Pre-commit checks failed. Fix the issues above and try again."
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed"
