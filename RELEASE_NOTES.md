@@ -30,7 +30,7 @@
 - Cloud dev scan passes commit hash as VERSION env var
 
 ### Report Fixes
-- Fixed PDF generation: added `texlive-latex-extra` for `soul.sty` package
+- Fixed PDF generation: added `texlive-latex-extra`, removed unused `soul.sty` dependency
 - PDF generation now raises error instead of silently saving markdown as `.pdf`
 - Added Peregrine logo to HTML report header
 - Info-level findings filtered from reports (critical/high/medium/low only)
