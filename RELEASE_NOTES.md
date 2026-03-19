@@ -19,11 +19,14 @@
 - New Markdown report generator (`ReportGenerators::MarkdownReport`)
 - Publication-quality PDF reports via pandoc/xelatex with custom LaTeX template
 - Branded title page and back page with Peregrine falcon logo (navy background)
-- CONFIDENTIAL watermark at 45 degrees on content pages
+- CONFIDENTIAL watermark at 45 degrees on content pages (not on title/back page)
 - Clickable Table of Contents with PDF bookmarks
 - Colored section headers, footer rules, project title in footer
 - Widow/orphan control, page breaks before major sections
 - Test methodology appendix with OWASP Top 10 mapping
+- TikZ severity donut chart with color legend on dedicated page
+- Clickable CWE references (linked to cwe.mitre.org)
+- Clickable CVE references (linked to nvd.nist.gov)
 
 ### AI Integration
 - Fixed Anthropic gem: migrated from `anthropic` to `ruby-anthropic` v0.4+
