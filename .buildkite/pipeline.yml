@@ -1,0 +1,117 @@
+steps:
+  - group: ":test_tube: Test & Lint"
+    steps:
+      - label: ":rspec: Test"
+        key: test
+        command:
+          - bundle install --jobs 4
+          - RAILS_ENV=test bundle exec rails db:create db:migrate
+          - bundle exec rspec --format documentation
+        plugins:
+          - docker#v5.11.0:
+              image: ruby:3.2.2-slim
+              environment:
+                - RAILS_ENV=test
+              volumes:
+                - /tmp/bundler-cache:/usr/local/bundle
+        agents:
+          queue: gcp
+        retry:
+          automatic:
+            - exit_status: -1
+              limit: 1
+
+      - label: ":rubocop: Lint"
+        key: lint
+        command:
+          - bundle install --jobs 4
+          - bundle exec rubocop --parallel
+        plugins:
+          - docker#v5.11.0:
+              image: ruby:3.2.2-slim
+              volumes:
+                - /tmp/bundler-cache:/usr/local/bundle
+        agents:
+          queue: gcp
+        retry:
+          automatic:
+            - exit_status: -1
+              limit: 1
+
+  - wait
+
+  - group: ":docker: Build & Push"
+    steps:
+      - label: ":docker: Build Image"
+        key: docker-build
+        if: build.branch == "staging" || build.branch == "main"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - |
+            if [ "$$BUILDKITE_BRANCH" = "main" ]; then
+              ENV_TAG="production"
+            else
+              ENV_TAG="staging"
+            fi
+          - >-
+            docker buildx build
+            --cache-from type=registry,ref=$DOCKER_REGISTRY/scanner:buildcache
+            --cache-to type=registry,ref=$DOCKER_REGISTRY/scanner:buildcache,mode=max
+            -f docker/Dockerfile
+            -t $DOCKER_REGISTRY/scanner:latest
+            -t $DOCKER_REGISTRY/scanner:$BUILDKITE_COMMIT
+            -t $DOCKER_REGISTRY/scanner:$ENV_TAG
+            --push
+            .
+        agents:
+          queue: gcp
+
+  - wait
+
+  - group: ":rocket: Promote"
+    steps:
+      - label: ":arrow_right: Promote to staging"
+        key: promote-staging
+        if: build.branch == "development"
+        commands:
+          - |
+            EXISTING=$(gh pr list --base staging --head development --state open --json number --jq 'length')
+            if [ "$$EXISTING" = "0" ]; then
+              COMMITS=$(git rev-list origin/staging..origin/development --count 2>/dev/null || echo "0")
+              if [ "$$COMMITS" != "0" ]; then
+                PR_URL=$(gh pr create --base staging --head development \
+                  --title "Promote development → staging" \
+                  --body "Automated promotion after CI pass on development.")
+                PR_NUMBER=$(echo "$$PR_URL" | grep -o '[0-9]*$$')
+                gh pr merge "$$PR_NUMBER" --auto --merge
+                echo "Created and auto-merge enabled: $$PR_URL"
+              else
+                echo "No new commits to promote"
+              fi
+            else
+              echo "Promotion PR already exists"
+            fi
+        agents:
+          queue: gcp
+
+      - label: ":arrow_right: Promote to main"
+        key: promote-main
+        if: build.branch == "staging"
+        commands:
+          - |
+            EXISTING=$(gh pr list --base main --head staging --state open --json number --jq 'length')
+            if [ "$$EXISTING" = "0" ]; then
+              COMMITS=$(git rev-list origin/main..origin/staging --count 2>/dev/null || echo "0")
+              if [ "$$COMMITS" != "0" ]; then
+                gh pr create --base main --head staging \
+                  --title "Promote staging → main" \
+                  --body "Automated promotion PR. **Requires manual merge.**"
+                echo "Created promotion PR (manual merge required)"
+              else
+                echo "No new commits to promote"
+              fi
+            else
+              echo "Promotion PR already exists"
+            fi
+        agents:
+          queue: gcp
