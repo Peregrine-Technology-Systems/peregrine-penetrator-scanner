@@ -16,6 +16,7 @@
 - Auto-merge for development → staging promotion PRs
 - Manual merge required for staging → main promotion
 - Branch protection updated to require Buildkite status checks
+- Promotion via GitHub API curl/jq script (no `gh` CLI dependency)
 - Secrets managed via GCP Secret Manager (`web-app-penetration-test--*` in ci-runners-de)
 
 ### Code Quality

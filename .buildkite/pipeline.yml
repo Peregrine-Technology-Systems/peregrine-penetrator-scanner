@@ -76,30 +76,7 @@ steps:
         key: promote-staging
         if: build.branch == "development"
         commands:
-          - |
-            EXISTING=$$(gh pr list --base staging --head development --state open --json number --jq 'length')
-            if [ "$$EXISTING" = "0" ]; then
-              COMMITS=$$(git rev-list origin/staging..origin/development --count 2>/dev/null || echo "0")
-              if [ "$$COMMITS" != "0" ]; then
-                PR_URL=$$(gh pr create --base staging --head development \
-                  --title "Promote development → staging" \
-                  --body "Automated promotion after CI pass on development.")
-                PR_NUMBER=$$(echo "$$PR_URL" | grep -o '[0-9]*$$')
-                gh pr merge "$$PR_NUMBER" --auto --merge
-                echo "Created and auto-merge enabled: $$PR_URL"
-              else
-                echo "No new commits to promote"
-              fi
-            else
-              echo "Promotion PR already exists"
-            fi
-        plugins:
-          - docker#v5.11.0:
-              image: ghcr.io/cli/cli:latest
-              propagate-environment: true
-              entrypoint: /bin/bash
-              environment:
-                - GH_TOKEN
+          - .buildkite/scripts/promote.sh staging development auto
         agents:
           queue: gcp
 
@@ -107,27 +84,6 @@ steps:
         key: promote-main
         if: build.branch == "staging"
         commands:
-          - |
-            EXISTING=$$(gh pr list --base main --head staging --state open --json number --jq 'length')
-            if [ "$$EXISTING" = "0" ]; then
-              COMMITS=$$(git rev-list origin/main..origin/staging --count 2>/dev/null || echo "0")
-              if [ "$$COMMITS" != "0" ]; then
-                gh pr create --base main --head staging \
-                  --title "Promote staging → main" \
-                  --body "Automated promotion PR. **Requires manual merge.**"
-                echo "Created promotion PR (manual merge required)"
-              else
-                echo "No new commits to promote"
-              fi
-            else
-              echo "Promotion PR already exists"
-            fi
-        plugins:
-          - docker#v5.11.0:
-              image: ghcr.io/cli/cli:latest
-              propagate-environment: true
-              entrypoint: /bin/bash
-              environment:
-                - GH_TOKEN
+          - .buildkite/scripts/promote.sh main staging manual
         agents:
           queue: gcp
