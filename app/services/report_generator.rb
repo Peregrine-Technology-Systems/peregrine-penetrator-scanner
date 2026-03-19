@@ -5,6 +5,7 @@ class ReportGenerator
 
   FORMATS = {
     'json' => ReportGenerators::JsonReport,
+    'markdown' => ReportGenerators::MarkdownReport,
     'html' => ReportGenerators::HtmlReport,
     'pdf' => ReportGenerators::PdfReport
   }.freeze
@@ -29,7 +30,7 @@ class ReportGenerator
   end
 
   def generate_all
-    %w[json html pdf].map { |fmt| generate(fmt) }
+    %w[json markdown html pdf].map { |fmt| generate(fmt) }
   end
 
   # Expose private generate_json for backward compatibility with specs

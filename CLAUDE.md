@@ -32,7 +32,7 @@ CveIntelligenceService (NVD, CISA KEV, EPSS, OSV enrichment)
      ↓
 AiAnalyzer (Claude API triage + executive summary)
      ↓
-ReportGenerator (JSON, HTML, PDF) → StorageService (GCS/local)
+ReportGenerator (JSON, Markdown, HTML, PDF via pandoc/xelatex) → StorageService (GCS/local)
      ↓
 NotificationService (Slack webhook + email)
 ```
