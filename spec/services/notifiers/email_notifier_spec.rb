@@ -1,16 +1,16 @@
 require 'rails_helper'
 
 RSpec.describe Notifiers::EmailNotifier do
+  subject(:notifier) { described_class.new(scan) }
+
   let(:target) { create(:target, name: 'Test App') }
   let(:scan) do
-    create(:scan, :completed, target: target, profile: 'standard',
-           summary: {
-             'total_findings' => 5,
-             'by_severity' => { 'critical' => 1, 'high' => 2, 'medium' => 1, 'low' => 1, 'info' => 0 }
-           })
+    create(:scan, :completed, target:, profile: 'standard',
+                              summary: {
+                                'total_findings' => 5,
+                                'by_severity' => { 'critical' => 1, 'high' => 2, 'medium' => 1, 'low' => 1, 'info' => 0 }
+                              })
   end
-
-  subject(:notifier) { described_class.new(scan) }
 
   describe '.configured?' do
     it 'returns true when SMTP_HOST is set' do
@@ -62,8 +62,8 @@ RSpec.describe Notifiers::EmailNotifier do
 
     context 'with empty severity data' do
       let(:scan) do
-        create(:scan, :completed, target: target, profile: 'quick',
-               summary: { 'total_findings' => 0, 'by_severity' => {} })
+        create(:scan, :completed, target:, profile: 'quick',
+                                  summary: { 'total_findings' => 0, 'by_severity' => {} })
       end
 
       it 'defaults missing severity counts to 0' do
@@ -101,7 +101,7 @@ RSpec.describe Notifiers::EmailNotifier do
   describe '#send_notification' do
     let(:mail_double) { instance_double(Mail::Message) }
     let!(:pdf_report) do
-      create(:report, scan: scan, format: 'pdf', status: 'completed', gcs_path: 'test_report.pdf')
+      create(:report, scan:, format: 'pdf', status: 'completed', gcs_path: 'test_report.pdf')
     end
 
     before do
@@ -129,13 +129,13 @@ RSpec.describe Notifiers::EmailNotifier do
 
     context 'when PDF report file exists' do
       before do
-        report_dir = Rails.root.join('storage', 'reports')
+        report_dir = Rails.root.join('storage/reports')
         FileUtils.mkdir_p(report_dir)
         File.write(report_dir.join('test_report.pdf'), 'fake-pdf')
       end
 
       after do
-        FileUtils.rm_f(Rails.root.join('storage', 'reports', 'test_report.pdf'))
+        FileUtils.rm_f(Rails.root.join('storage/reports/test_report.pdf'))
       end
 
       it 'attaches the PDF report' do
@@ -157,6 +157,8 @@ RSpec.describe Notifiers::EmailNotifier do
         # (the report record exists but the file doesn't)
 
         notifier.send_notification
+
+        expect(mail_double).not_to have_received(:add_file)
       end
     end
   end

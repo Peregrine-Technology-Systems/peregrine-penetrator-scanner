@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe Scanners::ZapScanner do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }
-  let(:scan) { create(:scan, :running, target: target) }
+  let(:scan) { create(:scan, :running, target:) }
   let(:tool_config) { { mode: 'baseline', timeout: 300 } }
   let(:scanner) { described_class.new(scan, tool_config) }
   let(:success_result) { { stdout: '', stderr: '', exit_code: 0, success: true } }
@@ -18,7 +18,7 @@ RSpec.describe Scanners::ZapScanner do
   describe '#run' do
     before do
       allow(scanner).to receive(:run_command).and_return(success_result)
-      allow(ResultParsers::ZapParser).to receive_message_chain(:new, :parse).and_return([])
+      allow(ResultParsers::ZapParser).to receive(:new).and_return(instance_double(ResultParsers::ZapParser, parse: []))
     end
 
     it 'builds the correct baseline command' do

@@ -20,7 +20,7 @@ RSpec.describe StorageService do
 
         result = service.upload(source.path, 'scans/test.json')
 
-        dest_path = Rails.root.join('storage', 'reports', 'scans/test.json').to_s
+        dest_path = Rails.root.join('storage/reports/scans/test.json').to_s
         expect(File.exist?(dest_path)).to be true
         expect(File.read(dest_path)).to eq('test content')
         expect(result[:path]).to eq('scans/test.json')
@@ -35,20 +35,21 @@ RSpec.describe StorageService do
         source.write('pdf data')
         source.close
 
-        result = service.upload(source.path, 'deep/nested/path/report.pdf')
+        service.upload(source.path, 'deep/nested/path/report.pdf')
 
-        dest_path = Rails.root.join('storage', 'reports', 'deep/nested/path/report.pdf').to_s
+        dest_path = Rails.root.join('storage/reports/deep/nested/path/report.pdf').to_s
         expect(File.exist?(dest_path)).to be true
       ensure
         source&.unlink
-        FileUtils.rm_rf(Rails.root.join('storage', 'reports', 'deep'))
+        FileUtils.rm_rf(Rails.root.join('storage/reports/deep'))
       end
     end
 
     context 'when GCS is configured' do
-      let(:mock_storage) { double('GCS::Storage') }
-      let(:mock_bucket) { double('GCS::Bucket') }
-      let(:mock_file) { double('GCS::File', public_url: 'https://storage.googleapis.com/bucket/file') }
+      let(:gcs_storage_class) { Class.new }
+      let(:mock_storage) { instance_double(gcs_storage_class) }
+      let(:mock_bucket) { instance_double(gcs_storage_class) }
+      let(:mock_file) { instance_double(gcs_storage_class, public_url: 'https://storage.googleapis.com/bucket/file') }
 
       before do
         allow(ENV).to receive(:[]).and_call_original
@@ -60,10 +61,7 @@ RSpec.describe StorageService do
         # Stub require to prevent loading the real gem
         allow(service).to receive(:require).with('google/cloud/storage').and_return(true)
 
-        # Define the module/class hierarchy if not already present
-        unless defined?(Google::Cloud::Storage)
-          module Google; module Cloud; class Storage; end; end; end
-        end
+        stub_const('Google::Cloud::Storage', gcs_storage_class)
 
         allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
         allow(mock_storage).to receive(:bucket).and_return(mock_bucket)
@@ -90,15 +88,16 @@ RSpec.describe StorageService do
 
       it 'returns a file:// URL' do
         url = service.signed_url('scans/report.pdf')
-        expected = Rails.root.join('storage', 'reports', 'scans/report.pdf').to_s
+        expected = Rails.root.join('storage/reports/scans/report.pdf').to_s
         expect(url).to eq("file://#{expected}")
       end
     end
 
     context 'when GCS is configured' do
-      let(:mock_storage) { double('GCS::Storage') }
-      let(:mock_bucket) { double('GCS::Bucket') }
-      let(:mock_file) { double('GCS::File') }
+      let(:gcs_storage_class) { Class.new }
+      let(:mock_storage) { instance_double(gcs_storage_class) }
+      let(:mock_bucket) { instance_double(gcs_storage_class) }
+      let(:mock_file) { instance_double(gcs_storage_class) }
 
       before do
         allow(ENV).to receive(:[]).and_call_original
@@ -109,9 +108,7 @@ RSpec.describe StorageService do
 
         allow(service).to receive(:require).with('google/cloud/storage').and_return(true)
 
-        unless defined?(Google::Cloud::Storage)
-          module Google; module Cloud; class Storage; end; end; end
-        end
+        stub_const('Google::Cloud::Storage', gcs_storage_class)
 
         allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
         allow(mock_storage).to receive(:bucket).and_return(mock_bucket)

@@ -1,30 +1,30 @@
 require 'rails_helper'
 
 RSpec.describe ReportGenerators::HtmlReport do
+  let(:report) { described_class.new(scan:, findings:, target:) }
+
   let(:target) do
     create(:target, name: 'Test Corp',
-           urls: '["https://example.com"]',
-           brand_config: { 'company_name' => 'Acme Security', 'accent_color' => '#ff0000',
-                           'footer_text' => 'CONFIDENTIAL' })
+                    urls: '["https://example.com"]',
+                    brand_config: { 'company_name' => 'Acme Security', 'accent_color' => '#ff0000',
+                                    'footer_text' => 'CONFIDENTIAL' })
   end
   let(:scan) do
-    create(:scan, :completed, target: target, profile: 'standard',
-           summary: {
-             'total_findings' => 2,
-             'by_severity' => { 'high' => 1, 'medium' => 1 }
-           })
+    create(:scan, :completed, target:, profile: 'standard',
+                              summary: {
+                                'total_findings' => 2,
+                                'by_severity' => { 'high' => 1, 'medium' => 1 }
+                              })
   end
   let(:findings) do
     [
-      create(:finding, scan: scan, source_tool: 'zap', severity: 'high',
-             title: 'XSS Vulnerability', url: 'https://example.com/search',
-             cwe_id: 'CWE-79'),
-      create(:finding, scan: scan, source_tool: 'nikto', severity: 'medium',
-             title: 'Missing Headers', url: 'https://example.com/')
+      create(:finding, scan:, source_tool: 'zap', severity: 'high',
+                       title: 'XSS Vulnerability', url: 'https://example.com/search',
+                       cwe_id: 'CWE-79'),
+      create(:finding, scan:, source_tool: 'nikto', severity: 'medium',
+                       title: 'Missing Headers', url: 'https://example.com/')
     ]
   end
-
-  subject(:report) { described_class.new(scan: scan, findings: findings, target: target) }
 
   describe '#generate' do
     before do

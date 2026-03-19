@@ -51,9 +51,9 @@ RSpec.describe CveIntelligenceService do
   describe '#enrich_finding' do
     let(:scan) { create(:scan, :running) }
     let(:finding) do
-      create(:finding, scan: scan, source_tool: 'nuclei', severity: 'critical',
-             title: 'Log4Shell', cve_id: 'CVE-2021-44228',
-             evidence: { 'description' => 'test' })
+      create(:finding, scan:, source_tool: 'nuclei', severity: 'critical',
+                       title: 'Log4Shell', cve_id: 'CVE-2021-44228',
+                       evidence: { 'description' => 'test' })
     end
 
     before do
@@ -102,8 +102,8 @@ RSpec.describe CveIntelligenceService do
     end
 
     it 'skips findings without CVE ID' do
-      finding_no_cve = create(:finding, scan: scan, source_tool: 'zap', severity: 'medium',
-                              title: 'Missing Header', cve_id: nil)
+      finding_no_cve = create(:finding, scan:, source_tool: 'zap', severity: 'medium',
+                                        title: 'Missing Header', cve_id: nil)
 
       expect { service.enrich_finding(finding_no_cve) }.not_to raise_error
       # No HTTP requests should be made
@@ -161,14 +161,14 @@ RSpec.describe CveIntelligenceService do
     end
 
     it 'enriches all findings with CVE IDs' do
-      f1 = create(:finding, scan: scan, source_tool: 'nuclei', severity: 'high',
-                  title: 'CVE Finding', cve_id: 'CVE-2021-44228',
-                  evidence: { 'description' => 'test' })
-      create(:finding, scan: scan, source_tool: 'zap', severity: 'low',
-             title: 'No CVE Finding', cve_id: nil)
+      f1 = create(:finding, scan:, source_tool: 'nuclei', severity: 'high',
+                            title: 'CVE Finding', cve_id: 'CVE-2021-44228',
+                            evidence: { 'description' => 'test' })
+      create(:finding, scan:, source_tool: 'zap', severity: 'low',
+                       title: 'No CVE Finding', cve_id: nil)
 
       # Stub sleep to avoid rate limiting delay in tests
-      allow_any_instance_of(described_class).to receive(:sleep)
+      allow(service).to receive(:sleep)
 
       service.enrich_scan(scan)
 

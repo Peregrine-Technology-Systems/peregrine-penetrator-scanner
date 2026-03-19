@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe ScanOrchestrator do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }
-  let(:scan) { create(:scan, target: target, profile: 'standard') }
+  let(:scan) { create(:scan, target:, profile: 'standard') }
   let(:orchestrator) { described_class.new(scan) }
 
   let(:mock_phase) do
@@ -19,7 +19,7 @@ RSpec.describe ScanOrchestrator do
 
   before do
     allow(ScanProfile).to receive(:load).and_return(mock_profile)
-    allow(FindingNormalizer).to receive_message_chain(:new, :normalize)
+    allow(FindingNormalizer).to receive(:new).and_return(instance_double(FindingNormalizer, normalize: nil))
   end
 
   describe '#execute' do
@@ -61,12 +61,18 @@ RSpec.describe ScanOrchestrator do
       allow(Scanners::ZapScanner).to receive(:new).and_return(zap_scanner)
 
       order = []
-      allow(ffuf_scanner).to receive(:run) { order << :ffuf; { success: true, findings: [] } }
-      allow(zap_scanner).to receive(:run) { order << :zap; { success: true, findings: [] } }
+      allow(ffuf_scanner).to receive(:run) {
+                               order << :ffuf
+                               { success: true, findings: [] }
+                             }
+      allow(zap_scanner).to receive(:run) {
+                              order << :zap
+                              { success: true, findings: [] }
+                            }
 
       orchestrator.execute
 
-      expect(order).to eq([:ffuf, :zap])
+      expect(order).to eq(%i[ffuf zap])
     end
 
     it 'runs tools in parallel when phase is parallel' do
@@ -101,8 +107,8 @@ RSpec.describe ScanOrchestrator do
     end
 
     it 'generates summary with finding counts' do
-      create(:finding, scan: scan, severity: 'high', source_tool: 'zap', title: 'XSS', duplicate: false)
-      create(:finding, scan: scan, severity: 'medium', source_tool: 'zap', title: 'Missing Header', duplicate: false)
+      create(:finding, scan:, severity: 'high', source_tool: 'zap', title: 'XSS', duplicate: false)
+      create(:finding, scan:, severity: 'medium', source_tool: 'zap', title: 'Missing Header', duplicate: false)
 
       orchestrator.execute
 
@@ -170,9 +176,9 @@ RSpec.describe ScanOrchestrator do
       allow(Scanners::ZapScanner).to receive(:new).and_return(zap_scanner)
 
       allow(ffuf_scanner).to receive(:run).and_return({
-        success: true, findings: [],
-        discovered_urls: ['https://example.com/admin']
-      })
+                                                        success: true, findings: [],
+                                                        discovered_urls: ['https://example.com/admin']
+                                                      })
       allow(zap_scanner).to receive(:run).and_return({ success: true, findings: [] })
 
       orchestrator.execute

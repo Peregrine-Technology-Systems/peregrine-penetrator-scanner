@@ -121,7 +121,7 @@ RSpec.describe ScannerBase do
       mock_stdout = instance_double(IO, read: "hello\n")
       mock_stderr = instance_double(IO, read: '')
       status = instance_double(Process::Status, exitstatus: 0, success?: true)
-      mock_wait_thr = double('Process::Waiter', pid: 12345, value: status)
+      mock_wait_thr = double(pid: 12_345, value: status) # rubocop:disable RSpec/VerifiedDoubles
 
       allow(Open3).to receive(:popen3).and_yield(mock_stdin, mock_stdout, mock_stderr, mock_wait_thr)
       allow(scanner).to receive(:start_heartbeat).and_return(nil)
@@ -149,7 +149,7 @@ RSpec.describe ScannerBase do
       mock_stdout = instance_double(IO, read: 'output')
       mock_stderr = instance_double(IO, read: '')
       status = instance_double(Process::Status, exitstatus: 0, success?: true)
-      mock_wait_thr = double('Process::Waiter', pid: 12345, value: status)
+      mock_wait_thr = double(pid: 12_345, value: status) # rubocop:disable RSpec/VerifiedDoubles
 
       allow(Open3).to receive(:popen3).and_yield(mock_stdin, mock_stdout, mock_stderr, mock_wait_thr)
       allow(scanner_with_timeout).to receive(:start_heartbeat).and_return(nil)

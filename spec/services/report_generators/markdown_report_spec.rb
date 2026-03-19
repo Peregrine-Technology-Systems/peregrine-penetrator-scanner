@@ -1,39 +1,39 @@
 require 'rails_helper'
 
 RSpec.describe ReportGenerators::MarkdownReport do
+  subject(:report) { described_class.new(scan:, findings:, target:) }
+
   let(:target) do
     create(:target, name: 'Test Corp',
-           urls: '["https://example.com"]',
-           brand_config: { 'company_name' => 'Acme Security', 'footer_text' => 'CONFIDENTIAL' })
+                    urls: '["https://example.com"]',
+                    brand_config: { 'company_name' => 'Acme Security', 'footer_text' => 'CONFIDENTIAL' })
   end
   let(:scan) do
-    create(:scan, :completed, target: target, profile: 'standard',
-           summary: {
-             'total_findings' => 3,
-             'by_severity' => { 'critical' => 1, 'high' => 1, 'medium' => 1, 'low' => 0, 'info' => 0 },
-             'executive_summary' => 'Critical vulnerabilities found requiring immediate attention.'
-           },
-           tool_statuses: { 'zap' => { 'status' => 'completed' }, 'nuclei' => { 'status' => 'completed' } })
+    create(:scan, :completed, target:, profile: 'standard',
+                              summary: {
+                                'total_findings' => 3,
+                                'by_severity' => { 'critical' => 1, 'high' => 1, 'medium' => 1, 'low' => 0, 'info' => 0 },
+                                'executive_summary' => 'Critical vulnerabilities found requiring immediate attention.'
+                              },
+                              tool_statuses: { 'zap' => { 'status' => 'completed' }, 'nuclei' => { 'status' => 'completed' } })
   end
   let(:findings) do
     [
-      create(:finding, scan: scan, source_tool: 'zap', severity: 'critical',
-             title: 'SQL Injection', url: 'https://example.com/login', parameter: 'username',
-             cwe_id: 'CWE-89', cve_id: 'CVE-2024-1234', cvss_score: 9.8, epss_score: 0.95,
-             kev_known_exploited: true,
-             evidence: { 'description' => 'SQL injection in login form' },
-             ai_assessment: { 'summary' => 'Confirmed SQL injection', 'recommendation' => 'Use parameterized queries' }),
-      create(:finding, scan: scan, source_tool: 'nuclei', severity: 'high',
-             title: 'XSS Reflected', url: 'https://example.com/search', parameter: 'q',
-             cwe_id: 'CWE-79',
-             evidence: { 'desc' => 'Reflected XSS found' }),
-      create(:finding, scan: scan, source_tool: 'nikto', severity: 'medium',
-             title: 'Missing Security Headers', url: 'https://example.com/',
-             evidence: 'No X-Frame-Options header')
+      create(:finding, scan:, source_tool: 'zap', severity: 'critical',
+                       title: 'SQL Injection', url: 'https://example.com/login', parameter: 'username',
+                       cwe_id: 'CWE-89', cve_id: 'CVE-2024-1234', cvss_score: 9.8, epss_score: 0.95,
+                       kev_known_exploited: true,
+                       evidence: { 'description' => 'SQL injection in login form' },
+                       ai_assessment: { 'summary' => 'Confirmed SQL injection', 'recommendation' => 'Use parameterized queries' }),
+      create(:finding, scan:, source_tool: 'nuclei', severity: 'high',
+                       title: 'XSS Reflected', url: 'https://example.com/search', parameter: 'q',
+                       cwe_id: 'CWE-79',
+                       evidence: { 'desc' => 'Reflected XSS found' }),
+      create(:finding, scan:, source_tool: 'nikto', severity: 'medium',
+                       title: 'Missing Security Headers', url: 'https://example.com/',
+                       evidence: 'No X-Frame-Options header')
     ]
   end
-
-  subject(:report) { described_class.new(scan: scan, findings: findings, target: target) }
 
   describe '#generate' do
     let(:output) { report.generate }
@@ -119,13 +119,13 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with critical risk score' do
       let(:scan) do
-        create(:scan, :completed, target: target, profile: 'standard',
-               summary: { 'by_severity' => { 'critical' => 5 } })
+        create(:scan, :completed, target:, profile: 'standard',
+                                  summary: { 'by_severity' => { 'critical' => 5 } })
       end
       let(:findings) do
         5.times.map do |i|
-          create(:finding, scan: scan, source_tool: 'zap', severity: 'critical',
-                 title: "Critical #{i}", url: "https://example.com/#{i}")
+          create(:finding, scan:, source_tool: 'zap', severity: 'critical',
+                           title: "Critical #{i}", url: "https://example.com/#{i}")
         end
       end
 
@@ -136,12 +136,12 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with low risk score' do
       let(:scan) do
-        create(:scan, :completed, target: target, profile: 'standard',
-               summary: { 'by_severity' => { 'info' => 2 } })
+        create(:scan, :completed, target:, profile: 'standard',
+                                  summary: { 'by_severity' => { 'info' => 2 } })
       end
       let(:findings) do
-        [create(:finding, scan: scan, source_tool: 'nikto', severity: 'info',
-                title: 'Info Finding', url: 'https://example.com')]
+        [create(:finding, scan:, source_tool: 'nikto', severity: 'info',
+                          title: 'Info Finding', url: 'https://example.com')]
       end
 
       it 'displays Low risk label' do
@@ -151,15 +151,15 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with moderate risk score' do
       let(:scan) do
-        create(:scan, :completed, target: target, profile: 'standard',
-               summary: { 'by_severity' => { 'high' => 1, 'low' => 1 } })
+        create(:scan, :completed, target:, profile: 'standard',
+                                  summary: { 'by_severity' => { 'high' => 1, 'low' => 1 } })
       end
       let(:findings) do
         [
-          create(:finding, scan: scan, source_tool: 'zap', severity: 'high',
-                 title: 'High Finding', url: 'https://example.com/a'),
-          create(:finding, scan: scan, source_tool: 'zap', severity: 'low',
-                 title: 'Low Finding', url: 'https://example.com/b')
+          create(:finding, scan:, source_tool: 'zap', severity: 'high',
+                           title: 'High Finding', url: 'https://example.com/a'),
+          create(:finding, scan:, source_tool: 'zap', severity: 'low',
+                           title: 'Low Finding', url: 'https://example.com/b')
         ]
       end
 
@@ -171,8 +171,8 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with no executive summary' do
       let(:scan) do
-        create(:scan, :completed, target: target, profile: 'standard',
-               summary: { 'by_severity' => {} })
+        create(:scan, :completed, target:, profile: 'standard',
+                                  summary: { 'by_severity' => {} })
       end
       let(:findings) { [] }
 
@@ -256,9 +256,9 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with finding that has hash evidence without description/desc keys' do
       let(:findings) do
-        [create(:finding, scan: scan, source_tool: 'ffuf', severity: 'low',
-                title: 'Hidden Path', url: 'https://example.com/admin',
-                evidence: { 'path' => '/admin', 'status_code' => '200' })]
+        [create(:finding, scan:, source_tool: 'ffuf', severity: 'low',
+                          title: 'Hidden Path', url: 'https://example.com/admin',
+                          evidence: { 'path' => '/admin', 'status_code' => '200' })]
       end
 
       it 'renders each evidence key-value pair' do
@@ -270,9 +270,9 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with finding that has string ai_assessment' do
       let(:findings) do
-        [create(:finding, scan: scan, source_tool: 'zap', severity: 'medium',
-                title: 'Test Finding', url: 'https://example.com',
-                ai_assessment: 'This is a plain text assessment')]
+        [create(:finding, scan:, source_tool: 'zap', severity: 'medium',
+                          title: 'Test Finding', url: 'https://example.com',
+                          ai_assessment: 'This is a plain text assessment')]
       end
 
       it 'renders string ai_assessment directly' do
@@ -291,14 +291,14 @@ RSpec.describe ReportGenerators::MarkdownReport do
     context 'with more than 50 findings' do
       let(:findings) do
         55.times.map do |i|
-          create(:finding, scan: scan, source_tool: 'nuclei', severity: 'info',
-                 title: "Finding #{i}", url: "https://example.com/#{i}")
+          create(:finding, scan:, source_tool: 'nuclei', severity: 'info',
+                           title: "Finding #{i}", url: "https://example.com/#{i}")
         end
       end
 
       it 'includes truncation notice' do
-        expect(output).to include("Showing top 50 findings")
-        expect(output).to include("5 additional findings available in JSON report")
+        expect(output).to include('Showing top 50 findings')
+        expect(output).to include('5 additional findings available in JSON report')
       end
     end
   end
@@ -327,8 +327,8 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with no tool statuses' do
       let(:scan) do
-        create(:scan, :completed, target: target, profile: 'standard',
-               summary: { 'by_severity' => {} }, tool_statuses: {})
+        create(:scan, :completed, target:, profile: 'standard',
+                                  summary: { 'by_severity' => {} }, tool_statuses: {})
       end
       let(:findings) { [] }
 
@@ -341,8 +341,8 @@ RSpec.describe ReportGenerators::MarkdownReport do
   describe 'duration formatting' do
     context 'with nil duration' do
       let(:scan) do
-        create(:scan, target: target, profile: 'standard', status: 'completed',
-               summary: { 'by_severity' => {} })
+        create(:scan, target:, profile: 'standard', status: 'completed',
+                      summary: { 'by_severity' => {} })
       end
       let(:findings) { [] }
 
@@ -353,9 +353,9 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with duration over an hour' do
       let(:scan) do
-        create(:scan, target: target, profile: 'standard', status: 'completed',
-               started_at: 2.hours.ago, completed_at: Time.current,
-               summary: { 'by_severity' => {} })
+        create(:scan, target:, profile: 'standard', status: 'completed',
+                      started_at: 2.hours.ago, completed_at: Time.current,
+                      summary: { 'by_severity' => {} })
       end
       let(:findings) { [] }
 
@@ -367,9 +367,9 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     context 'with duration under a minute' do
       let(:scan) do
-        create(:scan, target: target, profile: 'standard', status: 'completed',
-               started_at: 45.seconds.ago, completed_at: Time.current,
-               summary: { 'by_severity' => {} })
+        create(:scan, target:, profile: 'standard', status: 'completed',
+                      started_at: 45.seconds.ago, completed_at: Time.current,
+                      summary: { 'by_severity' => {} })
       end
       let(:findings) { [] }
 
