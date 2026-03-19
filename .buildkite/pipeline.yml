@@ -3,17 +3,10 @@ steps:
     steps:
       - label: ":rspec: Test"
         key: test
-        command:
+        commands:
           - bundle install --jobs 4
           - RAILS_ENV=test bundle exec rails db:create db:migrate
           - bundle exec rspec --format documentation
-        plugins:
-          - docker#v5.11.0:
-              image: ruby:3.2.2-slim
-              environment:
-                - RAILS_ENV=test
-              volumes:
-                - /tmp/bundler-cache:/usr/local/bundle
         agents:
           queue: gcp
         retry:
@@ -23,14 +16,9 @@ steps:
 
       - label: ":rubocop: Lint"
         key: lint
-        command:
+        commands:
           - bundle install --jobs 4
           - bundle exec rubocop --parallel
-        plugins:
-          - docker#v5.11.0:
-              image: ruby:3.2.2-slim
-              volumes:
-                - /tmp/bundler-cache:/usr/local/bundle
         agents:
           queue: gcp
         retry:
@@ -48,7 +36,7 @@ steps:
         commands:
           - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
           - |
-            if [ "$$BUILDKITE_BRANCH" = "main" ]; then
+            if [ "$BUILDKITE_BRANCH" = "main" ]; then
               ENV_TAG="production"
             else
               ENV_TAG="staging"
@@ -75,14 +63,14 @@ steps:
         if: build.branch == "development"
         commands:
           - |
-            EXISTING=$(gh pr list --base staging --head development --state open --json number --jq 'length')
+            EXISTING=$$(gh pr list --base staging --head development --state open --json number --jq 'length')
             if [ "$$EXISTING" = "0" ]; then
-              COMMITS=$(git rev-list origin/staging..origin/development --count 2>/dev/null || echo "0")
+              COMMITS=$$(git rev-list origin/staging..origin/development --count 2>/dev/null || echo "0")
               if [ "$$COMMITS" != "0" ]; then
-                PR_URL=$(gh pr create --base staging --head development \
+                PR_URL=$$(gh pr create --base staging --head development \
                   --title "Promote development → staging" \
                   --body "Automated promotion after CI pass on development.")
-                PR_NUMBER=$(echo "$$PR_URL" | grep -o '[0-9]*$$')
+                PR_NUMBER=$$(echo "$$PR_URL" | grep -o '[0-9]*$$')
                 gh pr merge "$$PR_NUMBER" --auto --merge
                 echo "Created and auto-merge enabled: $$PR_URL"
               else
@@ -99,9 +87,9 @@ steps:
         if: build.branch == "staging"
         commands:
           - |
-            EXISTING=$(gh pr list --base main --head staging --state open --json number --jq 'length')
+            EXISTING=$$(gh pr list --base main --head staging --state open --json number --jq 'length')
             if [ "$$EXISTING" = "0" ]; then
-              COMMITS=$(git rev-list origin/main..origin/staging --count 2>/dev/null || echo "0")
+              COMMITS=$$(git rev-list origin/main..origin/staging --count 2>/dev/null || echo "0")
               if [ "$$COMMITS" != "0" ]; then
                 gh pr create --base main --head staging \
                   --title "Promote staging → main" \
