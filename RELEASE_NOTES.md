@@ -23,6 +23,11 @@
 - Report generators refactored: extracted MarkdownFormatters, MarkdownSections, MethodologyContent, MarkdownConverter, ReportStyles, ComponentStyles modules
 - Scanner base and orchestrator methods extracted for clarity
 
+### Report Versioning
+- Reports show version on title page: commit hash for dev/staging, semver for production
+- Version displayed in executive summary (all formats) and PDF cover page
+- Cloud dev scan passes commit hash as VERSION env var
+
 ### Report Fixes
 - Fixed PDF generation: added `texlive-latex-extra` for `soul.sty` package
 - PDF generation now raises error instead of silently saving markdown as `.pdf`

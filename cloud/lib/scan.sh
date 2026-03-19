@@ -36,8 +36,9 @@ if [ -f "${PROJECT_ROOT}/.env" ]; then
 fi
 
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+COMMIT_HASH=$(git -C "${PROJECT_ROOT}" rev-parse --short HEAD 2>/dev/null || echo "dev")
 
-log_info "Running ${PROFILE} scan (results: ${DATA_MOUNT_POINT}/scan-results/)..."
+log_info "Running ${PROFILE} scan (version: ${COMMIT_HASH})..."
 log_info "Streaming output..."
 echo "---"
 
@@ -46,6 +47,7 @@ vm_ssh "docker run --rm \
   ${ENV_ARGS} \
   -e SCAN_PROFILE=${PROFILE} \
   -e RAILS_ENV=production \
+  -e VERSION=${COMMIT_HASH} \
   -v ${DATA_MOUNT_POINT}/scan-results:/app/storage/reports \
   --name pentest-scan-${TIMESTAMP} \
   ${FULL_IMAGE} \

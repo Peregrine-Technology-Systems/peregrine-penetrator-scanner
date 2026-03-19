@@ -2,6 +2,14 @@ module ReportGenerators
   module MarkdownFormatters
     private
 
+    def report_version
+      ENV.fetch('VERSION', nil) || git_commit_short || 'dev'
+    end
+
+    def git_commit_short
+      `git rev-parse --short HEAD 2>/dev/null`.strip.presence
+    end
+
     def format_date(time)
       time&.strftime('%B %d, %Y') || 'N/A'
     end
