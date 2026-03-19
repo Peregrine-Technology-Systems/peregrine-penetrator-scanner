@@ -62,6 +62,8 @@ module ReportGenerators
       lines = []
       lines << '## Executive Summary'
       lines << ''
+      lines << "**Version:** #{report_version}"
+      lines << ''
       lines << "**Overall Risk Level: #{risk_label}** (Score: #{risk_score}/100)"
       lines << ''
       lines.concat(metrics_table(severity_counts))

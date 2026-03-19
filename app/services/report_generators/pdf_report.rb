@@ -3,6 +3,7 @@ require 'open3'
 module ReportGenerators
   class PdfReport
     include Helpers
+    include MarkdownFormatters
 
     def initialize(scan:, findings:, target:)
       @md_generator = MarkdownReport.new(scan:, findings:, target:)
@@ -74,7 +75,8 @@ module ReportGenerators
         '-V', "sev_medium=#{sev['medium'].to_i}",
         '-V', "sev_low=#{sev['low'].to_i}",
         '-V', "sev_info=#{sev['info'].to_i}",
-        '-V', "sev_total=#{summary['total_findings'].to_i}"
+        '-V', "sev_total=#{summary['total_findings'].to_i}",
+        '-V', "version=#{report_version}"
       ]
 
       args.shelljoin

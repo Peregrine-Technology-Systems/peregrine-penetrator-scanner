@@ -93,6 +93,13 @@ steps:
             else
               echo "Promotion PR already exists"
             fi
+        plugins:
+          - docker#v5.11.0:
+              image: ghcr.io/cli/cli:latest
+              propagate-environment: true
+              entrypoint: /bin/bash
+              environment:
+                - GH_TOKEN
         agents:
           queue: gcp
 
@@ -115,5 +122,12 @@ steps:
             else
               echo "Promotion PR already exists"
             fi
+        plugins:
+          - docker#v5.11.0:
+              image: ghcr.io/cli/cli:latest
+              propagate-environment: true
+              entrypoint: /bin/bash
+              environment:
+                - GH_TOKEN
         agents:
           queue: gcp
