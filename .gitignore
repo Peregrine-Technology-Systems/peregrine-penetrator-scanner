@@ -47,6 +47,9 @@
 *.swp
 *.swo
 
+# Cloud dev sync state
+/cloud/.sync-snapshot
+
 # OS
 .DS_Store
 Thumbs.db
