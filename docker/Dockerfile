@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libsqlite3-dev \
     default-jre-headless python3 perl libnet-ssleay-perl libjson-perl libxml-writer-perl \
     chromium nodejs npm python3-pip \
+    pandoc texlive-xetex texlive-fonts-recommended lmodern \
     curl wget git ca-certificates \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
@@ -72,7 +73,8 @@ RUN pip3 install --no-cache-dir --break-system-packages pyyaml requests python-o
 # Copy security tools from tools stage
 COPY --from=tools /opt/zap /opt/zap
 COPY --from=tools /usr/local/bin/zap* /usr/local/bin/
-RUN mkdir -p /zap/wrk
+# ZAP scripts expect /zap/zap-x.sh — symlink /zap to /opt/zap
+RUN ln -sf /opt/zap /zap && mkdir -p /opt/zap/wrk
 ENV ZAP_PATH=/opt/zap
 ENV PATH="/opt/zap:${PATH}"
 COPY --from=tools /usr/local/bin/nuclei /usr/local/bin/
