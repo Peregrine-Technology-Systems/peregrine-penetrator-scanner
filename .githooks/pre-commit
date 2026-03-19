@@ -46,13 +46,13 @@ if [ "$DOCS_ONLY" = false ]; then
   fi
 
   # ============================================================
-  # 3. Coverage must be >= 85% (skip for docs-only) — restore to 90% per #84
+  # 3. Coverage must be >= 90% (skip for docs-only)
   # ============================================================
   COVERAGE=$(echo "$RSPEC_OUTPUT" | grep -o 'Line Coverage: [0-9.]*%' | grep -o '[0-9.]*' || grep -o 'Line Coverage: [0-9.]*%' coverage/index.html 2>/dev/null | grep -o '[0-9.]*' || echo "0")
   if [ -n "$COVERAGE" ]; then
     COVERAGE_INT=${COVERAGE%.*}
-    if [ "$COVERAGE_INT" -lt 85 ]; then
-      echo "❌ Coverage ${COVERAGE}% is below 85% minimum"
+    if [ "$COVERAGE_INT" -lt 90 ]; then
+      echo "❌ Coverage ${COVERAGE}% is below 90% minimum"
       FAILED=1
     else
       echo "✅ Coverage: ${COVERAGE}%"
