@@ -34,6 +34,7 @@
 - PDF generation now raises error instead of silently saving markdown as `.pdf`
 - Added Peregrine logo to HTML report header
 - Info-level findings filtered from reports (critical/high/medium/low only)
+- PDF generation raises error on failure instead of saving markdown as .pdf
 - Email notification: fixed auth method (`:login`), added 10s timeout
 
 ### Scan Reliability
