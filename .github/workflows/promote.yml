@@ -30,7 +30,7 @@ jobs:
           COUNT=$(gh pr list --base "${{ steps.target.outputs.base }}" --head "${{ github.ref_name }}" --state open --json number --jq 'length')
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
 
       - name: Check for new commits
         id: diff
@@ -62,4 +62,4 @@ jobs:
             echo "Auto-merge enabled for staging promotion"
           fi
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT }}
