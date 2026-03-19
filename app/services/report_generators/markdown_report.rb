@@ -124,13 +124,23 @@ module ReportGenerators
       lines.join("\n")
     end
 
+    MAX_DETAILED_FINDINGS = 50
+
     def detailed_findings_section
       return nil if @findings.empty?
 
       lines = []
       lines << '## Detailed Findings'
 
-      @findings.each_with_index do |f, idx|
+      if @findings.size > MAX_DETAILED_FINDINGS
+        lines << ''
+        lines << "Showing top #{MAX_DETAILED_FINDINGS} findings by severity. " \
+                 "#{@findings.size - MAX_DETAILED_FINDINGS} additional findings available in JSON report."
+      end
+
+      display_findings = @findings.first(MAX_DETAILED_FINDINGS)
+
+      display_findings.each_with_index do |f, idx|
         lines << ''
         lines << "### #{idx + 1}. [#{f.severity.upcase}] #{f.title}"
         lines << ''
@@ -155,14 +165,14 @@ module ReportGenerators
           if f.evidence.is_a?(Hash)
             desc = f.evidence['description'] || f.evidence['desc']
             if desc.present?
-              lines << desc.to_s
+              lines << sanitize_text(desc.to_s)
             else
               f.evidence.each do |key, val|
-                lines << "**#{key.to_s.titleize}:** #{val}" if val.present?
+                lines << "**#{key.to_s.titleize}:** #{sanitize_text(val.to_s)}" if val.present?
               end
             end
           else
-            lines << f.evidence.to_s
+            lines << sanitize_text(f.evidence.to_s)
           end
         end
 
@@ -235,8 +245,9 @@ module ReportGenerators
         lines << ''
         lines << '| Tool | Status |'
         lines << '|------|--------|'
-        tool_statuses.each do |name, status|
-          lines << "| #{name} | #{status} |"
+        tool_statuses.each do |name, info|
+          stat = info.is_a?(Hash) ? info['status'] || info[:status] : info.to_s
+          lines << "| #{sanitize(name)} | #{sanitize(stat)} |"
         end
       end
 
@@ -293,6 +304,30 @@ module ReportGenerators
       return '' if text.blank?
 
       text.gsub('|', '\\|')
+    end
+
+    def sanitize(text)
+      return '' if text.blank?
+
+      text.to_s
+          .gsub('|', '-')
+          .gsub('\\n', ' ')
+          .gsub("\n", ' ')
+          .gsub(':(', '')
+          .gsub(':)', '')
+          .gsub(/[{}]/, '')
+          .strip
+          .truncate(100)
+    end
+
+    def sanitize_text(text)
+      return '' if text.blank?
+
+      text.to_s
+          .gsub('\\n', ' ')
+          .gsub("\n", ' ')
+          .gsub(':(', '')
+          .gsub(':)', '')
     end
 
     def methodology_intro

@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libsqlite3-dev \
     default-jre-headless python3 perl libnet-ssleay-perl libjson-perl libxml-writer-perl \
     chromium nodejs npm python3-pip \
+    pandoc texlive-xetex texlive-fonts-recommended lmodern \
     curl wget git ca-certificates \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
