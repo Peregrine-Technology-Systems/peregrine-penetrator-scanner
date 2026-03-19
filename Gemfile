@@ -18,7 +18,7 @@ gem "google-cloud-storage", "~> 1.44"
 gem "faraday", "~> 2.7"
 
 # Anthropic Claude API
-gem "anthropic", "~> 0.3"
+gem "ruby-anthropic", "~> 0.4"
 
 # Email
 gem "mail", "~> 2.8"
