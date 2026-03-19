@@ -2,6 +2,7 @@
 
 class AiAnalyzer
   MAX_FINDINGS_PER_REQUEST = 20
+  MAX_FINDINGS_FOR_TRIAGE = 50
 
   def initialize
     @claude_client = Ai::ClaudeClient.new
@@ -11,9 +12,18 @@ class AiAnalyzer
 
   def analyze_scan(scan)
     findings = scan.findings.non_duplicate.order(severity_order)
-    Rails.logger.info("[AiAnalyzer] Analyzing #{findings.count} findings for #{scan.target.name}")
+    total_count = findings.count
+    Rails.logger.info("[AiAnalyzer] Analyzing #{total_count} findings for #{scan.target.name}")
 
-    findings.each_slice(MAX_FINDINGS_PER_REQUEST) do |batch|
+    triage_candidates = if total_count > MAX_FINDINGS_FOR_TRIAGE
+                          Rails.logger.info("[AiAnalyzer] #{total_count} findings exceeds cap of #{MAX_FINDINGS_FOR_TRIAGE}, " \
+                                            'triaging top findings by severity only')
+                          findings.limit(MAX_FINDINGS_FOR_TRIAGE)
+                        else
+                          findings
+                        end
+
+    triage_candidates.each_slice(MAX_FINDINGS_PER_REQUEST) do |batch|
       triage_findings(batch, scan.target)
     end
 

@@ -29,6 +29,7 @@ module Scanners
       cmd = "nikto -h #{Shellwords.escape(url)} -Format json -output #{output_file}"
 
       cmd += " -Tuning #{tool_config[:tuning]}" if tool_config[:tuning]
+      cmd += " -Pause #{tool_config[:pause]}" if tool_config[:pause]
 
       cmd
     end
