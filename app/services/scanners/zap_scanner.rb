@@ -8,29 +8,38 @@ module Scanners
 
     def execute
       mode = tool_config[:mode] || 'baseline'
-      output_file = output_dir.join('zap_results.json')
+      zap_wrk = Pathname.new('/zap/wrk')
+      report_name = 'zap_results.json'
+      zap_output = zap_wrk.join(report_name)
+      local_output = output_dir.join(report_name)
 
       target_urls.each do |url|
-        cmd = build_command(mode, url, output_file)
+        cmd = build_command(mode, url, report_name)
         result = run_command(cmd, timeout: tool_config[:timeout])
 
-        return { success: false, error: result[:stderr], findings: [] } unless result[:success] || result[:exit_code] == 2 # ZAP returns 2 for warnings found
+        # ZAP returns 2 for warnings found (not an error)
+        unless result[:success] || result[:exit_code] == 2
+          return { success: false, error: result[:stderr], findings: [] }
+        end
       end
 
-      findings = parse_results(output_file)
-      { success: true, findings:, output_file: output_file.to_s }
+      # Copy results from ZAP wrk dir to our output dir
+      FileUtils.cp(zap_output.to_s, local_output.to_s) if File.exist?(zap_output)
+
+      findings = parse_results(local_output)
+      { success: true, findings: findings, output_file: local_output.to_s }
     end
 
     private
 
-    def build_command(mode, url, output_file)
+    def build_command(mode, url, report_name)
       case mode
       when 'baseline'
-        "zap-baseline.py -t #{Shellwords.escape(url)} -J #{output_file} -I"
+        "zap-baseline.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
       when 'full'
-        "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{output_file} -I"
+        "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
       when 'api'
-        "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{output_file} -I"
+        "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
       else
         raise ArgumentError, "Unknown ZAP mode: #{mode}"
       end

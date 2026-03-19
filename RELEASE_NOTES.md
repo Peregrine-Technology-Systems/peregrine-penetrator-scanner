@@ -1,5 +1,35 @@
 # Release Notes
 
+## Unreleased
+
+### Docker & Deployment
+- Fixed OWASP ZAP integration: use official ghcr.io image, `/zap/wrk` output directory, python3 symlink, pyyaml dependency
+- Updated tool versions: ZAP 2.17.0, Nuclei 3.7.1, sqlmap 1.10.3, ffuf 2.1.0, Nikto 2.6.0
+- Fixed Nikto Perl dependencies (`libjson-perl`, `libxml-writer-perl`)
+- SecLists wordlists bundled locally via `docker/wordlists/` (avoids clone timeout in Docker build)
+- Added Node.js + puppeteer for PDF generation
+- GCP Cloud Run Job and Cloud Scheduler deployed (weekly Monday 2am UTC)
+
+### Report Generation
+- New Markdown report generator (`ReportGenerators::MarkdownReport`)
+- Publication-quality PDF reports via pandoc/xelatex with custom LaTeX template
+- Branded title page and back page with Peregrine falcon logo (navy background)
+- CONFIDENTIAL watermark at 45 degrees on content pages
+- Clickable Table of Contents with PDF bookmarks
+- Colored section headers, footer rules, project title in footer
+- Widow/orphan control, page breaks before major sections
+- Test methodology appendix with OWASP Top 10 mapping
+
+### AI Integration
+- Fixed Anthropic gem: migrated from `anthropic` to `ruby-anthropic` v0.4+
+- Fixed API client to use `access_token` and `messages(parameters:)` interface
+
+### Scanner Fixes
+- Fixed `ScannerBase#run_command`: replaced `Open3.capture3(timeout:)` with `Open3.popen3` + `Timeout.timeout` for proper process management
+- Fixed ZAP scanner to use `/zap/wrk` output directory and copy results
+
+---
+
 ## v0.1.0 — 2026-03-18
 
 ### Initial Release

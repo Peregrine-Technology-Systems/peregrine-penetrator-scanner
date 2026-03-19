@@ -5,7 +5,7 @@ phases:
   - name: discovery
     tools:
       - tool: ffuf
-        wordlist: /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+        wordlist: /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-small.txt
         timeout: 600
         threads: 40
         extensions: ".php,.asp,.aspx,.jsp,.html,.js,.json,.xml,.txt,.bak,.old,.conf,.sql,.log"

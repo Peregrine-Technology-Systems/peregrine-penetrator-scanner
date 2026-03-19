@@ -58,18 +58,33 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions, environment va
 
 ### Docker
 ```bash
-docker build -f docker/Dockerfile -t pentest-platform .
-docker run pentest-platform
+docker build --platform linux/amd64 -f docker/Dockerfile -t pentest-platform .
+
+# Run a scan
+docker run --platform linux/amd64 \
+  -e SCAN_PROFILE=quick \
+  -e TARGET_NAME="My App" \
+  -e TARGET_URLS='["https://example.com"]' \
+  -e ANTHROPIC_API_KEY="sk-..." \
+  -v "$(pwd)/storage/reports:/app/storage/reports" \
+  pentest-platform rake scan:run
 ```
 
-### Run a Scan
+### GCP Deployment
 ```bash
-# Quick scan
-SCAN_PROFILE=quick TARGET_URLS='["https://example.com"]' rake scan:run
+# Manual trigger
+gcloud run jobs execute pentest-scanner --region=us-central1
 
-# Standard scan
-SCAN_PROFILE=standard TARGET_URLS='["https://example.com"]' rake scan:run
+# Scheduled: Cloud Scheduler runs weekly (Monday 2am UTC)
 ```
+
+### Reports
+Reports are generated in JSON, Markdown, HTML, and PDF formats. PDF reports feature:
+- Branded title page with Peregrine falcon logo
+- Clickable table of contents with PDF bookmarks
+- CONFIDENTIAL watermark on content pages
+- Test methodology appendix with OWASP Top 10 mapping
+- Professional LaTeX typesetting via pandoc/xelatex
 
 ## Scan Profiles
 

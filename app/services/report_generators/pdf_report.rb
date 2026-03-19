@@ -1,21 +1,43 @@
+require 'open3'
+
 module ReportGenerators
   class PdfReport
+    include Helpers
+
     def initialize(scan:, findings:, target:)
-      @html_generator = HtmlReport.new(scan:, findings:, target:)
+      @md_generator = MarkdownReport.new(scan:, findings:, target:)
       @scan = scan
+      @target = target
     end
 
     def generate
-      html_content = @html_generator.generate
+      md_content = @md_generator.generate
 
-      if defined?(Grover)
-        grover = Grover.new(html_content, format: 'A4', print_background: true,
-                                          margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' })
-        grover.to_pdf
+      md_dir = Rails.root.join('tmp', 'reports', @scan.id)
+      FileUtils.mkdir_p(md_dir)
+      md_path = md_dir.join('report.md')
+      File.write(md_path, md_content)
+
+      # Copy logo for LaTeX template
+      logo_src = Rails.root.join('app/assets/images/peregrine_logo_white.png')
+      logo_dest = md_dir.join('peregrine_logo.png')
+      FileUtils.cp(logo_src, logo_dest) if File.exist?(logo_src)
+
+      pdf_path = md_dir.join('report.pdf')
+
+      cmd = build_pandoc_command(md_path.to_s, pdf_path.to_s)
+
+      _stdout, stderr, status = Open3.capture3(cmd, chdir: md_dir.to_s)
+
+      if status.success? && File.exist?(pdf_path)
+        File.binread(pdf_path)
       else
-        Rails.logger.warn('[ReportGenerator] Grover not available, saving HTML as fallback')
-        html_content
+        Rails.logger.warn("[PdfReport] pandoc failed (exit #{status.exitstatus}): #{stderr}")
+        md_content
       end
+    rescue StandardError => e
+      Rails.logger.warn("[PdfReport] PDF generation failed (#{e.message}), falling back to Markdown")
+      @md_generator.generate
     end
 
     def filename
@@ -24,6 +46,29 @@ module ReportGenerators
 
     def content_type
       'application/pdf'
+    end
+
+    private
+
+    def build_pandoc_command(md_path, pdf_path)
+      template = Rails.root.join('config/report_templates/pentest_report.latex')
+      date = @scan.completed_at&.strftime('%B %d, %Y') || Time.current.strftime('%B %d, %Y')
+
+      args = [
+        'pandoc', md_path,
+        '-o', pdf_path,
+        '--pdf-engine=xelatex',
+        "--template=#{template}",
+        '-V', 'geometry:margin=1in',
+        '-V', 'mainfont=Helvetica',
+        '-V', 'monofont=Menlo',
+        '-V', 'fontsize=11pt',
+        '--highlight-style=tango',
+        '-V', "title=#{@target.name}",
+        '-V', "date=#{date}"
+      ]
+
+      args.shelljoin
     end
   end
 end
