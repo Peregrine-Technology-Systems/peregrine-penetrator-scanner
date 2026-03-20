@@ -91,14 +91,12 @@ THRESHOLD_SECONDS=600  # 10 minutes
 # Check for active SSH sessions
 ssh_sessions=$(who | wc -l)
 
-# Check for running containers (excluding paused)
-running_containers=$(docker ps -q --filter "status=running" 2>/dev/null | wc -l)
+# Check for running workload containers (exclude BuildKit infrastructure)
+workload_containers=$(docker ps -q --filter "status=running" 2>/dev/null \
+  | xargs -r docker inspect --format '{{.Name}}' 2>/dev/null \
+  | grep -cv "buildx_buildkit" || echo 0)
 
-# Check for recent docker build activity
-docker_building=$(docker ps -q --filter "label=com.docker.compose.project" 2>/dev/null | wc -l)
-buildx_active=$(pgrep -c buildx 2>/dev/null || echo 0)
-
-if [ "$ssh_sessions" -gt 0 ] || [ "$running_containers" -gt 0 ] || [ "$buildx_active" -gt 0 ]; then
+if [ "$ssh_sessions" -gt 0 ] || [ "$workload_containers" -gt 0 ]; then
   # VM is active — reset idle timer
   rm -f "$IDLE_FILE"
   exit 0

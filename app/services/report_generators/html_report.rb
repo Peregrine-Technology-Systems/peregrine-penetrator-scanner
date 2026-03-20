@@ -16,7 +16,7 @@ module ReportGenerators
     def generate
       md_generator = MarkdownReport.new(scan: @scan, findings: @findings, target: @target)
       md_content = md_generator.generate
-      html_body = markdown_to_html(md_content)
+      html_body = metrics_html + markdown_to_html(md_content)
       wrap_in_html(html_body)
     end
 
@@ -29,6 +29,26 @@ module ReportGenerators
     end
 
     private
+
+    def metrics_html
+      summary = @scan.summary || {}
+      sev = summary['by_severity'] || {}
+
+      <<~HTML
+        <h2>Key Metrics</h2>
+        <table>
+          <thead><tr><th>Metric</th><th>Count</th></tr></thead>
+          <tbody>
+            <tr><td>Total Findings</td><td>#{@findings.size}</td></tr>
+            <tr><td>Critical</td><td>#{sev['critical'].to_i}</td></tr>
+            <tr><td>High</td><td>#{sev['high'].to_i}</td></tr>
+            <tr><td>Medium</td><td>#{sev['medium'].to_i}</td></tr>
+            <tr><td>Low</td><td>#{sev['low'].to_i}</td></tr>
+          </tbody>
+        </table>
+        <p><em>Informational findings are available at higher service tiers via the online portal.</em></p>
+      HTML
+    end
 
     def wrap_in_html(body)
       css = report_css(@brand[:accent_color])

@@ -60,12 +60,8 @@ module ReportGenerators
       risk_score, risk_label = compute_risk_score_and_label(severity_counts)
       tools_used = @findings.map(&:source_tool).compact.uniq
 
-      lines = ['## Metrics', '', "**Version:** #{report_version}", '']
+      lines = ["**Version:** #{report_version}", '']
       lines << "**Overall Risk Level: #{risk_label}** (Score: #{risk_score}/100)"
-      lines << ''
-      lines.concat(metrics_table(severity_counts))
-      lines << ''
-      lines << '*Note: Informational findings are available at higher service tiers via the online portal.*'
       lines << ''
       lines << "**Scan Duration:** #{format_duration(@scan.duration)}"
       lines << "**Tools Executed:** #{tools_used.join(', ')}" if tools_used.any?
@@ -76,7 +72,7 @@ module ReportGenerators
       text = (@scan.summary || {})['executive_summary']
       return nil if text.blank?
 
-      "## Executive Summary\n\n#{text}"
+      text.to_s
     end
 
     def extract_severity_counts
