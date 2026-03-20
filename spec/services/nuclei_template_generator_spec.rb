@@ -1,8 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe NucleiTemplateGenerator do
-  let(:mock_client) { instance_double('Anthropic::Client') }
-  let(:mock_messages) { instance_double('Anthropic::Client::Messages') }
+  let(:mock_client) { instance_double(Anthropic::Client) }
+  let(:mock_messages) { double('MessagesClient') } # rubocop:disable RSpec/VerifiedDoubles
   let(:generator) { described_class.new }
 
   let(:cve_details) do
@@ -41,8 +41,8 @@ RSpec.describe NucleiTemplateGenerator do
   end
 
   def mock_claude_response(text)
-    content_block = instance_double('Anthropic::ContentBlock', text: text)
-    instance_double('Anthropic::Response', content: [content_block])
+    content_block = Struct.new(:text).new(text)
+    Struct.new(:content).new([content_block])
   end
 
   describe '#generate_for_cve' do

@@ -32,7 +32,7 @@ CveIntelligenceService (NVD, CISA KEV, EPSS, OSV enrichment)
      ↓
 AiAnalyzer (Claude API triage + executive summary)
      ↓
-ReportGenerator (JSON, HTML, PDF) → StorageService (GCS/local)
+ReportGenerator (JSON, Markdown, HTML, PDF via pandoc/xelatex) → StorageService (GCS/local)
      ↓
 NotificationService (Slack webhook + email)
 ```
@@ -53,6 +53,10 @@ NotificationService (Slack webhook + email)
 - **Scan** — belongs_to Target, profile, status, tool_statuses (JSON), summary (JSON)
 - **Finding** — belongs_to Scan, source_tool, severity, title, url, cwe_id, fingerprint, evidence (JSON)
 - **Report** — belongs_to Scan, format (json/html/pdf), gcs_path, status
+
+## CI/CD
+
+CI runs on Buildkite (not GitHub Actions). Pipeline config: `.buildkite/pipeline.yml`. Pipeline slug: `web-app-penetration-test`, org: `chaudhuri-and-co`. Secrets are in GCP Secret Manager in the `ci-runners-de` project, following the `{pipeline-slug}--{secret-name}` naming convention.
 
 ## Security & Ethics
 

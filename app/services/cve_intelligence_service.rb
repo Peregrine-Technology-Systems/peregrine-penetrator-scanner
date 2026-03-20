@@ -41,7 +41,7 @@ class CveIntelligenceService
   end
 
   def query_osv(package_name, ecosystem: 'RubyGems', version: nil)
-    @osv.query(package_name, ecosystem: ecosystem, version: version)
+    @osv.query(package_name, ecosystem:, version:)
   end
 
   private

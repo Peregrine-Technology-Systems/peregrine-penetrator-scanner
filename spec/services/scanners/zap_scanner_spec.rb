@@ -2,12 +2,16 @@ require 'rails_helper'
 
 RSpec.describe Scanners::ZapScanner do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }
-  let(:scan) { create(:scan, :running, target: target) }
+  let(:scan) { create(:scan, :running, target:) }
   let(:tool_config) { { mode: 'baseline', timeout: 300 } }
   let(:scanner) { described_class.new(scan, tool_config) }
-  let(:success_status) { instance_double(Process::Status, exitstatus: 0, success?: true) }
-  let(:warning_status) { instance_double(Process::Status, exitstatus: 2, success?: false) }
-  let(:failure_status) { instance_double(Process::Status, exitstatus: 1, success?: false) }
+  let(:command_results) do
+    {
+      success: { stdout: '', stderr: '', exit_code: 0, success: true },
+      warning: { stdout: '', stderr: '', exit_code: 2, success: false },
+      failure: { stdout: '', stderr: 'error occurred', exit_code: 1, success: false }
+    }
+  end
 
   describe '#tool_name' do
     it 'returns zap' do
@@ -17,17 +21,17 @@ RSpec.describe Scanners::ZapScanner do
 
   describe '#run' do
     before do
-      allow(Open3).to receive(:capture3).and_return(['', '', success_status])
-      allow(ResultParsers::ZapParser).to receive_message_chain(:new, :parse).and_return([])
+      allow(scanner).to receive(:run_command).and_return(command_results[:success])
+      allow(ResultParsers::ZapParser).to receive(:new).and_return(instance_double(ResultParsers::ZapParser, parse: []))
     end
 
     it 'builds the correct baseline command' do
-      expect(Open3).to receive(:capture3) do |cmd, **_opts|
+      expect(scanner).to receive(:run_command) do |cmd, **_opts|
         expect(cmd).to include('zap-baseline.py')
         expect(cmd).to include('-t https://example.com')
         expect(cmd).to include('-J')
         expect(cmd).to include('-I')
-        ['', '', success_status]
+        command_results[:success]
       end
 
       scanner.run
@@ -37,9 +41,9 @@ RSpec.describe Scanners::ZapScanner do
       let(:tool_config) { { mode: 'full', timeout: 300 } }
 
       it 'builds the full scan command' do
-        expect(Open3).to receive(:capture3) do |cmd, **_opts|
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
           expect(cmd).to include('zap-full-scan.py')
-          ['', '', success_status]
+          command_results[:success]
         end
 
         scanner.run
@@ -50,9 +54,9 @@ RSpec.describe Scanners::ZapScanner do
       let(:tool_config) { { mode: 'api', timeout: 300 } }
 
       it 'builds the api scan command' do
-        expect(Open3).to receive(:capture3) do |cmd, **_opts|
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
           expect(cmd).to include('zap-api-scan.py')
-          ['', '', success_status]
+          command_results[:success]
         end
 
         scanner.run
@@ -70,14 +74,14 @@ RSpec.describe Scanners::ZapScanner do
     end
 
     it 'treats exit code 2 as success (warnings found)' do
-      allow(Open3).to receive(:capture3).and_return(['', '', warning_status])
+      allow(scanner).to receive(:run_command).and_return(command_results[:warning])
 
       result = scanner.run
       expect(result[:success]).to be true
     end
 
     it 'treats exit code 1 as failure' do
-      allow(Open3).to receive(:capture3).and_return(['', 'error occurred', failure_status])
+      allow(scanner).to receive(:run_command).and_return(command_results[:failure])
 
       result = scanner.run
       expect(result[:success]).to be false
@@ -104,7 +108,7 @@ RSpec.describe Scanners::ZapScanner do
       let(:target) { create(:target, urls: ['https://example.com', 'https://test.com'].to_json) }
 
       it 'runs command for each URL' do
-        expect(Open3).to receive(:capture3).twice.and_return(['', '', success_status])
+        expect(scanner).to receive(:run_command).twice.and_return(command_results[:success])
         scanner.run
       end
     end
