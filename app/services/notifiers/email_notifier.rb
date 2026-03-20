@@ -44,8 +44,10 @@ module Notifiers
         port: ENV.fetch('SMTP_PORT', '2525').to_i,
         user_name: ENV.fetch('SMTP_USERNAME', nil),
         password: ENV.fetch('SMTP_PASSWORD', nil),
-        authentication: :plain,
-        enable_starttls_auto: true
+        authentication: :login,
+        enable_starttls_auto: true,
+        open_timeout: 10,
+        read_timeout: 10
       }
     end
 
