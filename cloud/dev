@@ -28,6 +28,7 @@ Development:
 Environments:
   scan-staging [profile] [tag]   Launch ephemeral VM for staging scan
   scan-prod [profile] [tag]      Launch ephemeral VM for production scan
+  scavenge                       Delete orphaned scan VMs older than 30 min
 
 Examples:
   ./cloud/dev start                 # Spin up VM (~60s)
@@ -127,6 +128,9 @@ case "${1:-}" in
   scan-prod)
     shift
     bash "${LIB_DIR}/scan-vm.sh" production "${1:-standard}" "${2:-latest}"
+    ;;
+  scavenge)
+    bash "${LIB_DIR}/scavenge-vms.sh"
     ;;
   help|--help|-h|"")
     usage
