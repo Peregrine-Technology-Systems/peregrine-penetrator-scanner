@@ -43,7 +43,8 @@ RSpec.describe ReportGenerators::MarkdownReport do
       expect(output).not_to be_empty
     end
 
-    it 'includes version and risk level' do
+    it 'includes executive summary as Level 1 heading with version and risk level' do
+      expect(output).to match(/^# Executive Summary$/m)
       expect(output).to include('Overall Risk Level')
       expect(output).to include('Version:')
     end
@@ -56,6 +57,10 @@ RSpec.describe ReportGenerators::MarkdownReport do
 
     it 'includes detailed findings as Level 1 heading' do
       expect(output).to match(/^# Detailed Findings$/m)
+    end
+
+    it 'includes individual findings as Level 2 headings' do
+      expect(output).to match(/^## 1\. \[CRITICAL\] SQL Injection$/m)
     end
 
     it 'includes methodology as Level 1 heading' do
