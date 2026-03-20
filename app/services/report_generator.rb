@@ -23,10 +23,12 @@ class ReportGenerator
     content = formatter.generate
     local_path = save_local(content, formatter.filename)
     upload_and_finalize(report, local_path, formatter)
+  rescue ActiveRecord::RecordInvalid
+    raise
   rescue StandardError => e
     report&.update!(status: 'failed')
     Rails.logger.error("[ReportGenerator] Failed to generate #{format} report: #{e.message}")
-    raise
+    report
   end
 
   def generate_all
@@ -56,12 +58,18 @@ class ReportGenerator
     storage = StorageService.new
     storage.upload(local_path, remote_path, content_type: formatter.content_type)
 
-    signed_url = storage.signed_url(remote_path)
+    url = begin
+      storage.signed_url(remote_path)
+    rescue StandardError => e
+      Rails.logger.warn("[ReportGenerator] Signed URL unavailable: #{e.message}")
+      nil
+    end
+
     report.update!(
       status: 'completed',
       gcs_path: remote_path,
-      signed_url:,
-      signed_url_expires_at: 7.days.from_now
+      signed_url: url,
+      signed_url_expires_at: url ? 7.days.from_now : nil
     )
     report
   end
