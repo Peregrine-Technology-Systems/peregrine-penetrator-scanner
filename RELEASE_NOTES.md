@@ -4,6 +4,7 @@
 
 ### Features
 - Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
+- Scan completion callback: ScanCallbackService POSTs scan summary, cost data, and report paths to backend API on scan completion (#186)
 
 ### Bug Fixes
 - StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
