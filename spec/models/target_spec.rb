@@ -5,6 +5,12 @@ RSpec.describe Target do
     it { is_expected.to validate_presence_of(:name) }
     it { is_expected.to validate_presence_of(:urls) }
     it { is_expected.to validate_inclusion_of(:auth_type).in_array(%w[none basic bearer cookie]) }
+    it { is_expected.to validate_inclusion_of(:ticket_tracker).in_array(%w[github linear jira]) }
+
+    it 'allows nil ticket_tracker' do
+      target = build(:target, ticket_tracker: nil)
+      expect(target).to be_valid
+    end
   end
 
   describe 'associations' do
@@ -50,6 +56,23 @@ RSpec.describe Target do
     end
   end
 
+  describe '#ticketing_enabled?' do
+    it 'returns true when both tracker and config are present' do
+      target = build(:target, :with_github_tickets)
+      expect(target.ticketing_enabled?).to be true
+    end
+
+    it 'returns false when tracker is nil' do
+      target = build(:target, ticket_tracker: nil)
+      expect(target.ticketing_enabled?).to be false
+    end
+
+    it 'returns false when config is nil' do
+      target = build(:target, ticket_tracker: 'github', ticket_config: nil)
+      expect(target.ticketing_enabled?).to be false
+    end
+  end
+
   describe 'UUID assignment' do
     it 'assigns a UUID on create' do
       target = create(:target)
@@ -82,6 +105,14 @@ RSpec.describe Target do
       target.reload
 
       expect(target.brand_config).to eq(config)
+    end
+
+    it 'serializes and deserializes ticket_config as JSON' do
+      config = { 'owner' => 'org', 'repo' => 'app', 'token_env' => 'GH_TOKEN' }
+      target = create(:target, ticket_tracker: 'github', ticket_config: config)
+      target.reload
+
+      expect(target.ticket_config).to eq(config)
     end
   end
 end
