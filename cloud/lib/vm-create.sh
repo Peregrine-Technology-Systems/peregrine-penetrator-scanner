@@ -41,7 +41,7 @@ gcloud compute instances create "${VM_NAME}" \
   --disk="name=${DATA_DISK_NAME},device-name=pentest-data,mode=rw,boot=no,auto-delete=no" \
   --service-account="${VM_SERVICE_ACCOUNT}" \
   --scopes=cloud-platform \
-  --metadata=SCAN_MODE=dev \
+  --metadata="SCAN_MODE=dev,SLACK_WEBHOOK_URL=$(grep '^SLACK_WEBHOOK_URL=' "${PROJECT_ROOT}/.env" 2>/dev/null | cut -d= -f2- || echo '')" \
   --tags=pentest-dev \
   --labels=env=dev,project=pentest
 
