@@ -50,8 +50,17 @@ module ReportGenerators
       HTML
     end
 
+    def logo_data_uri
+      logo_path = Rails.root.join('app/assets/images/peregrine_logo_embossed.jpg')
+      return nil unless File.exist?(logo_path)
+
+      "data:image/jpeg;base64,#{Base64.strict_encode64(File.binread(logo_path))}"
+    end
+
     def wrap_in_html(body)
       css = report_css(@brand[:accent_color])
+      logo_uri = logo_data_uri
+      logo_html = logo_uri ? "<img src=\"#{logo_uri}\" alt=\"#{@brand[:company_name]}\" style=\"height:48px\">" : ''
 
       <<~HTML
         <!DOCTYPE html>
@@ -65,6 +74,10 @@ module ReportGenerators
         </head>
         <body>
           <div class="report">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;padding-bottom:1rem;border-bottom:3px solid #{@brand[:accent_color]}">
+              #{logo_html}
+              <span style="color:#64748b;font-size:0.85rem">CONFIDENTIAL</span>
+            </div>
             #{body}
             <div class="footer">
               <p>#{@brand[:footer_text]} &mdash; #{@brand[:company_name]}</p>

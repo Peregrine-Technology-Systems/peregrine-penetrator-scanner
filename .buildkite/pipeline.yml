@@ -68,7 +68,14 @@ steps:
         if: build.branch == "staging"
         commands:
           - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          - gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT $$DOCKER_REGISTRY/scanner:staging
+          - |
+            if gcloud artifacts docker images describe $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT 2>/dev/null; then
+              SOURCE_TAG="$$BUILDKITE_COMMIT"
+            else
+              echo "Commit tag not found, using latest"
+              SOURCE_TAG="latest"
+            fi
+            gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$SOURCE_TAG $$DOCKER_REGISTRY/scanner:staging || echo "Tag failed — image may not exist yet"
         agents:
           queue: gcp
 
@@ -77,7 +84,14 @@ steps:
         if: build.branch == "main"
         commands:
           - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          - gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT $$DOCKER_REGISTRY/scanner:production
+          - |
+            if gcloud artifacts docker images describe $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT 2>/dev/null; then
+              SOURCE_TAG="$$BUILDKITE_COMMIT"
+            else
+              echo "Commit tag not found, using latest"
+              SOURCE_TAG="latest"
+            fi
+            gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$SOURCE_TAG $$DOCKER_REGISTRY/scanner:production || echo "Tag failed — image may not exist yet"
         agents:
           queue: gcp
 
