@@ -273,8 +273,8 @@ Secrets are stored in `ci-runners-de` using the convention `{pipeline-slug}--{se
 
 | Secret | Value |
 |--------|-------|
-| `web-app-penetration-test--gcp-project` | `peregrine-pentest-dev` |
-| `web-app-penetration-test--docker-registry` | `us-central1-docker.pkg.dev/peregrine-pentest-dev/pentest` |
+| `peregrine-penetrator--gcp-project` | `peregrine-pentest-dev` |
+| `peregrine-penetrator--docker-registry` | `us-central1-docker.pkg.dev/peregrine-pentest-dev/pentest` |
 
 Auto-exported as `GCP_PROJECT` and `DOCKER_REGISTRY` on pipeline steps.
 
@@ -287,11 +287,11 @@ The Buildkite agent service account (`buildkite-agent@ci-runners-de.iam.gservice
 ```bash
 # Create secret
 echo -n "value" | gcloud secrets create \
-  web-app-penetration-test--my-secret \
+  peregrine-penetrator--my-secret \
   --data-file=- --project=ci-runners-de
 
 # Grant agent access
-gcloud secrets add-iam-policy-binding web-app-penetration-test--my-secret \
+gcloud secrets add-iam-policy-binding peregrine-penetrator--my-secret \
   --member="serviceAccount:buildkite-agent@ci-runners-de.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor" \
   --project=ci-runners-de
