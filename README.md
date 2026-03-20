@@ -1,7 +1,7 @@
-# Web Application Penetration Testing Platform
+# Peregrine Penetrator
 
 <!-- Badges -->
-[![Build status](https://badge.buildkite.com/3e8ca31d1b42f054f917dd33f13863ef90099294aa2b703484.svg)](https://buildkite.com/chaudhuri-and-co/web-app-penetration-test)
+[![Build status](https://badge.buildkite.com/3e8ca31d1b42f054f917dd33f13863ef90099294aa2b703484.svg)](https://buildkite.com/chaudhuri-and-co/peregrine-penetrator)
 ![Ruby](https://img.shields.io/badge/ruby-3.2.2-CC342D?logo=ruby&logoColor=white)
 ![Rails](https://img.shields.io/badge/rails-7.1-CC0000?logo=rubyonrails&logoColor=white)
 ![Coverage](https://img.shields.io/badge/coverage-95.85%25-brightgreen)
@@ -66,8 +66,8 @@ Dev CLI         → ./cloud/dev scan ↗                     ├── Active Sc
 
 ### Local Development
 ```bash
-git clone https://github.com/Peregrine-Technology-Systems/web-app-penetration-test.git
-cd web-app-penetration-test
+git clone https://github.com/Peregrine-Technology-Systems/peregrine-penetrator.git
+cd peregrine-penetrator
 bundle install
 rails db:create db:migrate
 bundle exec rspec

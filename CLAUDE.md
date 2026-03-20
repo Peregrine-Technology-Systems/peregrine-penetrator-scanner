@@ -56,7 +56,7 @@ NotificationService (Slack webhook + email)
 
 ## CI/CD
 
-CI runs on Buildkite (not GitHub Actions). Pipeline config: `.buildkite/pipeline.yml`. Pipeline slug: `web-app-penetration-test`, org: `chaudhuri-and-co`. Secrets are in GCP Secret Manager in the `ci-runners-de` project, following the `{pipeline-slug}--{secret-name}` naming convention.
+CI runs on Buildkite (not GitHub Actions). Pipeline config: `.buildkite/pipeline.yml`. Pipeline slug: `peregrine-penetrator`, org: `chaudhuri-and-co`. Secrets are in GCP Secret Manager in the `ci-runners-de` project, following the `{pipeline-slug}--{secret-name}` naming convention.
 
 ## Security & Ethics
 
