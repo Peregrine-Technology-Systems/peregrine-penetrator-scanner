@@ -57,6 +57,18 @@ log_ok()    { echo -e "${GREEN}[ok]${NC} $*"; }
 log_warn()  { echo -e "${YELLOW}[warn]${NC} $*"; }
 log_error() { echo -e "${RED}[error]${NC} $*" >&2; }
 
+# Helper: send Slack notification
+slack_notify() {
+  local message="$1"
+  local webhook_url="${SLACK_WEBHOOK_URL:-}"
+  [ -z "$webhook_url" ] && [ -f "${PROJECT_ROOT}/.env" ] && \
+    webhook_url=$(grep "^SLACK_WEBHOOK_URL=" "${PROJECT_ROOT}/.env" 2>/dev/null | cut -d= -f2- || echo "")
+  [ -z "$webhook_url" ] && return 0
+  curl -sf -X POST -H 'Content-type: application/json' \
+    --data "{\"text\": \"${message}\"}" \
+    "$webhook_url" > /dev/null 2>&1 || true
+}
+
 # Helper: run gcloud compute ssh command on VM
 vm_ssh() {
   gcloud compute ssh "${VM_NAME}" \
