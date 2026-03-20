@@ -82,40 +82,45 @@ fi
 IDLE_SCRIPT="/usr/local/bin/idle-shutdown-check.sh"
 cat > "${IDLE_SCRIPT}" <<'IDLE_EOF'
 #!/usr/bin/env bash
-# Check if VM is idle and shut down if so
-# Runs every 5 minutes via cron
-
 IDLE_FILE="/tmp/pentest-idle-since"
-THRESHOLD_SECONDS=600  # 10 minutes
+BOOT_TIME_FILE="/tmp/pentest-boot-time"
+THRESHOLD_SECONDS=600
 
-# Check for active SSH sessions
+[ ! -f "$BOOT_TIME_FILE" ] && date +%s > "$BOOT_TIME_FILE"
+
 ssh_sessions=$(who | wc -l)
-
-# Check for running workload containers (exclude BuildKit infrastructure)
 workload_containers=$(docker ps -q --filter "status=running" 2>/dev/null \
   | xargs -r docker inspect --format '{{.Name}}' 2>/dev/null \
   | grep -cv "buildx_buildkit" || echo 0)
 
 if [ "$ssh_sessions" -gt 0 ] || [ "$workload_containers" -gt 0 ]; then
-  # VM is active — reset idle timer
   rm -f "$IDLE_FILE"
   exit 0
 fi
 
-# VM appears idle
-if [ ! -f "$IDLE_FILE" ]; then
-  date +%s > "$IDLE_FILE"
-  exit 0
-fi
+[ ! -f "$IDLE_FILE" ] && date +%s > "$IDLE_FILE" && exit 0
 
 idle_since=$(cat "$IDLE_FILE")
 now=$(date +%s)
 idle_seconds=$((now - idle_since))
 
 if [ "$idle_seconds" -ge "$THRESHOLD_SECONDS" ]; then
-  logger "pentest-idle-shutdown: VM idle for ${idle_seconds}s, shutting down"
-  rm -f "$IDLE_FILE"
-  /sbin/shutdown -h now "Auto-shutdown: idle for 30+ minutes"
+  boot_time=$(cat "$BOOT_TIME_FILE" 2>/dev/null || echo "$now")
+  runtime_seconds=$((now - boot_time))
+  runtime_hours=$((runtime_seconds / 3600))
+  runtime_minutes=$(((runtime_seconds % 3600) / 60))
+
+  WEBHOOK_URL=$(curl -sf -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/attributes/SLACK_WEBHOOK_URL" 2>/dev/null || echo "")
+  if [ -n "$WEBHOOK_URL" ]; then
+    curl -sf -X POST -H 'Content-type: application/json' \
+      --data "{\"text\": \":stop_sign: Dev VM \`$(hostname)\` stopping (idle 10 min). Runtime: ${runtime_hours}h ${runtime_minutes}m\"}" \
+      "$WEBHOOK_URL" > /dev/null 2>&1 || true
+  fi
+
+  logger "pentest-idle-shutdown: idle ${idle_seconds}s, runtime ${runtime_hours}h ${runtime_minutes}m"
+  rm -f "$IDLE_FILE" "$BOOT_TIME_FILE"
+  /sbin/shutdown -h now "Auto-shutdown: idle 10+ minutes"
 fi
 IDLE_EOF
 
@@ -124,7 +129,7 @@ chmod +x "${IDLE_SCRIPT}"
 # Install cron job (every 5 minutes)
 CRON_ENTRY="*/5 * * * * ${IDLE_SCRIPT}"
 (crontab -l 2>/dev/null | grep -v idle-shutdown-check; echo "${CRON_ENTRY}") | crontab -
-echo "Idle-shutdown cron installed (30 min threshold)"
+echo "Idle-shutdown cron installed (10 min threshold)"
 
 # 6. Install rsync (for code sync)
 apt-get install -y rsync
