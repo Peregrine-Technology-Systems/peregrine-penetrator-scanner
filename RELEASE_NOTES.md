@@ -37,6 +37,7 @@
 - Info-level findings filtered from reports with portal upsell note
 - PDF generation raises error on failure instead of saving markdown as .pdf
 - Report section renamed from Executive Summary to Metrics; AI summary separate
+- Removed duplicate Executive Summary heading (AI text includes its own)
 - Cover and back page: Peregrine gold branding
 - Email notification: fixed auth method (`:login`), added 10s timeout
 

@@ -76,7 +76,7 @@ module ReportGenerators
       text = (@scan.summary || {})['executive_summary']
       return nil if text.blank?
 
-      "## Executive Summary\n\n#{text}"
+      text.to_s
     end
 
     def extract_severity_counts
