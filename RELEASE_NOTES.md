@@ -38,6 +38,7 @@
 - PDF generation raises error on failure instead of saving markdown as .pdf
 - Report section renamed from Executive Summary to Metrics; AI summary separate
 - Removed duplicate Executive Summary heading (AI text includes its own)
+- Key Metrics table on page 2 below doughnut chart (no duplication)
 - Prevent heading widowing with needspace in LaTeX template
 - Cover and back page: Peregrine gold branding
 - Email notification: fixed auth method (`:login`), added 10s timeout
