@@ -43,29 +43,41 @@ steps:
 
   - wait
 
-  - group: ":docker: Build & Push"
+  - group: ":docker: Build & Tag"
     steps:
-      - label: ":docker: Build Image"
+      - label: ":docker: Build & Push"
         key: docker-build
-        if: build.branch == "staging" || build.branch == "main"
+        if: build.branch == "development"
         commands:
           - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          - |
-            if [ "$$BUILDKITE_BRANCH" = "main" ]; then
-              ENV_TAG="production"
-            else
-              ENV_TAG="staging"
-            fi
+          - docker buildx create --name ci-builder --use 2>/dev/null || docker buildx use ci-builder 2>/dev/null || true
           - >-
             docker buildx build
             --cache-from type=registry,ref=$$DOCKER_REGISTRY/scanner:buildcache
             --cache-to type=registry,ref=$$DOCKER_REGISTRY/scanner:buildcache,mode=max
             -f docker/Dockerfile
-            -t $$DOCKER_REGISTRY/scanner:latest
             -t $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT
-            -t $$DOCKER_REGISTRY/scanner:$$ENV_TAG
+            -t $$DOCKER_REGISTRY/scanner:latest
             --push
             .
+        agents:
+          queue: gcp
+
+      - label: ":label: Tag staging"
+        key: tag-staging
+        if: build.branch == "staging"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT $$DOCKER_REGISTRY/scanner:staging
+        agents:
+          queue: gcp
+
+      - label: ":label: Tag production"
+        key: tag-production
+        if: build.branch == "main"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT $$DOCKER_REGISTRY/scanner:production
         agents:
           queue: gcp
 
