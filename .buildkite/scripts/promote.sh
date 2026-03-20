@@ -7,7 +7,7 @@ set -euo pipefail
 BASE="$1"
 HEAD="$2"
 MODE="${3:-manual}"
-REPO="Peregrine-Technology-Systems/web-app-penetration-test"
+REPO="Peregrine-Technology-Systems/peregrine-penetrator"
 API="https://api.github.com"
 
 if [ -z "${GH_TOKEN:-}" ]; then
@@ -57,5 +57,11 @@ if [ "$MODE" = "auto" ]; then
     echo "Auto-merge queued (waiting for status checks)"
   echo "Auto-merge enabled"
 else
-  echo "Manual merge required for ${HEAD} → ${BASE}"
+  # Manual PRs (e.g. staging→main) require review — assign repo owner
+  OWNER=$(echo "$REPO" | cut -d/ -f1)
+  curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
+    "${API}/repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers" \
+    -d "{\"team_reviewers\": [], \"reviewers\": [\"amalc\"]}" > /dev/null 2>&1 || \
+    echo "Warning: could not assign reviewer"
+  echo "Manual merge required for ${HEAD} → ${BASE} (reviewer assigned)"
 fi
