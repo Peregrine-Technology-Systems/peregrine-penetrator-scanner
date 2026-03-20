@@ -37,12 +37,26 @@ namespace :scan do
       AiAnalyzer.new.analyze_scan(scan)
     end
 
+    # Create remediation tickets
+    if scan.target.ticketing_enabled?
+      puts "\n--- Remediation Tickets ---"
+      created = TicketingService.new(scan).create_tickets
+      puts "  Created #{created} tickets"
+    end
+
     # Generate reports
     puts "\n--- Report Generation ---"
     generator = ReportGenerator.new(scan)
     reports = generator.generate_all
     reports.each do |report|
       puts "  #{report.format.upcase}: #{report.gcs_path || 'local'} (#{report.status})"
+    end
+
+    # Log findings to BigQuery
+    if BigQueryLogger.enabled?
+      puts "\n--- Finding History ---"
+      logged = BigQueryLogger.new.log_findings(scan)
+      puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
     end
 
     # Send notifications
