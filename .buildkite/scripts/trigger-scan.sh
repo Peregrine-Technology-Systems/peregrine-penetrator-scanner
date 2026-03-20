@@ -6,7 +6,7 @@ set -euo pipefail
 
 ENV="${1:?Usage: trigger-scan.sh <staging|production> <profile> <image_tag>}"
 PROFILE="${2:-standard}"
-IMAGE_TAG="${3:-latest}"
+IMAGE_TAG="${3:-${ENV}}"
 
 GCP_PROJECT="${GCP_PROJECT:-peregrine-pentest-dev}"
 GCP_ZONE="${GCP_ZONE:-us-central1-a}"
