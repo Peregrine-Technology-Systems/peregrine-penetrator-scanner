@@ -59,7 +59,6 @@ gcloud compute instances create "${VM_NAME}" \
   --metadata-from-file=startup-script="${STARTUP_SCRIPT}" \
   --tags=pentest-scan \
   --labels="env=${ENV},project=pentest,scan=true" \
-  --no-address \
   ${SPOT_FLAG} \
   --quiet
 

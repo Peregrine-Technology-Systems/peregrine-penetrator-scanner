@@ -20,6 +20,20 @@ PROJECT_ID=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/project/project-id"
 ZONE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/zone" | cut -d'/' -f4)
 INSTANCE_NAME=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/name")
 
+# Self-terminate on failure for scan VMs (prevents orphaned VMs incurring cost)
+self_terminate() {
+  echo "=== Self-terminating VM ${INSTANCE_NAME} ==="
+  sleep 5
+  gcloud compute instances delete "${INSTANCE_NAME}" \
+    --zone="${ZONE}" \
+    --project="${PROJECT_ID}" \
+    --quiet 2>/dev/null || true
+}
+
+if [ "$SCAN_MODE" != "dev" ]; then
+  trap self_terminate EXIT
+fi
+
 echo "=== Pentest VM Startup (mode: ${SCAN_MODE}) ==="
 
 # --- Common: Install Docker if missing ---
@@ -122,13 +136,7 @@ case "$SCAN_MODE" in
       gsutil -m cp -r "${RESULTS_DIR}/*" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/" 2>/dev/null || true
     fi
 
-    # Self-terminate
-    echo "=== Scan complete — self-terminating ==="
-    sleep 5
-    gcloud compute instances delete "${INSTANCE_NAME}" \
-      --zone="${ZONE}" \
-      --project="${PROJECT_ID}" \
-      --quiet
+    # Self-termination handled by EXIT trap
     ;;
 
   *)
