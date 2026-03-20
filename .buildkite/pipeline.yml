@@ -111,7 +111,7 @@ steps:
         key: scan-staging
         if: build.branch == "staging"
         commands:
-          - .buildkite/scripts/trigger-scan.sh staging standard $$BUILDKITE_COMMIT
+          - .buildkite/scripts/trigger-scan.sh staging standard staging
         agents:
           queue: gcp
 
