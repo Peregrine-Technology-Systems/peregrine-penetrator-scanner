@@ -2,10 +2,10 @@ require 'rails_helper'
 
 RSpec.describe Scanners::FfufScanner do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }
-  let(:scan) { create(:scan, :running, target: target) }
+  let(:scan) { create(:scan, :running, target:) }
   let(:tool_config) { { wordlist: '/usr/share/seclists/common.txt', threads: 20, timeout: 300 } }
   let(:scanner) { described_class.new(scan, tool_config) }
-  let(:success_status) { instance_double(Process::Status, exitstatus: 0, success?: true) }
+  let(:success_result) { { stdout: '', stderr: '', exit_code: 0, success: true } }
 
   describe '#tool_name' do
     it 'returns ffuf' do
@@ -15,12 +15,12 @@ RSpec.describe Scanners::FfufScanner do
 
   describe '#run' do
     before do
-      allow(Open3).to receive(:capture3).and_return(['', '', success_status])
-      allow(ResultParsers::FfufParser).to receive_message_chain(:new, :parse).and_return([])
+      allow(scanner).to receive(:run_command).and_return(success_result)
+      allow(ResultParsers::FfufParser).to receive(:new).and_return(instance_double(ResultParsers::FfufParser, parse: []))
     end
 
     it 'builds the correct ffuf command' do
-      expect(Open3).to receive(:capture3) do |cmd, **_opts|
+      expect(scanner).to receive(:run_command) do |cmd, **_opts|
         expect(cmd).to include('ffuf -u')
         expect(cmd).to include('/FUZZ')
         expect(cmd).to include('-w /usr/share/seclists/common.txt')
@@ -28,7 +28,7 @@ RSpec.describe Scanners::FfufScanner do
         expect(cmd).to include('-mc 200,201,301,302,403')
         expect(cmd).to include('-t 20')
         expect(cmd).to include('-s')
-        ['', '', success_status]
+        success_result
       end
 
       scanner.run
@@ -38,10 +38,10 @@ RSpec.describe Scanners::FfufScanner do
       let(:tool_config) { { timeout: 300 } }
 
       it 'uses defaults' do
-        expect(Open3).to receive(:capture3) do |cmd, **_opts|
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
           expect(cmd).to include('-w /usr/share/seclists/Discovery/Web-Content/common.txt')
           expect(cmd).to include('-t 40')
-          ['', '', success_status]
+          success_result
         end
 
         scanner.run
@@ -52,9 +52,9 @@ RSpec.describe Scanners::FfufScanner do
       let(:tool_config) { { extensions: '.php,.html', timeout: 300 } }
 
       it 'includes extensions flag' do
-        expect(Open3).to receive(:capture3) do |cmd, **_opts|
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
           expect(cmd).to include('-e .php,.html')
-          ['', '', success_status]
+          success_result
         end
 
         scanner.run
@@ -99,7 +99,7 @@ RSpec.describe Scanners::FfufScanner do
       let(:target) { create(:target, urls: ['https://example.com', 'https://test.com'].to_json) }
 
       it 'runs ffuf for each URL' do
-        expect(Open3).to receive(:capture3).twice.and_return(['', '', success_status])
+        expect(scanner).to receive(:run_command).twice.and_return(success_result)
         scanner.run
       end
     end

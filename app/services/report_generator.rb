@@ -5,13 +5,14 @@ class ReportGenerator
 
   FORMATS = {
     'json' => ReportGenerators::JsonReport,
+    'markdown' => ReportGenerators::MarkdownReport,
     'html' => ReportGenerators::HtmlReport,
     'pdf' => ReportGenerators::PdfReport
   }.freeze
 
   def initialize(scan)
     @scan = scan
-    @findings = scan.findings.non_duplicate.order(severity_order)
+    @findings = scan.findings.non_duplicate.where.not(severity: 'info').order(severity_order)
     @target = scan.target
   end
 
@@ -29,7 +30,7 @@ class ReportGenerator
   end
 
   def generate_all
-    %w[json html pdf].map { |fmt| generate(fmt) }
+    %w[json markdown html pdf].map { |fmt| generate(fmt) }
   end
 
   # Expose private generate_json for backward compatibility with specs

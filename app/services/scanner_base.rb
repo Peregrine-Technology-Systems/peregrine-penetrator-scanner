@@ -45,18 +45,39 @@ class ScannerBase
     timeout ||= tool_config[:timeout] || 600
     logger.info("[#{tool_name}] Running: #{command}")
 
-    stdout, stderr, status = Open3.capture3(command, timeout:)
+    pid = nil
+    stdout = ''
+    stderr = ''
+    status = nil
+
+    Open3.popen3(command) do |stdin_stream, out, err, wait_thr|
+      pid = wait_thr.pid
+      stdin_stream.close
+
+      heartbeat = start_heartbeat(pid)
+
+      begin
+        Timeout.timeout(timeout) do
+          stdout = out.read
+          stderr = err.read
+          status = wait_thr.value
+        end
+      rescue Timeout::Error
+        kill_process(pid)
+        return { stdout:, stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
+      ensure
+        heartbeat&.kill
+      end
+    end
 
     {
       stdout:,
       stderr:,
-      exit_code: status.exitstatus,
-      success: status.success?
+      exit_code: status&.exitstatus,
+      success: status&.success? || false
     }
   rescue Errno::ENOENT => e
     { stdout: '', stderr: "Command not found: #{e.message}", exit_code: 127, success: false }
-  rescue Timeout::Error
-    { stdout: '', stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
   end
 
   def target_urls
@@ -70,6 +91,37 @@ class ScannerBase
   end
 
   private
+
+  def kill_process(pid)
+    Process.kill('TERM', pid)
+  rescue StandardError
+    nil
+  ensure
+    sleep(1)
+    begin
+      Process.kill('KILL', pid)
+    rescue StandardError
+      nil
+    end
+  end
+
+  def start_heartbeat(pid)
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Thread.new do
+      loop do
+        sleep(60)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+        minutes = (elapsed / 60).floor
+        seconds = (elapsed % 60).floor
+        begin
+          Process.kill(0, pid)
+          logger.info("[#{tool_name}] Still running... (elapsed: #{minutes}m #{seconds}s)")
+        rescue Errno::ESRCH
+          break
+        end
+      end
+    end
+  end
 
   def update_status(status, error = nil)
     statuses = scan.tool_statuses || {}

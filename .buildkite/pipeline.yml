@@ -1,0 +1,90 @@
+steps:
+  - group: ":test_tube: Test & Lint"
+    steps:
+      - label: ":rspec: Test"
+        key: test
+        commands:
+          - apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null 2>&1
+          - bundle install --jobs 4 --quiet
+          - RAILS_ENV=test bundle exec rails db:create db:migrate
+          - bundle exec rspec --format documentation
+          - chmod -R a+rwX . || true
+        plugins:
+          - docker#v5.11.0:
+              image: ruby:3.2.2
+              propagate-environment: true
+              volumes:
+                - /tmp/bundler-cache:/usr/local/bundle
+        agents:
+          queue: gcp
+        retry:
+          automatic:
+            - exit_status: -1
+              limit: 1
+
+      - label: ":rubocop: Lint"
+        key: lint
+        commands:
+          - apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null 2>&1
+          - bundle install --jobs 4 --quiet
+          - bundle exec rubocop --parallel
+        plugins:
+          - docker#v5.11.0:
+              image: ruby:3.2.2
+              propagate-environment: true
+              volumes:
+                - /tmp/bundler-cache:/usr/local/bundle
+        agents:
+          queue: gcp
+        retry:
+          automatic:
+            - exit_status: -1
+              limit: 1
+
+  - wait
+
+  - group: ":docker: Build & Push"
+    steps:
+      - label: ":docker: Build Image"
+        key: docker-build
+        if: build.branch == "staging" || build.branch == "main"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - |
+            if [ "$$BUILDKITE_BRANCH" = "main" ]; then
+              ENV_TAG="production"
+            else
+              ENV_TAG="staging"
+            fi
+          - >-
+            docker buildx build
+            --cache-from type=registry,ref=$$DOCKER_REGISTRY/scanner:buildcache
+            --cache-to type=registry,ref=$$DOCKER_REGISTRY/scanner:buildcache,mode=max
+            -f docker/Dockerfile
+            -t $$DOCKER_REGISTRY/scanner:latest
+            -t $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT
+            -t $$DOCKER_REGISTRY/scanner:$$ENV_TAG
+            --push
+            .
+        agents:
+          queue: gcp
+
+  - wait
+
+  - group: ":rocket: Promote"
+    steps:
+      - label: ":arrow_right: Promote to staging"
+        key: promote-staging
+        if: build.branch == "development"
+        commands:
+          - .buildkite/scripts/promote.sh staging development auto
+        agents:
+          queue: gcp
+
+      - label: ":arrow_right: Promote to main"
+        key: promote-main
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/promote.sh main staging manual
+        agents:
+          queue: gcp

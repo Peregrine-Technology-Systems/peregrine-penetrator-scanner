@@ -30,8 +30,10 @@ module Scanners
       wordlist = tool_config[:wordlist] || '/usr/share/seclists/Discovery/Web-Content/common.txt'
       threads = tool_config[:threads] || 40
 
+      rate = tool_config[:rate] || 10
+
       cmd = "ffuf -u #{Shellwords.escape(fuzz_url)} -w #{wordlist} -o #{output_file} " \
-            "-of json -mc 200,201,301,302,403 -t #{threads} -s"
+            "-of json -mc 200,201,301,302,403 -t #{threads} -rate #{rate} -s"
 
       cmd += " -e #{tool_config[:extensions]}" if tool_config[:extensions]
 
