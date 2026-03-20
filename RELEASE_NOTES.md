@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+- Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
+- Scan completion callback: ScanCallbackService POSTs scan summary, cost data, and report paths to backend API on scan completion (#186)
+
 ### Bug Fixes
 - StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
 - Pass SCAN_MODE env var to Docker in scan VMs so BigQuery logs to correct table (#134)
@@ -9,6 +13,7 @@
 - Scan VMs now pull environment-tagged Docker images (`:staging`/`:production`) instead of `:latest` (#148)
 - Repo renamed from `web-app-penetration-test` to `peregrine-penetrator` (#150)
 - Report TOC: all major sections (Findings Summary, Detailed Findings, Test Methodology, Appendix) now at Level 1 (#154)
+- Auto-assign repo owner as reviewer on staging→main promotion PRs (#161)
 
 ### Cloud Scheduler
 - Weekly production scan via Cloud Scheduler + Cloud Function (#112)

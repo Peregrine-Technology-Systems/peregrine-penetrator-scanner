@@ -58,10 +58,14 @@ if [ "$MODE" = "auto" ]; then
   echo "Auto-merge enabled"
 else
   # Manual PRs (e.g. staging→main) require review — assign repo owner
-  OWNER=$(echo "$REPO" | cut -d/ -f1)
-  curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
-    "${API}/repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers" \
-    -d "{\"team_reviewers\": [], \"reviewers\": [\"amalc\"]}" > /dev/null 2>&1 || \
-    echo "Warning: could not assign reviewer"
-  echo "Manual merge required for ${HEAD} → ${BASE} (reviewer assigned)"
+  REPO_OWNER=$(curl -sf -H "$AUTH" "${API}/repos/${REPO}" | jq -r '.owner.login')
+  if [ -n "$REPO_OWNER" ] && [ "$REPO_OWNER" != "null" ]; then
+    curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
+      "${API}/repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers" \
+      -d "{\"team_reviewers\": [], \"reviewers\": [\"${REPO_OWNER}\"]}" > /dev/null 2>&1 || \
+      echo "Warning: could not assign reviewer"
+    echo "Manual merge required for ${HEAD} → ${BASE} (reviewer: ${REPO_OWNER})"
+  else
+    echo "Manual merge required for ${HEAD} → ${BASE} (could not determine repo owner)"
+  fi
 fi

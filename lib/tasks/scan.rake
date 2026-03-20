@@ -21,6 +21,9 @@ namespace :scan do
     scan = target.scans.create!(profile:)
     puts "Scan ID: #{scan.id}"
 
+    # Initialize cost tracker
+    cost_logger = ScanCostLogger.new(scan)
+
     # Execute scan
     orchestrator = ScanOrchestrator.new(scan)
     orchestrator.execute
@@ -57,6 +60,28 @@ namespace :scan do
       puts "\n--- Finding History ---"
       logged = BigQueryLogger.new.log_findings(scan)
       puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
+    end
+
+    # Log scan costs to BigQuery
+    if BigQueryLogger.enabled?
+      puts "\n--- Cost Tracking ---"
+      if cost_logger.log_to_bigquery
+        data = cost_logger.cost_data
+        puts "  VM: #{data[:vm_type]}, Runtime: #{data[:vm_runtime_seconds]}s, " \
+             "Est. cost: $#{format('%.4f', data[:estimated_cost_usd])}"
+      else
+        puts '  Cost logging skipped or failed'
+      end
+    end
+
+    # Callback to backend API
+    if ScanCallbackService.enabled?
+      puts "\n--- Backend Callback ---"
+      if ScanCallbackService.new(scan, cost_logger).notify
+        puts "  Callback sent to #{ENV.fetch('CALLBACK_URL', 'unknown')}"
+      else
+        puts '  Callback failed (scan still succeeded)'
+      end
     end
 
     # Send notifications
