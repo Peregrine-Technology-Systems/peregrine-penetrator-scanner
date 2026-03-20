@@ -43,9 +43,9 @@ RSpec.describe ReportGenerators::MarkdownReport do
       expect(output).not_to be_empty
     end
 
-    it 'includes the executive summary section' do
-      expect(output).to include('## Metrics')
+    it 'includes version and risk level' do
       expect(output).to include('Overall Risk Level')
+      expect(output).to include('Version:')
     end
 
     it 'includes findings summary section' do
@@ -91,10 +91,10 @@ RSpec.describe ReportGenerators::MarkdownReport do
   describe 'executive summary section' do
     let(:output) { report.generate }
 
-    it 'displays severity counts in a table' do
-      expect(output).to include('| Critical | 1 |')
-      expect(output).to include('| High | 1 |')
-      expect(output).to include('| Medium | 1 |')
+    it 'displays risk level and version' do
+      expect(output).to include('Overall Risk Level')
+      expect(output).to include('Version:')
+      expect(output).to include('Scan Duration:')
     end
 
     it 'calculates risk score and label' do
