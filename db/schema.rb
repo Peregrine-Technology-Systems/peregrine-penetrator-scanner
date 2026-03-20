@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_03_18_000004) do
+ActiveRecord::Schema[7.1].define(version: 2026_03_20_000001) do
   create_table "findings", id: { type: :string, limit: 36 }, force: :cascade do |t|
     t.string "scan_id", limit: 36, null: false
     t.string "source_tool", null: false
@@ -69,6 +69,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_18_000004) do
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "ticket_tracker"
+    t.text "ticket_config"
   end
 
   add_foreign_key "findings", "scans"

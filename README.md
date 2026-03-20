@@ -1,13 +1,28 @@
 # Web Application Penetration Testing Platform
 
 <!-- Badges -->
-![CI](https://github.com/Peregrine-Technology-Systems/web-app-penetration-test/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-94.64%25-brightgreen)
+[![Build status](https://badge.buildkite.com/sample.svg?theme=github)](https://buildkite.com/chaudhuri-and-co/web-app-penetration-test)
+![Ruby](https://img.shields.io/badge/ruby-3.2.2-CC342D?logo=ruby&logoColor=white)
+![Rails](https://img.shields.io/badge/rails-7.1-CC0000?logo=rubyonrails&logoColor=white)
+![Coverage](https://img.shields.io/badge/coverage-95.85%25-brightgreen)
+![RuboCop](https://img.shields.io/badge/rubocop-0%20offenses-brightgreen)
 ![License](https://img.shields.io/badge/license-BSL%201.1-blue)
+![Platform](https://img.shields.io/badge/platform-GCP-4285F4?logo=googlecloud&logoColor=white)
 
 Automated security scanning platform that orchestrates best-in-class open-source tools against target web applications, aggregates findings, and generates professional reports.
 
 > **v0.1.0** — See [RELEASE_NOTES.md](RELEASE_NOTES.md) for what's new.
+
+### Project Scope (March 2026)
+
+| Metric | Count |
+|--------|-------|
+| Application code | 3,700 lines |
+| Test code | 5,141 lines |
+| Test:Code ratio | 1.39:1 |
+| Test examples | 413 |
+| Line coverage | 95.85% |
+| RuboCop offenses | 0 |
 
 ---
 
@@ -20,12 +35,16 @@ All tools in this repository are for **authorized testing only**. Explicit writt
 ## Architecture
 
 ```
-Cloud Scheduler → Cloud Run Job → ScanOrchestrator
-                                    ├── Phase 1: Discovery (ffuf + Nikto)
-                                    ├── Phase 2: Active Scan (OWASP ZAP)
-                                    └── Phase 3: Targeted (Nuclei + sqlmap)
-                                         ↓
-                                  FindingNormalizer → ReportGenerator → Notify
+Cloud Scheduler → Cloud Function → Ephemeral Spot VM → ScanOrchestrator
+Buildkite CI    → trigger-scan.sh ↗                      ├── Discovery (ffuf + Nikto)
+Dev CLI         → ./cloud/dev scan ↗                     ├── Active Scan (OWASP ZAP)
+                                                          └── Targeted (Nuclei + sqlmap)
+                                                               ↓
+                                              FindingNormalizer → CVE Enrichment
+                                                               ↓
+                                              AI Analysis (Claude) → BigQuery Log
+                                                               ↓
+                                              ReportGenerator (JSON/MD/HTML/PDF) → Notify
 ```
 
 ## Security Tool Stack
@@ -70,12 +89,19 @@ docker run --platform linux/amd64 \
   pentest-platform rake scan:run
 ```
 
-### GCP Deployment
+### Cloud Development
 ```bash
-# Manual trigger
-gcloud run jobs execute pentest-scanner --region=us-central1
+./cloud/dev start          # Create/start GCP dev VM
+./cloud/dev build          # Sync code + Docker build on VM
+./cloud/dev scan quick     # Run scan, stream output
+./cloud/dev results        # Download reports locally
+./cloud/dev stop           # Stop VM (preserves Docker cache)
+```
 
-# Scheduled: Cloud Scheduler runs weekly (Monday 2am UTC)
+### Production
+```bash
+./cloud/dev scan-prod      # On-demand production scan (ephemeral spot VM)
+# Scheduled: Cloud Scheduler triggers weekly Monday 2am UTC
 ```
 
 ### Reports
