@@ -42,6 +42,10 @@ def trigger_scan(request):
         )],
         network_interfaces=[compute_v1.NetworkInterface(
             name='global/networks/default',
+            access_configs=[compute_v1.AccessConfig(
+                name='External NAT',
+                type_='ONE_TO_ONE_NAT',
+            )],
         )],
         service_accounts=[compute_v1.ServiceAccount(
             email=SERVICE_ACCOUNT,
