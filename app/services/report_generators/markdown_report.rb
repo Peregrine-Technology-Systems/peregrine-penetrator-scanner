@@ -15,8 +15,8 @@ module ReportGenerators
 
     def generate
       sections = []
-      sections << metrics_section
-      sections << executive_summary_text
+      sections << executive_summary_section
+      sections << '\newpage'
       sections << findings_summary_section
       sections << '\newpage'
       sections << detailed_findings_section
@@ -55,24 +55,29 @@ module ReportGenerators
       MARKDOWN
     end
 
-    def metrics_section
+    def executive_summary_section
       severity_counts = extract_severity_counts
       risk_score, risk_label = compute_risk_score_and_label(severity_counts)
       tools_used = @findings.map(&:source_tool).compact.uniq
 
-      lines = ["**Version:** #{report_version}", '']
+      lines = ['# Executive Summary']
+      lines << ''
+      lines << "**Version:** #{report_version}"
+      lines << ''
       lines << "**Overall Risk Level: #{risk_label}** (Score: #{risk_score}/100)"
       lines << ''
       lines << "**Scan Duration:** #{format_duration(@scan.duration)}"
       lines << "**Tools Executed:** #{tools_used.join(', ')}" if tools_used.any?
+      lines << ''
+      lines.concat(metrics_table(severity_counts))
+
+      exec_text = (@scan.summary || {})['executive_summary']
+      if exec_text.present?
+        lines << ''
+        lines << exec_text.to_s
+      end
+
       lines.join("\n")
-    end
-
-    def executive_summary_text
-      text = (@scan.summary || {})['executive_summary']
-      return nil if text.blank?
-
-      text.to_s
     end
 
     def extract_severity_counts
@@ -165,7 +170,7 @@ module ReportGenerators
 
       display_findings.each_with_index do |f, idx|
         lines << ''
-        lines << "### #{idx + 1}. [#{f.severity.upcase}] #{f.title}"
+        lines << "## #{idx + 1}. [#{f.severity.upcase}] #{f.title}"
         lines << ''
         lines.concat(finding_metadata_table(f))
         lines.concat(finding_evidence(f))
@@ -201,7 +206,7 @@ module ReportGenerators
     def finding_evidence(finding)
       return [] if finding.evidence.blank?
 
-      lines = ['', '#### Description / Evidence', '']
+      lines = ['', '### Description / Evidence', '']
       if finding.evidence.is_a?(Hash)
         lines.concat(finding_evidence_hash(finding.evidence))
       else
@@ -222,12 +227,12 @@ module ReportGenerators
     def finding_ai_assessment(finding)
       return [] if finding.ai_assessment.blank?
 
-      lines = ['', '#### AI Assessment', '']
+      lines = ['', '### AI Assessment', '']
       if finding.ai_assessment.is_a?(Hash)
         lines << finding.ai_assessment['summary'].to_s if finding.ai_assessment['summary'].present?
         if finding.ai_assessment['recommendation'].present?
           lines << ''
-          lines << '#### Remediation'
+          lines << '### Remediation'
           lines << ''
           lines << finding.ai_assessment['recommendation'].to_s
         end
