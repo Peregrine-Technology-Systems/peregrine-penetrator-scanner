@@ -8,6 +8,7 @@ steps:
           - bundle install --jobs 4 --quiet
           - RAILS_ENV=test bundle exec rails db:create db:migrate
           - bundle exec rspec --format documentation
+          - chmod -R a+rwX . || true
         plugins:
           - docker#v5.11.0:
               image: ruby:3.2.2

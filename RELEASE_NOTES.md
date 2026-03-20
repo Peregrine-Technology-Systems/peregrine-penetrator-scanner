@@ -17,6 +17,8 @@
 - Manual merge required for staging → main promotion
 - Branch protection updated to require Buildkite status checks
 - Promotion via GitHub API curl/jq script (no `gh` CLI dependency)
+- Fix Docker plugin root-owned file cleanup with chmod after test step
+- Idle-shutdown ignores BuildKit infrastructure container
 - Secrets managed via GCP Secret Manager (`web-app-penetration-test--*` in ci-runners-de)
 
 ### Code Quality
@@ -36,6 +38,9 @@
 - Info-level findings filtered from reports with portal upsell note
 - PDF generation raises error on failure instead of saving markdown as .pdf
 - Report section renamed from Executive Summary to Metrics; AI summary separate
+- Removed duplicate Executive Summary heading (AI text includes its own)
+- Key Metrics table on page 2 below doughnut chart (no duplication)
+- Prevent heading widowing with needspace in LaTeX template
 - Cover and back page: Peregrine gold branding
 - Email notification: fixed auth method (`:login`), added 10s timeout
 
