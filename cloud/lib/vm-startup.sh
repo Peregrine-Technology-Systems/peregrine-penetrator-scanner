@@ -76,6 +76,8 @@ case "$SCAN_MODE" in
     SMTP_HOST=$(get_metadata "SMTP_HOST" "mail.authsmtp.com")
     SMTP_PORT=$(get_metadata "SMTP_PORT" "2525")
     VERSION=$(get_metadata "VERSION" "")
+    SCAN_UUID=$(get_metadata "SCAN_UUID" "")
+    CALLBACK_URL=$(get_metadata "CALLBACK_URL" "")
 
     # Read machine type from instance metadata for cost tracking
     MACHINE_TYPE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/machine-type" 2>/dev/null | rev | cut -d'/' -f1 | rev || echo "unknown")
@@ -96,6 +98,7 @@ case "$SCAN_MODE" in
     NVD_API_KEY=$(fetch_secret "pentest-nvd-api-key")
     SMTP_USERNAME=$(fetch_secret "pentest-smtp-username")
     SMTP_PASSWORD=$(fetch_secret "pentest-smtp-password")
+    SCAN_CALLBACK_SECRET=$(fetch_secret "pentest-scan-callback-secret")
 
     # Pull image
     echo "Pulling image..."
@@ -126,6 +129,9 @@ case "$SCAN_MODE" in
       -e "VERSION=${VERSION}" \
       -e "VM_MACHINE_TYPE=${MACHINE_TYPE}" \
       -e "SPOT_INSTANCE=${SPOT_INSTANCE}" \
+      -e "SCAN_UUID=${SCAN_UUID}" \
+      -e "CALLBACK_URL=${CALLBACK_URL}" \
+      -e "SCAN_CALLBACK_SECRET=${SCAN_CALLBACK_SECRET}" \
       -v "${RESULTS_DIR}:/app/storage/reports" \
       --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
       "${FULL_IMAGE}" \

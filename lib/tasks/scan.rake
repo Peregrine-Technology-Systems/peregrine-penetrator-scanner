@@ -74,6 +74,16 @@ namespace :scan do
       end
     end
 
+    # Callback to backend API
+    if ScanCallbackService.enabled?
+      puts "\n--- Backend Callback ---"
+      if ScanCallbackService.new(scan, cost_logger).notify
+        puts "  Callback sent to #{ENV.fetch('CALLBACK_URL', 'unknown')}"
+      else
+        puts '  Callback failed (scan still succeeded)'
+      end
+    end
+
     # Send notifications
     puts "\n--- Notifications ---"
     NotificationService.new(scan).notify
