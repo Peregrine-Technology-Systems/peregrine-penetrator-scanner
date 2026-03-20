@@ -4,6 +4,7 @@
 
 ### Bug Fixes
 - StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
+- Pass SCAN_MODE env var to Docker in scan VMs so BigQuery logs to correct table (#134)
 
 ### Cloud Scheduler
 - Weekly production scan via Cloud Scheduler + Cloud Function (#112)
