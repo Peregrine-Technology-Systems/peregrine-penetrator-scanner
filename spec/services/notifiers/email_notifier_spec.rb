@@ -90,7 +90,7 @@ RSpec.describe Notifiers::EmailNotifier do
     end
 
     it 'includes authentication method' do
-      expect(notifier.smtp_settings[:authentication]).to eq(:plain)
+      expect(notifier.smtp_settings[:authentication]).to eq(:login)
     end
 
     it 'enables STARTTLS' do
