@@ -32,7 +32,12 @@ ENV_ARGS=""
 if [ -f "${PROJECT_ROOT}/.env" ]; then
   log_info "Loading environment from local .env"
   ENV_ARGS="--env-file /tmp/pentest-scan.env"
-  vm_scp "${PROJECT_ROOT}/.env" "${VM_NAME}:/tmp/pentest-scan.env"
+  # Strip GCS_BUCKET so dev scans store reports locally (not to GCS)
+  # Override GOOGLE_CLOUD_PROJECT to dev project for BigQuery access
+  grep -v '^GCS_BUCKET=' "${PROJECT_ROOT}/.env" \
+    | sed "s/^GOOGLE_CLOUD_PROJECT=.*/GOOGLE_CLOUD_PROJECT=${GCP_PROJECT}/" > /tmp/pentest-scan-local.env
+  vm_scp /tmp/pentest-scan-local.env "${VM_NAME}:/tmp/pentest-scan.env"
+  rm -f /tmp/pentest-scan-local.env
 fi
 
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)

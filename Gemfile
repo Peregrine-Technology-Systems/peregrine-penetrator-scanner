@@ -14,6 +14,9 @@ gem "grover"
 # Cloud storage
 gem "google-cloud-storage", "~> 1.44"
 
+# BigQuery for finding history
+gem "google-cloud-bigquery", "~> 1.49"
+
 # HTTP client for CVE APIs and webhooks
 gem "faraday", "~> 2.7"
 
