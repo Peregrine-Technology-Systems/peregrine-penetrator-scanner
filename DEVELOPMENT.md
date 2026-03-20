@@ -26,7 +26,7 @@ These are bundled in the Docker image but can be installed locally for developme
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd web-app-penetration-test
+cd peregrine-penetrator
 
 # Install dependencies
 bundle install
@@ -298,7 +298,7 @@ gh pr create --base develop --title "feat: describe the change"
 ## Project Structure
 
 ```
-web-app-penetration-test/
+peregrine-penetrator/
   app/
     controllers/          # Thin controllers (10-15 lines max)
     models/               # Domain models with UUID PKs
