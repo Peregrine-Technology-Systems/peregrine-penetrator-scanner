@@ -23,6 +23,7 @@
 ### CI/CD Pipeline
 - Migrated from GitHub Actions to Buildkite (`.buildkite/pipeline.yml`)
 - Test and lint run in `ruby:3.2.2` Docker containers on Buildkite agents; Docker image build on staging/main
+- Docker image built once on development, re-tagged on staging/main (no rebuild)
 - Docker builds use registry-based BuildKit cache for speed across agents
 - Auto-merge for development → staging promotion PRs
 - Manual merge required for staging → main promotion
