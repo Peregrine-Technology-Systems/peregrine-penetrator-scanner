@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Ephemeral Scan VMs
+- Staging scans: auto-triggered by Buildkite after merge to staging, ephemeral VM self-terminates
+- Production scans: on-demand via `./cloud/dev scan-prod` or Cloud Scheduler, spot pricing (~60% savings)
+- Unified startup script (`vm-startup.sh`) with `SCAN_MODE` metadata (dev/staging/production)
+- Secrets pulled from GCP Secret Manager at scan time
+- Results uploaded to GCS, notifications via Slack/email
+
 ### Cloud Development Environment
 - GCP VM-based dev environment (`./cloud/dev` CLI) for remote Docker builds and scans
 - 200GB persistent data disk for Docker layer cache, BuildKit cache, and scan results

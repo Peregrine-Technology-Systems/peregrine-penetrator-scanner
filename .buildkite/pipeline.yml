@@ -71,13 +71,21 @@ steps:
 
   - wait
 
-  - group: ":rocket: Promote"
+  - group: ":rocket: Promote & Scan"
     steps:
       - label: ":arrow_right: Promote to staging"
         key: promote-staging
         if: build.branch == "development"
         commands:
           - .buildkite/scripts/promote.sh staging development auto
+        agents:
+          queue: gcp
+
+      - label: ":mag: Staging scan"
+        key: scan-staging
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/trigger-scan.sh staging standard $$BUILDKITE_COMMIT
         agents:
           queue: gcp
 
