@@ -87,9 +87,8 @@ RSpec.describe ReportGenerator do
       end
 
       it 'marks the report as failed' do
-        expect { generator.generate('json') }.to raise_error(StandardError)
+        report = generator.generate('json')
 
-        report = Report.last
         expect(report.status).to eq('failed')
       end
     end
