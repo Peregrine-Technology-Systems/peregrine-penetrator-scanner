@@ -158,5 +158,31 @@ RSpec.describe StorageService do
         expect(url).to eq('https://storage.googleapis.com/signed-url')
       end
     end
+
+    context 'when GCS is configured but bucket is inaccessible' do
+      let(:gcs_storage_class) { Class.new }
+      let(:mock_storage) { instance_double(gcs_storage_class) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:[]).with('GOOGLE_CLOUD_PROJECT').and_return('my-project')
+        allow(ENV).to receive(:[]).with('GCS_BUCKET').and_return('my-bucket')
+        allow(ENV).to receive(:fetch).with('GCS_BUCKET', 'pentest-reports').and_return('my-bucket')
+
+        allow(service).to receive(:require).with('google/cloud/storage').and_return(true)
+
+        stub_const('Google::Cloud::Storage', gcs_storage_class)
+        allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
+        allow(mock_storage).to receive(:bucket).and_return(nil)
+      end
+
+      it 'falls back to local file:// URL and logs a warning' do
+        expect(Rails.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back/)
+        url = service.signed_url('scans/report.pdf')
+        expected = Rails.root.join('storage/reports/scans/report.pdf').to_s
+        expect(url).to eq("file://#{expected}")
+      end
+    end
   end
 end
