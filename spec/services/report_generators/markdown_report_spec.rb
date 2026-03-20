@@ -48,24 +48,24 @@ RSpec.describe ReportGenerators::MarkdownReport do
       expect(output).to include('Version:')
     end
 
-    it 'includes findings summary section' do
-      expect(output).to include('## Findings Summary')
+    it 'includes findings summary as Level 1 heading' do
+      expect(output).to match(/^# Findings Summary$/m)
       expect(output).to include('SQL Injection')
       expect(output).to include('XSS Reflected')
     end
 
-    it 'includes detailed findings section' do
-      expect(output).to include('## Detailed Findings')
+    it 'includes detailed findings as Level 1 heading' do
+      expect(output).to match(/^# Detailed Findings$/m)
     end
 
-    it 'includes methodology section' do
-      expect(output).to include('## Test Methodology')
+    it 'includes methodology as Level 1 heading' do
+      expect(output).to match(/^# Test Methodology$/m)
       expect(output).to include('Scanning Phases')
       expect(output).to include('Tool Descriptions')
     end
 
-    it 'includes appendix section' do
-      expect(output).to include('## Appendix')
+    it 'includes appendix as Level 1 heading' do
+      expect(output).to match(/^# Appendix$/m)
       expect(output).to include('Tool Versions')
       expect(output).to include('Scan Configuration')
       expect(output).to include('Disclaimer')
@@ -188,7 +188,7 @@ RSpec.describe ReportGenerators::MarkdownReport do
       let(:output) { report.generate }
 
       it 'omits the findings summary' do
-        expect(output).not_to include('## Findings Summary')
+        expect(output).not_to match(/^# Findings Summary$/m)
       end
     end
 
@@ -284,7 +284,7 @@ RSpec.describe ReportGenerators::MarkdownReport do
       let(:findings) { [] }
 
       it 'omits detailed findings section' do
-        expect(output).not_to include('## Detailed Findings')
+        expect(output).not_to match(/^# Detailed Findings$/m)
       end
     end
 

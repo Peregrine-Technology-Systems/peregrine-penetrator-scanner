@@ -104,7 +104,7 @@ module ReportGenerators
 
     def metrics_table(counts)
       [
-        '### Key Metrics',
+        '## Key Metrics',
         '',
         '| Metric | Count |',
         '|--------|------:|',
@@ -120,7 +120,7 @@ module ReportGenerators
       return nil if @findings.empty?
 
       lines = []
-      lines << '## Findings Summary'
+      lines << '# Findings Summary'
       lines << ''
       lines << "#{@findings.size} finding(s) identified during this assessment:"
       lines << ''
@@ -153,7 +153,7 @@ module ReportGenerators
       return nil if @findings.empty?
 
       lines = []
-      lines << '## Detailed Findings'
+      lines << '# Detailed Findings'
 
       if @findings.size > MAX_DETAILED_FINDINGS
         lines << ''
