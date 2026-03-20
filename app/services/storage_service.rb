@@ -50,6 +50,10 @@ class StorageService
     require 'google/cloud/storage'
     storage = Google::Cloud::Storage.new
     bucket = storage.bucket(@bucket_name)
+    unless bucket
+      Rails.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local URL")
+      return "file://#{local_storage_path(remote_path)}"
+    end
     file = bucket.file(remote_path)
     file.signed_url(expires: expires_in.to_i, method: 'GET')
   end
