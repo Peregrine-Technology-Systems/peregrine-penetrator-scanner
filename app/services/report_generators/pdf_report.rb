@@ -19,9 +19,9 @@ module ReportGenerators
       md_path = md_dir.join('report.md')
       File.write(md_path, md_content)
 
-      # Copy logo for LaTeX template
-      logo_src = Rails.root.join('app/assets/images/peregrine_logo_white.png')
-      logo_dest = md_dir.join('peregrine_logo.png')
+      # Copy embossed logo for LaTeX template
+      logo_src = Rails.root.join('app/assets/images/peregrine_logo_embossed.jpg')
+      logo_dest = md_dir.join('peregrine_logo.jpg')
       FileUtils.cp(logo_src, logo_dest) if File.exist?(logo_src)
 
       pdf_path = md_dir.join('report.pdf')
