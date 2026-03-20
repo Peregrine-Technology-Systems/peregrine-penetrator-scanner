@@ -4,7 +4,7 @@ module ReportGenerators
 
     def methodology_section
       lines = []
-      lines << '## Test Methodology'
+      lines << '# Test Methodology'
       lines << ''
       lines << methodology_intro
       lines << ''
@@ -21,7 +21,7 @@ module ReportGenerators
 
     def appendix_section
       lines = []
-      lines << '## Appendix'
+      lines << '# Appendix'
       lines << ''
       lines.concat(tool_versions_table)
       lines.concat(scan_config_section)
@@ -35,7 +35,7 @@ module ReportGenerators
 
     def tool_versions_table
       [
-        '### Tool Versions',
+        '## Tool Versions',
         '',
         '| Tool | Version |',
         '|------|---------|',
@@ -50,7 +50,7 @@ module ReportGenerators
 
     def scan_config_section
       [
-        '### Scan Configuration',
+        '## Scan Configuration',
         '',
         "- **Profile:** #{@scan.profile&.titleize || 'Standard'}",
         "- **Target URLs:** #{@target.url_list.join(', ')}",
@@ -64,7 +64,7 @@ module ReportGenerators
       tool_statuses = @scan.tool_statuses || {}
       return [] unless tool_statuses.any?
 
-      lines = ['', '### Tool Execution Status', '', '| Tool | Status |', '|------|--------|']
+      lines = ['', '## Tool Execution Status', '', '| Tool | Status |', '|------|--------|']
       tool_statuses.each do |name, info|
         stat = info.is_a?(Hash) ? info['status'] || info[:status] : info.to_s
         lines << "| #{sanitize(name)} | #{sanitize(stat)} |"
@@ -75,7 +75,7 @@ module ReportGenerators
     def disclaimer_section
       [
         '',
-        '### Disclaimer',
+        '## Disclaimer',
         '',
         'This penetration test was performed with explicit written authorization. ',
         'The assessment was limited to the agreed-upon scope and test window. ',
