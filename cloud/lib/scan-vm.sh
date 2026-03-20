@@ -11,7 +11,7 @@ source "$(dirname "$0")/config.sh"
 
 ENV="${1:?Usage: scan-vm.sh <staging|production> [profile] [image_tag]}"
 PROFILE="${2:-standard}"
-IMAGE_TAG="${3:-latest}"
+IMAGE_TAG="${3:-${ENV}}"
 
 # Environment-specific configuration
 case "$ENV" in

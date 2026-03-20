@@ -5,6 +5,9 @@
 ### Bug Fixes
 - StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
 - Pass SCAN_MODE env var to Docker in scan VMs so BigQuery logs to correct table (#134)
+- Orphan VM scavenger: auto-delete scan VMs older than 30 minutes (#146)
+- Scan VMs now pull environment-tagged Docker images (`:staging`/`:production`) instead of `:latest` (#148)
+- Repo renamed from `web-app-penetration-test` to `peregrine-penetrator` (#150)
 
 ### Cloud Scheduler
 - Weekly production scan via Cloud Scheduler + Cloud Function (#112)
@@ -75,7 +78,7 @@
 - Promotion via GitHub API curl/jq script (no `gh` CLI dependency) (#90)
 - Fix Docker plugin root-owned file cleanup with chmod after test step (#95)
 - Fix clean checkout conflicts with Docker plugin pre-exit hook (#98)
-- Secrets managed via GCP Secret Manager (`web-app-penetration-test--*` in ci-runners-de) (#86)
+- Secrets managed via GCP Secret Manager (`peregrine-penetrator--*` in ci-runners-de) (#86)
 
 ### Code Quality
 - Zero RuboCop offenses across all 94 files (was 33 pre-existing) (#85)

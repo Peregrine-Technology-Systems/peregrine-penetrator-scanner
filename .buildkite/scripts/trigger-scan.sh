@@ -6,7 +6,7 @@ set -euo pipefail
 
 ENV="${1:?Usage: trigger-scan.sh <staging|production> <profile> <image_tag>}"
 PROFILE="${2:-standard}"
-IMAGE_TAG="${3:-latest}"
+IMAGE_TAG="${3:-${ENV}}"
 
 GCP_PROJECT="${GCP_PROJECT:-peregrine-pentest-dev}"
 GCP_ZONE="${GCP_ZONE:-us-central1-a}"
@@ -30,10 +30,10 @@ esac
 
 # Fetch secrets for scan notifications
 SLACK_WEBHOOK_URL=$(gcloud secrets versions access latest \
-  --secret="web-app-penetration-test--slack-webhook-url" \
+  --secret="peregrine-penetrator--slack-webhook-url" \
   --project=ci-runners-de 2>/dev/null || echo "")
 NOTIFICATION_EMAIL=$(gcloud secrets versions access latest \
-  --secret="web-app-penetration-test--notification-email" \
+  --secret="peregrine-penetrator--notification-email" \
   --project=ci-runners-de 2>/dev/null || echo "")
 
 echo "Launching ${ENV} scan VM: ${VM_NAME}"
