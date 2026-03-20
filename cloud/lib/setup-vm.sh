@@ -82,9 +82,14 @@ fi
 IDLE_SCRIPT="/usr/local/bin/idle-shutdown-check.sh"
 cat > "${IDLE_SCRIPT}" <<'IDLE_EOF'
 #!/usr/bin/env bash
+# Explicit PATH for cron environment (cron uses minimal /usr/bin:/bin)
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 IDLE_FILE="/tmp/pentest-idle-since"
 BOOT_TIME_FILE="/tmp/pentest-boot-time"
 THRESHOLD_SECONDS=600
+
+log() { logger "pentest-idle-shutdown: $*"; }
 
 [ ! -f "$BOOT_TIME_FILE" ] && date +%s > "$BOOT_TIME_FILE"
 
@@ -110,15 +115,22 @@ if [ "$idle_seconds" -ge "$THRESHOLD_SECONDS" ]; then
   runtime_hours=$((runtime_seconds / 3600))
   runtime_minutes=$(((runtime_seconds % 3600) / 60))
 
-  WEBHOOK_URL=$(curl -sf -H "Metadata-Flavor: Google" \
+  log "idle ${idle_seconds}s, runtime ${runtime_hours}h ${runtime_minutes}m — sending notification"
+
+  WEBHOOK_URL=$(curl --max-time 5 -sf -H "Metadata-Flavor: Google" \
     "http://metadata.google.internal/computeMetadata/v1/instance/attributes/SLACK_WEBHOOK_URL" 2>/dev/null || echo "")
   if [ -n "$WEBHOOK_URL" ]; then
-    curl -sf -X POST -H 'Content-type: application/json' \
+    SLACK_RESPONSE=$(curl --max-time 10 -sf -X POST -H 'Content-type: application/json' \
       --data "{\"text\": \":stop_sign: Dev VM \`$(hostname)\` stopping (idle 10 min). Runtime: ${runtime_hours}h ${runtime_minutes}m\"}" \
-      "$WEBHOOK_URL" > /dev/null 2>&1 || true
+      "$WEBHOOK_URL" 2>&1) && \
+      log "Slack notification sent: ${SLACK_RESPONSE}" || \
+      log "Slack notification FAILED: ${SLACK_RESPONSE}"
+    sleep 2
+  else
+    log "No SLACK_WEBHOOK_URL in metadata — skipping notification"
   fi
 
-  logger "pentest-idle-shutdown: idle ${idle_seconds}s, runtime ${runtime_hours}h ${runtime_minutes}m"
+  log "shutting down"
   rm -f "$IDLE_FILE" "$BOOT_TIME_FILE"
   /sbin/shutdown -h now "Auto-shutdown: idle 10+ minutes"
 fi
