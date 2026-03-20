@@ -77,6 +77,10 @@ case "$SCAN_MODE" in
     SMTP_PORT=$(get_metadata "SMTP_PORT" "2525")
     VERSION=$(get_metadata "VERSION" "")
 
+    # Read machine type from instance metadata for cost tracking
+    MACHINE_TYPE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/machine-type" 2>/dev/null | rev | cut -d'/' -f1 | rev || echo "unknown")
+    SPOT_INSTANCE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/scheduling/preemptible" 2>/dev/null || echo "false")
+
     FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
 
     echo "Image: ${FULL_IMAGE}"
@@ -120,6 +124,8 @@ case "$SCAN_MODE" in
       -e "GCS_BUCKET=${GCS_BUCKET}" \
       -e "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}" \
       -e "VERSION=${VERSION}" \
+      -e "VM_MACHINE_TYPE=${MACHINE_TYPE}" \
+      -e "SPOT_INSTANCE=${SPOT_INSTANCE}" \
       -v "${RESULTS_DIR}:/app/storage/reports" \
       --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
       "${FULL_IMAGE}" \
