@@ -4,7 +4,7 @@
 
 ### Ephemeral Scan VMs
 - Staging scans: auto-triggered by Buildkite after merge to staging, ephemeral VM self-terminates
-- Production scans: on-demand via `./cloud/dev scan-prod` or Cloud Scheduler, spot pricing (~60% savings)
+- Production scans: on-demand via `./cloud/dev scan-prod`, weekly scheduled via Buildkite cron (#112), spot pricing (~60% savings)
 - Unified startup script (`vm-startup.sh`) with `SCAN_MODE` metadata (dev/staging/production)
 - Secrets pulled from GCP Secret Manager at scan time
 - Results uploaded to GCS, notifications via Slack/email
