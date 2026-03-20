@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Bug Fixes
+- StorageService falls back to local storage when GCS bucket is inaccessible instead of crashing scan (#139)
+
 ### Cloud Scheduler
 - Weekly production scan via Cloud Scheduler + Cloud Function (#112)
 - Cloud Function launches ephemeral spot VM, self-terminates after scan (#112)

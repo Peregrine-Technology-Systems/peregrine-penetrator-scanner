@@ -75,6 +75,41 @@ RSpec.describe StorageService do
         expect(result[:url]).to eq('https://storage.googleapis.com/bucket/file')
       end
     end
+
+    context 'when GCS is configured but bucket is inaccessible' do
+      let(:gcs_storage_class) { Class.new }
+      let(:mock_storage) { instance_double(gcs_storage_class) }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:[]).with('GOOGLE_CLOUD_PROJECT').and_return('my-project')
+        allow(ENV).to receive(:[]).with('GCS_BUCKET').and_return('my-bucket')
+        allow(ENV).to receive(:fetch).with('GCS_BUCKET', 'pentest-reports').and_return('my-bucket')
+
+        allow(service).to receive(:require).with('google/cloud/storage').and_return(true)
+
+        stub_const('Google::Cloud::Storage', gcs_storage_class)
+        allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
+        allow(mock_storage).to receive(:bucket).and_return(nil)
+      end
+
+      it 'falls back to local storage and logs a warning' do
+        source = Tempfile.new(['test', '.json'])
+        source.write('fallback content')
+        source.close
+
+        expect(Rails.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back to local/)
+        result = service.upload(source.path, 'scans/fallback.json')
+
+        dest_path = Rails.root.join('storage/reports/scans/fallback.json').to_s
+        expect(File.exist?(dest_path)).to be true
+        expect(result[:path]).to eq('scans/fallback.json')
+      ensure
+        source&.unlink
+        FileUtils.rm_f(dest_path)
+      end
+    end
   end
 
   describe '#signed_url' do
