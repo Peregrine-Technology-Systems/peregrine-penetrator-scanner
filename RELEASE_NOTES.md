@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Bug Fixes
-- StorageService falls back to local storage when GCS bucket is inaccessible instead of crashing scan (#139)
+- StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
 
 ### Cloud Scheduler
 - Weekly production scan via Cloud Scheduler + Cloud Function (#112)
