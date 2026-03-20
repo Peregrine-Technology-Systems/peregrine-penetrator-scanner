@@ -53,7 +53,7 @@
 - Removed duplicate Executive Summary heading (AI text includes its own)
 - Key Metrics table on page 2 below doughnut chart (no duplication)
 - Prevent heading widowing with needspace in LaTeX template
-- Cover and back page: Peregrine gold branding
+- Cover and back page: Peregrine gold branding with embossed falcon logo
 - Email notification: fixed auth method (`:login`), added 10s timeout
 
 ### Scan Reliability
