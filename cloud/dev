@@ -25,17 +25,23 @@ Development:
   results            Download scan results to local
   logs               Tail scan logs on VM
 
+Environments:
+  scan-staging [profile] [tag]   Launch ephemeral VM for staging scan
+  scan-prod [profile] [tag]      Launch ephemeral VM for production scan
+
 Examples:
   ./cloud/dev start                 # Spin up VM (~60s)
   ./cloud/dev build                 # Sync + build (~5min cached)
   ./cloud/dev scan standard         # Run scan, stream output
   ./cloud/dev results               # Download reports
   ./cloud/dev stop                  # Stop when done
+  ./cloud/dev scan-staging quick    # Ephemeral staging scan
+  ./cloud/dev scan-prod thorough    # Ephemeral production scan (spot)
 
 Costs:
-  Running:  ~\$0.134/hr (e2-standard-4)
-  Stopped:  ~\$0.002/hr (disk only)
-  Auto-shutdown after 30 min idle
+  Dev VM:   ~\$0.134/hr (e2-standard-4), auto-shutdown 10 min idle
+  Staging:  ~\$0.50/scan (ephemeral, self-terminate)
+  Prod:     ~\$0.20/scan (ephemeral, spot pricing)
 EOF
 }
 
@@ -113,6 +119,14 @@ case "${1:-}" in
     fi
     log_info "Tailing scan logs (Ctrl+C to stop)..."
     vm_ssh "docker logs -f \$(docker ps -lq --filter 'name=pentest-scan') 2>/dev/null || echo 'No running scan container found'"
+    ;;
+  scan-staging)
+    shift
+    bash "${LIB_DIR}/scan-vm.sh" staging "${1:-standard}" "${2:-latest}"
+    ;;
+  scan-prod)
+    shift
+    bash "${LIB_DIR}/scan-vm.sh" production "${1:-standard}" "${2:-latest}"
     ;;
   help|--help|-h|"")
     usage
