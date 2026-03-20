@@ -9,6 +9,10 @@
 - Secrets pulled from GCP Secret Manager at scan time
 - Results uploaded to GCS, notifications via Slack/email
 
+### VM Notifications
+- Dev VM sends Slack notification on start and auto-shutdown
+- Shutdown notification includes total runtime (e.g., "Runtime: 2h 15m")
+
 ### Cloud Development Environment
 - GCP VM-based dev environment (`./cloud/dev` CLI) for remote Docker builds and scans
 - 200GB persistent data disk for Docker layer cache, BuildKit cache, and scan results

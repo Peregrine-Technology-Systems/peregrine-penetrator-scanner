@@ -29,3 +29,4 @@ gcloud compute instances start "${VM_NAME}" \
 
 wait_for_ssh
 log_ok "VM '${VM_NAME}' is running"
+slack_notify ":rocket: Dev VM \`${VM_NAME}\` started"
