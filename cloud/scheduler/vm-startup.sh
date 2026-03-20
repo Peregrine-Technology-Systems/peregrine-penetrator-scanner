@@ -106,6 +106,7 @@ case "$SCAN_MODE" in
     SCAN_EXIT=0
     docker run --rm \
       -e SCAN_PROFILE="${SCAN_PROFILE}" \
+      -e "SCAN_MODE=${SCAN_MODE}" \
       -e RAILS_ENV=production \
       -e "TARGET_URLS=${TARGET_URLS}" \
       -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
