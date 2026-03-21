@@ -18,6 +18,8 @@
 - Auto-assign repo owner as reviewer on staging→main promotion PRs (#161)
 
 ### Cloud Scheduler
+- VM scavenger Cloud Function: runs every 10 min, SSH liveness check before deleting orphaned VMs, 4-hour hard max, detailed Slack notifications (#195, #156)
+- Self-terminate error logging: failures are now logged instead of silently swallowed, scavenger referenced as fallback (#195)
 - Weekly production scan via Cloud Scheduler + Cloud Function (#112)
 - Cloud Function launches ephemeral spot VM, self-terminates after scan (#112)
 - On-demand production scan via `./cloud/dev scan-prod` (#102)
