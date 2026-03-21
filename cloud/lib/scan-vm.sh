@@ -16,11 +16,13 @@ IMAGE_TAG="${3:-${ENV}}"
 # Environment-specific configuration
 case "$ENV" in
   staging)
+    TARGET_NAME="AuxScan Staging"
     TARGET_URLS='["https://auxscan.stage.data-estate.cloud"]'
     VM_SCAN_NAME="pentest-scan-staging-$(date +%Y%m%d-%H%M%S)"
     SPOT_FLAG=""
     ;;
   production)
+    TARGET_NAME="AuxScan Production"
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
     VM_SCAN_NAME="pentest-scan-prod-$(date +%Y%m%d-%H%M%S)"
     SPOT_FLAG="--provisioning-model=SPOT --instance-termination-action=DELETE"
@@ -60,7 +62,7 @@ gcloud compute instances create "${VM_SCAN_NAME}" \
   --boot-disk-auto-delete \
   --service-account="${VM_SERVICE_ACCOUNT}" \
   --scopes=cloud-platform \
-  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${IMAGE_TAG},SCAN_PROFILE=${PROFILE},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL},NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL},VERSION=${VERSION}" \
+  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${IMAGE_TAG},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL},NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL},VERSION=${VERSION}" \
   --metadata-from-file=startup-script="${CLOUD_DIR}/lib/vm-startup.sh" \
   --tags=pentest-scan \
   --labels="env=${ENV},project=pentest,scan=true" \
