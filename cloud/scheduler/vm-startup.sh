@@ -71,6 +71,7 @@ case "$SCAN_MODE" in
     REGISTRY=$(get_metadata "REGISTRY" "us-central1-docker.pkg.dev/${PROJECT_ID}/pentest")
     IMAGE_TAG=$(get_metadata "IMAGE_TAG" "latest")
     SCAN_PROFILE=$(get_metadata "SCAN_PROFILE" "standard")
+    TARGET_NAME=$(get_metadata "TARGET_NAME" "")
     TARGET_URLS=$(get_metadata "TARGET_URLS" "")
     GCS_BUCKET=$(get_metadata "GCS_BUCKET" "${PROJECT_ID}-pentest-reports")
     SLACK_WEBHOOK_URL=$(get_metadata "SLACK_WEBHOOK_URL" "")
@@ -110,6 +111,7 @@ case "$SCAN_MODE" in
       -e SCAN_PROFILE="${SCAN_PROFILE}" \
       -e "SCAN_MODE=${SCAN_MODE}" \
       -e RAILS_ENV=production \
+      -e "TARGET_NAME=${TARGET_NAME}" \
       -e "TARGET_URLS=${TARGET_URLS}" \
       -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
       -e "NVD_API_KEY=${NVD_API_KEY}" \

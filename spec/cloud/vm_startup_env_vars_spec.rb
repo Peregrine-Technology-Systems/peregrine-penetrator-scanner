@@ -9,6 +9,7 @@ RSpec.describe 'vm-startup.sh environment variables' do # rubocop:disable RSpec/
       SCAN_PROFILE
       SCAN_MODE
       RAILS_ENV
+      TARGET_NAME
       TARGET_URLS
       ANTHROPIC_API_KEY
       NVD_API_KEY
