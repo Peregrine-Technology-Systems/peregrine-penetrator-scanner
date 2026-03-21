@@ -45,6 +45,8 @@ Dev CLI         → ./cloud/dev scan ↗                     ├── Active Sc
                                               AI Analysis (Claude) → BigQuery Log
                                                                ↓
                                               ReportGenerator (JSON/MD/HTML/PDF) → Notify
+
+Cloud Scheduler (*/10) → vm-scavenger → SSH liveness check → delete orphans → Slack
 ```
 
 ## Security Tool Stack
@@ -102,6 +104,17 @@ docker run --platform linux/amd64 \
 ```bash
 ./cloud/dev scan-prod      # On-demand production scan (ephemeral spot VM)
 # Scheduled: Cloud Scheduler triggers weekly Monday 2am UTC
+```
+
+### VM Lifecycle Management
+Scan VMs self-terminate on completion. A Cloud Function scavenger runs every 10 minutes as a safety net:
+- VMs < 30 min old: left alone
+- VMs 30 min – 4 hours: SSH liveness check — deletes only if no active scan container or VM is unreachable
+- VMs > 4 hours: force-deleted regardless of state
+- Slack notifications for all deletions with container info and reason
+
+```bash
+./cloud/dev scavenge       # Manual orphan cleanup
 ```
 
 ### Reports
