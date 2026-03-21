@@ -7,6 +7,7 @@
 - Scan completion callback: ScanCallbackService POSTs scan summary, cost data, and report paths to backend API on scan completion (#186)
 
 ### Bug Fixes
+- Restore Executive Summary heading and AI-generated text to PDF/HTML/Markdown reports; fix heading hierarchy (H1→H2→H3 proper nesting)
 - ReportGenerator no longer crashes entire scan when signed URL generation fails or a single report format fails — graceful degradation
 - StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
 - Pass SCAN_MODE env var to Docker in scan VMs so BigQuery logs to correct table (#134)
