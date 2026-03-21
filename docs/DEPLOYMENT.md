@@ -23,7 +23,8 @@ Cloud Run Job (4 vCPU, 16GB RAM, 3600s timeout)
 | Service | Purpose |
 |---------|---------|
 | **Cloud Run Jobs** | Executes scan container on schedule or on-demand |
-| **Cloud Scheduler** | Triggers scans on a cron schedule (default: daily 2am UTC) |
+| **Cloud Scheduler** | Triggers scans (weekly Monday 2am UTC) and VM scavenger (every 10 min) |
+| **Cloud Functions** | `trigger-production-scan` (launch scan VMs), `vm-scavenger` (orphan cleanup) |
 | **Artifact Registry** | Stores Docker images |
 | **Cloud Storage** | Stores generated reports (JSON, HTML, PDF) with 90-day lifecycle |
 | **Secret Manager** | Stores API keys, SMTP credentials, webhook URLs |
