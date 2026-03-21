@@ -24,10 +24,12 @@ INSTANCE_NAME=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/name")
 self_terminate() {
   echo "=== Self-terminating VM ${INSTANCE_NAME} ==="
   sleep 5
-  gcloud compute instances delete "${INSTANCE_NAME}" \
+  if ! gcloud compute instances delete "${INSTANCE_NAME}" \
     --zone="${ZONE}" \
     --project="${PROJECT_ID}" \
-    --quiet 2>/dev/null || true
+    --quiet 2>&1; then
+    echo "ERROR: Self-terminate failed for ${INSTANCE_NAME} — scavenger will clean up"
+  fi
 }
 
 if [ "$SCAN_MODE" != "dev" ]; then
