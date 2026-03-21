@@ -7,6 +7,8 @@
 - Scan completion callback: ScanCallbackService POSTs scan summary, cost data, and report paths to backend API on scan completion (#186)
 
 ### Bug Fixes
+- Pass TARGET_NAME env var through scan VMs so reports show actual target name instead of "Default Target" (#203)
+- Create pentest-anthropic-api-key in GCP Secret Manager so AI executive summary is generated (#202)
 - Restore Executive Summary heading and AI-generated text to PDF/HTML/Markdown reports; fix heading hierarchy (H1→H2→H3 proper nesting)
 - ReportGenerator no longer crashes entire scan when signed URL generation fails or a single report format fails — graceful degradation
 - StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)

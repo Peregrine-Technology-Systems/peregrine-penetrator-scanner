@@ -72,6 +72,7 @@ case "$SCAN_MODE" in
     IMAGE_TAG=$(get_metadata "IMAGE_TAG" "latest")
     SCAN_PROFILE=$(get_metadata "SCAN_PROFILE" "standard")
     TARGET_URLS=$(get_metadata "TARGET_URLS" "")
+    TARGET_NAME=$(get_metadata "TARGET_NAME" "")
     GCS_BUCKET=$(get_metadata "GCS_BUCKET" "${PROJECT_ID}-pentest-reports")
     SLACK_WEBHOOK_URL=$(get_metadata "SLACK_WEBHOOK_URL" "")
     NOTIFICATION_EMAIL=$(get_metadata "NOTIFICATION_EMAIL" "")
@@ -117,6 +118,7 @@ case "$SCAN_MODE" in
       -e SCAN_PROFILE="${SCAN_PROFILE}" \
       -e "SCAN_MODE=${SCAN_MODE}" \
       -e RAILS_ENV=production \
+      -e "TARGET_NAME=${TARGET_NAME}" \
       -e "TARGET_URLS=${TARGET_URLS}" \
       -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
       -e "NVD_API_KEY=${NVD_API_KEY}" \
