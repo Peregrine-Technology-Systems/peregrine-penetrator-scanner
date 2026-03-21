@@ -114,7 +114,29 @@ The Web Application Penetration Testing Platform is an automated security scanni
                        | Cloud Scheduler     |
                        | default: 0 2 * * *  |
                        +---------------------+
+
++---------------------+     +---------------------+
+| Cloud Function      |     | Cloud Scheduler     |
+| vm-scavenger        |<----| every 10 minutes    |
+| - SSH liveness check|     +---------------------+
+| - 30 min soft limit |
+| - 4 hr hard limit   |
+| - Slack reporting   |
++---------------------+
 ```
+
+### VM Lifecycle Management
+
+Scan VMs are ephemeral and self-terminate on completion via an EXIT trap.
+A Cloud Function scavenger (`vm-scavenger`) runs every 10 minutes as a safety net:
+
+| VM Age | Action |
+|--------|--------|
+| < 30 min | Skip (too young) |
+| 30 min – 4 hr | SSH check: if scan container running, skip; if idle/unreachable, delete |
+| > 4 hr | Force delete regardless of state |
+
+Slack notifications include: VM name, age, zone, deletion reason, and any killed container details.
 
 ---
 
