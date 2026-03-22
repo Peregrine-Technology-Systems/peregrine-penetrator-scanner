@@ -67,10 +67,10 @@ class DataRetentionPurger
     result = @client.query(sql)
     rows_deleted = result.total || 0
 
-    Rails.logger.info("[DataRetentionPurger] Purged #{rows_deleted} rows from #{table_name}")
+    Penetrator.logger.info("[DataRetentionPurger] Purged #{rows_deleted} rows from #{table_name}")
     { success: true, rows_deleted: rows_deleted }
   rescue StandardError => e
-    Rails.logger.error("[DataRetentionPurger] Failed to purge #{table_name}: #{e.message}")
+    Penetrator.logger.error("[DataRetentionPurger] Failed to purge #{table_name}: #{e.message}")
     { success: false, rows_deleted: 0, error: e.message }
   end
 
@@ -83,12 +83,12 @@ class DataRetentionPurger
     result = @client.query(sql)
     result.first[:cnt]
   rescue StandardError => e
-    Rails.logger.error("[DataRetentionPurger] Preview failed for #{table_name}: #{e.message}")
+    Penetrator.logger.error("[DataRetentionPurger] Preview failed for #{table_name}: #{e.message}")
     -1
   end
 
   def log_purge_event(results)
-    Rails.logger.info(
+    Penetrator.logger.info(
       {
         event: 'data_retention_purge',
         timestamp: Time.now.utc.iso8601,

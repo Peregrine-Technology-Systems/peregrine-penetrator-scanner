@@ -97,7 +97,7 @@ RSpec.describe FindingNormalizer do
                        title: 'XSS', url: 'https://example.com/search',
                        parameter: 'q', cwe_id: 'CWE-79', source_tool: 'nuclei')
 
-      expect(Rails.logger).to receive(:info).with(/Marked 1 duplicate findings/)
+      expect(Penetrator.logger).to receive(:info).with(/Marked 1 duplicate findings/)
 
       normalizer.normalize
     end

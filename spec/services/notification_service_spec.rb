@@ -117,7 +117,7 @@ RSpec.describe NotificationService do
         stub_request(:post, 'https://hooks.slack.com/test')
           .to_raise(Faraday::ConnectionFailed.new('connection refused'))
 
-        expect(Rails.logger).to receive(:error).with(/Notification failed/)
+        expect(Penetrator.logger).to receive(:error).with(/Notification failed/)
 
         expect { service.notify }.not_to raise_error
       end

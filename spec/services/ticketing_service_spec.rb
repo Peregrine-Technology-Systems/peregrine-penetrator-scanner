@@ -22,7 +22,7 @@ RSpec.describe TicketingService do
       before { stub_const('ENV', ENV.to_h.except('GITHUB_TOKEN')) }
 
       it 'returns 0 and logs error' do
-        expect(Rails.logger).to receive(:error).with(/Token env/)
+        expect(Penetrator.logger).to receive(:error).with(/Token env/)
         expect(described_class.new(scan).create_tickets).to eq(0)
       end
     end

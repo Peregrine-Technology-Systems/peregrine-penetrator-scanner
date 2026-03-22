@@ -58,7 +58,7 @@ class BigQueryLogger
     log_metadata_from_json(scan_results)
     findings_count
   rescue StandardError => e
-    Rails.logger.error("[BigQueryLogger] Failed: #{e.message}")
+    Penetrator.logger.error("[BigQueryLogger] Failed: #{e.message}")
     0
   end
 
@@ -70,7 +70,7 @@ class BigQueryLogger
 
     insert_rows(ensure_findings_table, rows, 'findings')
   rescue StandardError => e
-    Rails.logger.error("[BigQueryLogger] Failed: #{e.message}")
+    Penetrator.logger.error("[BigQueryLogger] Failed: #{e.message}")
     0
   end
 
@@ -182,9 +182,9 @@ class BigQueryLogger
     response = table.insert(rows) # rubocop:disable Rails/SkipsModelValidations
 
     if response.success?
-      Rails.logger.info("[BigQueryLogger] Logged #{rows.size} #{label} rows to #{table.table_id}")
+      Penetrator.logger.info("[BigQueryLogger] Logged #{rows.size} #{label} rows to #{table.table_id}")
     else
-      Rails.logger.error("[BigQueryLogger] Insert errors (#{label}): #{response.insert_errors}")
+      Penetrator.logger.error("[BigQueryLogger] Insert errors (#{label}): #{response.insert_errors}")
     end
 
     rows.size

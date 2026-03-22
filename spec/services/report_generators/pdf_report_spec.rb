@@ -52,8 +52,8 @@ RSpec.describe ReportGenerators::PdfReport do
           ['', 'xelatex error', instance_double(Process::Status, success?: false, exitstatus: 1)]
         )
 
-        expect(Rails.logger).to receive(:error).with(/pandoc failed/).ordered
-        expect(Rails.logger).to receive(:error).with(/PDF generation failed/).ordered
+        expect(Penetrator.logger).to receive(:error).with(/pandoc failed/).ordered
+        expect(Penetrator.logger).to receive(:error).with(/PDF generation failed/).ordered
         expect { report.generate }.to raise_error(RuntimeError)
       end
     end

@@ -18,7 +18,7 @@ module Trackers
 
       parse_response(response)
     rescue StandardError => e
-      Rails.logger.error("[GithubTracker] Failed to create issue: #{e.message}")
+      Penetrator.logger.error("[GithubTracker] Failed to create issue: #{e.message}")
       nil
     end
 

@@ -27,7 +27,7 @@ module ResultParsers
         }
       end
     rescue JSON::ParserError, Errno::ENOENT => e
-      Rails.logger.error("[NiktoParser] Parse error: #{e.message}")
+      Penetrator.logger.error("[NiktoParser] Parse error: #{e.message}")
       []
     end
 

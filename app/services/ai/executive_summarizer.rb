@@ -40,7 +40,7 @@ module Ai
       scan.update!(summary: summary.merge('executive_summary' => response))
       response
     rescue StandardError => e
-      Rails.logger.error("[AiAnalyzer] Executive summary failed: #{e.message}")
+      Penetrator.logger.error("[AiAnalyzer] Executive summary failed: #{e.message}")
       nil
     end
 

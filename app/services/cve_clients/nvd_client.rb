@@ -16,7 +16,7 @@ module CveClients
 
       response.body['vulnerabilities']&.first&.dig('cve')
     rescue StandardError => e
-      Rails.logger.error("[CveIntelligence] NVD fetch failed for #{cve_id}: #{e.message}")
+      Penetrator.logger.error("[CveIntelligence] NVD fetch failed for #{cve_id}: #{e.message}")
       nil
     end
 

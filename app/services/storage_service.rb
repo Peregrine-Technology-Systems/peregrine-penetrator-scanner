@@ -30,11 +30,11 @@ class StorageService
     storage = Google::Cloud::Storage.new
     bucket = storage.bucket(@bucket_name)
     unless bucket
-      Rails.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local storage")
+      Penetrator.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local storage")
       return upload_local(local_path, remote_path)
     end
     file = bucket.create_file(local_path, remote_path, content_type:)
-    Rails.logger.info("[StorageService] Uploaded to GCS: #{remote_path}")
+    Penetrator.logger.info("[StorageService] Uploaded to GCS: #{remote_path}")
     { path: remote_path, url: file.public_url }
   end
 
@@ -42,7 +42,7 @@ class StorageService
     dest = local_storage_path(remote_path)
     FileUtils.mkdir_p(File.dirname(dest))
     FileUtils.cp(local_path, dest)
-    Rails.logger.info("[StorageService] Stored locally: #{dest}")
+    Penetrator.logger.info("[StorageService] Stored locally: #{dest}")
     { path: remote_path, url: "file://#{dest}" }
   end
 
@@ -51,7 +51,7 @@ class StorageService
     storage = Google::Cloud::Storage.new
     bucket = storage.bucket(@bucket_name)
     unless bucket
-      Rails.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local URL")
+      Penetrator.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local URL")
       return "file://#{local_storage_path(remote_path)}"
     end
     file = bucket.file(remote_path)
@@ -59,6 +59,6 @@ class StorageService
   end
 
   def local_storage_path(remote_path)
-    Rails.root.join('storage', 'reports', remote_path).to_s
+    Penetrator.root.join('storage', 'reports', remote_path).to_s
   end
 end

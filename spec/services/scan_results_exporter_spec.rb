@@ -175,7 +175,7 @@ RSpec.describe ScanResultsExporter do
     it 'cleans up temp files' do
       exporter.export
 
-      tmp_dir = Rails.root.join('tmp', 'scan_results', scan.id)
+      tmp_dir = Penetrator.root.join('tmp', 'scan_results', scan.id)
       expect(File.directory?(tmp_dir)).to be(false)
     end
   end

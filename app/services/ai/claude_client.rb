@@ -25,7 +25,7 @@ module Ai
 
       JSON.parse(json_str)
     rescue JSON::ParserError => e
-      Rails.logger.warn("[AiAnalyzer] Failed to parse JSON response: #{e.message}")
+      Penetrator.logger.warn("[AiAnalyzer] Failed to parse JSON response: #{e.message}")
       nil
     end
   end

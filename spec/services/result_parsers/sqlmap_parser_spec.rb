@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe ResultParsers::SqlmapParser do
   describe '#parse' do
-    let(:output_dir) { Rails.root.join('tmp/test_sqlmap_output') }
+    let(:output_dir) { Penetrator.root.join('tmp/test_sqlmap_output') }
     let(:url) { 'https://example.com/page?id=1' }
     let(:parser) { described_class.new(output_dir, url) }
 
@@ -90,7 +90,7 @@ RSpec.describe ResultParsers::SqlmapParser do
     end
 
     it 'returns empty array when no log file found' do
-      empty_dir = Rails.root.join('tmp/test_sqlmap_empty')
+      empty_dir = Penetrator.root.join('tmp/test_sqlmap_empty')
       FileUtils.mkdir_p(empty_dir)
 
       parser = described_class.new(empty_dir, url)
