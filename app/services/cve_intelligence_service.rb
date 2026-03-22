@@ -24,17 +24,17 @@ class CveIntelligenceService
     enrich_from_epss(finding, enrichments)
     enrichments[:kev_known_exploited] = @kev.exploited?(finding.cve_id)
 
-    finding.update!(enrichments.compact)
+    finding.update(enrichments.compact)
     log_enrichment(finding.cve_id, enrichments)
   rescue StandardError => e
     Penetrator.logger.error("[CveIntelligence] Failed to enrich #{finding.cve_id}: #{e.message}")
   end
 
   def enrich_scan(scan)
-    findings_with_cve = scan.findings.where.not(cve_id: [nil, ''])
+    findings_with_cve = scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '')
     Penetrator.logger.info("[CveIntelligence] Enriching #{findings_with_cve.count} findings with CVE data")
 
-    findings_with_cve.find_each do |finding|
+    findings_with_cve.each do |finding|
       enrich_finding(finding)
       sleep(0.7)
     end

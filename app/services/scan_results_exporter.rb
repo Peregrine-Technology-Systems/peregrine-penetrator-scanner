@@ -47,7 +47,7 @@ class ScanResultsExporter
     summary = @scan.summary || {}
     {
       total_findings: summary['total_findings'] || @findings.size,
-      by_severity: summary['by_severity'] || @findings.group(:severity).count,
+      by_severity: summary['by_severity'] || @findings.group_and_count(:severity).all.to_h { |r| [r[:severity], r[:count]] },
       tools_run: summary['tools_run'] || (@scan.tool_statuses || {}).keys,
       duration_seconds: summary['duration_seconds'] || @scan.duration&.to_i,
       executive_summary: summary['executive_summary']
