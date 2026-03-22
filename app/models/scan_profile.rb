@@ -1,7 +1,7 @@
 class ScanProfile
   attr_reader :name, :description, :estimated_duration_minutes, :phases
 
-  PROFILES_DIR = Rails.root.join('config/scan_profiles')
+  PROFILES_DIR = Penetrator.root.join('config/scan_profiles')
 
   def self.load(profile_name)
     path = PROFILES_DIR.join("#{profile_name}.yml")

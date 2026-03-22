@@ -31,7 +31,7 @@ module ResultParsers
         end
       end.flatten
     rescue JSON::ParserError, Errno::ENOENT => e
-      Rails.logger.error("[ZapParser] Parse error: #{e.message}")
+      Penetrator.logger.error("[ZapParser] Parse error: #{e.message}")
       []
     end
   end

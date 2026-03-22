@@ -19,26 +19,36 @@ class ScanOrchestrator
   end
 
   def execute
-    scan.update!(status: 'running', started_at: Time.current)
-    Rails.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+    mark_running
+    Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
 
     profile.phases.each do |phase|
-      Rails.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
+      Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
       run_phase(phase)
     end
 
     FindingNormalizer.new(scan).normalize
-    scan.update!(status: 'completed', completed_at: Time.current,
-                 summary: ScanSummaryBuilder.new(scan).build)
-    Rails.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
+    mark_completed
+    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
     scan
   rescue StandardError => e
-    scan.update!(status: 'failed', completed_at: Time.current, error_message: e.message)
-    Rails.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
+    scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)
+    Penetrator.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
     raise
   end
 
   private
+
+  def mark_running
+    scan.update(status: 'running', started_at: Time.current)
+  end
+
+  def mark_completed
+    scan.status = 'completed'
+    scan.completed_at = Time.current
+    scan.summary = ScanSummaryBuilder.new(scan).build
+    scan.save_changes
+  end
 
   def run_phase(phase)
     if phase.parallel && phase.tools.length > 1
@@ -58,25 +68,26 @@ class ScanOrchestrator
     @discovered_urls.concat(result[:discovered_urls]) if result[:discovered_urls]
     save_findings(result[:findings]) if result[:findings]&.any?
   rescue StandardError => e
-    Rails.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
+    Penetrator.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
   end
 
   def feed_discovered_urls(tool_config)
     return unless @discovered_urls.any? && tool_config.tool != 'ffuf'
 
     all_urls = (scan.target.url_list + @discovered_urls).uniq
-    scan.target.update!(urls: all_urls.to_json)
+    scan.target.urls = all_urls
+    scan.target.save_changes
   end
 
   def log_unknown_tool(tool)
-    Rails.logger.warn("[ScanOrchestrator] Unknown tool: #{tool}")
+    Penetrator.logger.warn("[ScanOrchestrator] Unknown tool: #{tool}")
   end
 
   def save_findings(findings)
     findings.each do |finding_attrs|
-      scan.findings.create!(finding_attrs)
-    rescue ActiveRecord::RecordInvalid => e
-      Rails.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
+      Finding.create(finding_attrs.merge(scan_id: scan.id))
+    rescue Sequel::ValidationFailed => e
+      Penetrator.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
     end
   end
 end
