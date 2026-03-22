@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScannerBase do
   let(:scan) { create(:scan, :running) }
@@ -51,7 +51,7 @@ RSpec.describe ScannerBase do
       scanner = test_scanner_class.new(scan)
       scanner.run
 
-      scan.reload
+      scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['test_scanner']['status']).to eq('completed')
     end
@@ -68,7 +68,7 @@ RSpec.describe ScannerBase do
       scanner = failing_scanner_class.new(scan)
       scanner.run
 
-      scan.reload
+      scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['failing_scanner']['status']).to eq('failed')
       expect(statuses['failing_scanner']['error']).to eq('scan failed')
@@ -81,7 +81,7 @@ RSpec.describe ScannerBase do
       expect(result[:success]).to be false
       expect(result[:error]).to eq('unexpected error')
 
-      scan.reload
+      scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['exception_scanner']['status']).to eq('failed')
     end
@@ -89,8 +89,8 @@ RSpec.describe ScannerBase do
     it 'logs scan start and completion' do
       scanner = test_scanner_class.new(scan)
 
-      expect(Rails.logger).to receive(:info).with(/Starting scan for/)
-      expect(Rails.logger).to receive(:info).with(/Completed successfully/)
+      expect(Penetrator.logger).to receive(:info).with(/Starting scan for/)
+      expect(Penetrator.logger).to receive(:info).with(/Completed successfully/)
 
       scanner.run
     end
@@ -98,8 +98,8 @@ RSpec.describe ScannerBase do
     it 'logs errors on failure' do
       scanner = failing_scanner_class.new(scan)
 
-      expect(Rails.logger).to receive(:info).with(/Starting scan/)
-      expect(Rails.logger).to receive(:error).with(/Failed: scan failed/)
+      expect(Penetrator.logger).to receive(:info).with(/Starting scan/)
+      expect(Penetrator.logger).to receive(:error).with(/Failed: scan failed/)
 
       scanner.run
     end
@@ -117,8 +117,14 @@ RSpec.describe ScannerBase do
     let(:scanner) { test_scanner_class.new(scan) }
 
     it 'executes a shell command and returns output' do
+      mock_stdin = instance_double(IO, close: nil)
+      mock_stdout = instance_double(IO, read: "hello\n")
+      mock_stderr = instance_double(IO, read: '')
       status = instance_double(Process::Status, exitstatus: 0, success?: true)
-      allow(Open3).to receive(:capture3).and_return(["hello\n", '', status])
+      mock_wait_thr = double(pid: 12_345, value: status) # rubocop:disable RSpec/VerifiedDoubles
+
+      allow(Open3).to receive(:popen3).and_yield(mock_stdin, mock_stdout, mock_stderr, mock_wait_thr)
+      allow(scanner).to receive(:start_heartbeat).and_return(nil)
 
       result = scanner.send(:run_command, 'echo hello')
 
@@ -128,7 +134,7 @@ RSpec.describe ScannerBase do
     end
 
     it 'returns failure for non-existent commands' do
-      allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT, 'nonexistent_command_xyz_123')
+      allow(Open3).to receive(:popen3).and_raise(Errno::ENOENT, 'nonexistent_command_xyz_123')
 
       result = scanner.send(:run_command, 'nonexistent_command_xyz_123')
 
@@ -139,9 +145,16 @@ RSpec.describe ScannerBase do
     it 'uses the configured timeout from tool_config' do
       scanner_with_timeout = test_scanner_class.new(scan, { timeout: 10 })
 
-      expect(Open3).to receive(:capture3).with('echo test', timeout: 10).and_return(
-        ['output', '', instance_double(Process::Status, exitstatus: 0, success?: true)]
-      )
+      mock_stdin = instance_double(IO, close: nil)
+      mock_stdout = instance_double(IO, read: 'output')
+      mock_stderr = instance_double(IO, read: '')
+      status = instance_double(Process::Status, exitstatus: 0, success?: true)
+      mock_wait_thr = double(pid: 12_345, value: status) # rubocop:disable RSpec/VerifiedDoubles
+
+      allow(Open3).to receive(:popen3).and_yield(mock_stdin, mock_stdout, mock_stderr, mock_wait_thr)
+      allow(scanner_with_timeout).to receive(:start_heartbeat).and_return(nil)
+
+      expect(Timeout).to receive(:timeout).with(10).and_yield
 
       scanner_with_timeout.send(:run_command, 'echo test')
     end
@@ -149,7 +162,7 @@ RSpec.describe ScannerBase do
 
   describe '#target_urls' do
     it "returns the target's url_list" do
-      scan.target.update!(urls: '["https://example.com", "https://test.com"]')
+      scan.target.update(urls: '["https://example.com", "https://test.com"]')
       scanner = test_scanner_class.new(scan)
 
       expect(scanner.send(:target_urls)).to eq(['https://example.com', 'https://test.com'])

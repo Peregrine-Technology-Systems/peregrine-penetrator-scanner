@@ -9,7 +9,7 @@ class NotificationService
     @slack_notifier.send_notification if Notifiers::SlackNotifier.configured?
     @email_notifier.send_notification if Notifiers::EmailNotifier.configured?
   rescue StandardError => e
-    Rails.logger.error("[NotificationService] Notification failed: #{e.message}")
+    Penetrator.logger.error("[NotificationService] Notification failed: #{e.message}")
   end
 
   private

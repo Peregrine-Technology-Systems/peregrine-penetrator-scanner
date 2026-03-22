@@ -1,0 +1,157 @@
+steps:
+  - group: ":test_tube: Test & Lint"
+    steps:
+      - label: ":rspec: Test"
+        key: test
+        commands:
+          - apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null 2>&1
+          - bundle install --jobs 4 --quiet
+          - APP_ENV=test bundle exec rspec --format documentation
+          - chmod -R a+rwX . || true
+        plugins:
+          - docker#v5.11.0:
+              image: ruby:3.2.2
+              propagate-environment: true
+              volumes:
+                - /tmp/bundler-cache:/usr/local/bundle
+        agents:
+          queue: gcp
+        retry:
+          automatic:
+            - exit_status: -1
+              limit: 1
+
+      - label: ":rubocop: Lint"
+        key: lint
+        commands:
+          - apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null 2>&1
+          - bundle install --jobs 4 --quiet
+          - bundle exec rubocop --parallel
+        plugins:
+          - docker#v5.11.0:
+              image: ruby:3.2.2
+              propagate-environment: true
+              volumes:
+                - /tmp/bundler-cache:/usr/local/bundle
+        agents:
+          queue: gcp
+        retry:
+          automatic:
+            - exit_status: -1
+              limit: 1
+
+  - wait
+
+  - group: ":docker: Build & Tag"
+    steps:
+      - label: ":docker: Build & Push"
+        key: docker-build
+        if: build.branch == "development"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - docker buildx create --name ci-builder --use 2>/dev/null || docker buildx use ci-builder 2>/dev/null || true
+          - >-
+            docker buildx build
+            --cache-from type=registry,ref=$$DOCKER_REGISTRY/scanner:buildcache
+            --cache-to type=registry,ref=$$DOCKER_REGISTRY/scanner:buildcache,mode=max
+            -f docker/Dockerfile
+            -t $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT
+            -t $$DOCKER_REGISTRY/scanner:latest
+            --push
+            .
+        agents:
+          queue: gcp
+
+      - label: ":label: Tag staging"
+        key: tag-staging
+        if: build.branch == "staging"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - |
+            if gcloud artifacts docker images describe $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT 2>/dev/null; then
+              SOURCE_TAG="$$BUILDKITE_COMMIT"
+            else
+              echo "Commit tag not found, using latest"
+              SOURCE_TAG="latest"
+            fi
+            gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$SOURCE_TAG $$DOCKER_REGISTRY/scanner:staging || echo "Tag failed — image may not exist yet"
+        agents:
+          queue: gcp
+
+      - label: ":label: Tag production"
+        key: tag-production
+        if: build.branch == "main"
+        commands:
+          - gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          - |
+            if gcloud artifacts docker images describe $$DOCKER_REGISTRY/scanner:$$BUILDKITE_COMMIT 2>/dev/null; then
+              SOURCE_TAG="$$BUILDKITE_COMMIT"
+            else
+              echo "Commit tag not found, using latest"
+              SOURCE_TAG="latest"
+            fi
+            gcloud artifacts docker tags add $$DOCKER_REGISTRY/scanner:$$SOURCE_TAG $$DOCKER_REGISTRY/scanner:production || echo "Tag failed — image may not exist yet"
+        agents:
+          queue: gcp
+
+  - wait
+
+  - group: ":rocket: Promote & Scan"
+    steps:
+      - label: ":arrow_right: Promote to staging"
+        key: promote-staging
+        if: build.branch == "development"
+        commands:
+          - .buildkite/scripts/promote.sh staging development auto
+        agents:
+          queue: gcp
+
+      - label: ":mag: Staging scan"
+        key: scan-staging
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/trigger-scan.sh staging standard staging
+        agents:
+          queue: gcp
+
+      - label: ":arrow_right: Promote to main"
+        key: promote-main
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/promote.sh main staging manual
+        agents:
+          queue: gcp
+
+  - wait
+
+  - group: ":white_check_mark: Smoke Test"
+    steps:
+      - label: ":smoking: Dev smoke test"
+        key: smoke-dev
+        if: build.branch == "development"
+        commands:
+          - .buildkite/scripts/smoke-test.sh development $$BUILDKITE_COMMIT
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
+
+      - label: ":smoking: Staging smoke test"
+        key: smoke-staging
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/smoke-test.sh staging staging
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
+
+      - label: ":smoking: Production smoke test"
+        key: smoke-production
+        if: build.branch == "main"
+        commands:
+          - .buildkite/scripts/smoke-test.sh production production
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true

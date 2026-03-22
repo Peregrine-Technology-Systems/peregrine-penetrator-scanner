@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'optparse'
+require 'json'
+require_relative '../lib/penetrator'
+
+options = {}
+
+OptionParser.new do |opts|
+  opts.banner = 'Usage: bin/scan [options]'
+  opts.on('-p', '--profile PROFILE', 'Scan profile (quick/standard/thorough)') { |v| options[:profile] = v }
+  opts.on('-n', '--name NAME', 'Target name') { |v| options[:target_name] = v }
+  opts.on('-u', '--urls URLS', 'Target URLs (JSON array)') { |v| options[:urls] = JSON.parse(v) }
+  opts.on('-h', '--help', 'Show help') { puts opts; exit }
+end.parse!
+
+# ENV vars take precedence (backward compat with Docker/VMs)
+profile = ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
+target_name = ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
+target_urls = JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))
+
+Penetrator.boot!
+Penetrator.boot_services!
+
+puts '=== Web Application Penetration Test ==='
+puts "Profile: #{profile}"
+puts "Target: #{target_name}"
+puts "URLs: #{target_urls.join(', ')}"
+puts "Started: #{Time.current}"
+puts '=' * 40
+
+# Find or create target
+target = Target.find_or_create(name: target_name) { |t| t.urls = target_urls }
+
+# Create scan
+scan = Scan.create(target_id: target.id, profile: profile)
+puts "Scan ID: #{scan.id}"
+
+# Initialize cost tracker and audit logger
+cost_logger = ScanCostLogger.new(scan)
+audit = AuditLogger.new
+audit.scan_started(scan)
+
+# Execute scan
+orchestrator = ScanOrchestrator.new(scan)
+orchestrator.execute
+
+# Enrich with CVE intelligence
+if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').count > 0
+  puts "\n--- CVE Intelligence Enrichment ---"
+  CveIntelligenceService.new.enrich_scan(scan)
+end
+
+# AI Analysis (if API key configured)
+if ENV['ANTHROPIC_API_KEY'].present?
+  puts "\n--- AI Analysis ---"
+  AiAnalyzer.new.analyze_scan(scan)
+end
+
+# Create remediation tickets
+if scan.target.ticketing_enabled?
+  puts "\n--- Remediation Tickets ---"
+  created = TicketingService.new(scan).create_tickets
+  puts "  Created #{created} tickets"
+end
+
+# Export versioned JSON to GCS
+puts "\n--- Scan Results Export ---"
+gcs_scan_results_path = ScanResultsExporter.new(scan).export
+puts "  Exported v#{ScanResultsExporter::SCHEMA_VERSION} to #{gcs_scan_results_path}"
+audit.json_exported(scan, gcs_path: gcs_scan_results_path)
+
+# Load findings to BigQuery
+if BigQueryLogger.enabled?
+  puts "\n--- Finding History (JSON-first) ---"
+  scan_results = ScanResultsExporter.new(scan).build_envelope
+  logged = BigQueryLogger.new.log_from_json(scan_results)
+  puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
+  audit.bq_loaded(scan, rows_logged: logged)
+end
+
+# Generate reports
+puts "\n--- Report Generation ---"
+generator = ReportGenerator.new(scan)
+reports = generator.generate_all
+reports.each do |report|
+  puts "  #{report.format.upcase}: #{report.gcs_path || 'local'} (#{report.status})"
+end
+
+# Log scan costs to BigQuery
+if BigQueryLogger.enabled?
+  puts "\n--- Cost Tracking ---"
+  if cost_logger.log_to_bigquery
+    data = cost_logger.cost_data
+    puts "  VM: #{data[:vm_type]}, Runtime: #{data[:vm_runtime_seconds]}s, " \
+         "Est. cost: $#{format('%.4f', data[:estimated_cost_usd])}"
+  else
+    puts '  Cost logging skipped or failed'
+  end
+end
+
+# Callback to backend API
+if ScanCallbackService.enabled?
+  puts "\n--- Backend Callback ---"
+  if ScanCallbackService.new(scan, cost_logger, gcs_scan_results_path: gcs_scan_results_path).notify
+    puts "  Callback sent to #{ENV.fetch('CALLBACK_URL', 'unknown')}"
+  else
+    puts '  Callback failed (scan still succeeded)'
+  end
+end
+
+# Audit: scan completed
+audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
+
+# Send notifications
+puts "\n--- Notifications ---"
+NotificationService.new(scan).notify
+
+# Summary
+scan.refresh
+summary = scan.summary || {}
+puts "\n=== Scan Complete ==="
+puts "Duration: #{scan.duration&.to_i}s"
+puts "Total Findings: #{summary['total_findings']}"
+(summary['by_severity'] || {}).each do |sev, count|
+  puts "  #{sev}: #{count}"
+end
+puts '=' * 40

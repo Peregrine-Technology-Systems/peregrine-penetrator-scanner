@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# Cloud development environment CLI
+# Usage: ./cloud/dev <command> [args]
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/lib"
+
+usage() {
+  cat <<EOF
+Cloud Development Environment
+
+Usage: ./cloud/dev <command> [options]
+
+VM Management:
+  start              Create or start the dev VM
+  stop               Stop VM (preserves disk, no charges)
+  destroy            Delete VM (keeps persistent data disk)
+  status             Show VM status and costs
+  ssh                SSH into the VM
+
+Development:
+  build [--push]     Sync code + Docker build on VM
+  scan [profile]     Run scan on VM (quick|standard|thorough)
+  results            Download scan results to local
+  logs               Tail scan logs on VM
+
+Environments:
+  scan-staging [profile] [tag]   Launch ephemeral VM for staging scan
+  scan-prod [profile] [tag]      Launch ephemeral VM for production scan
+  scavenge                       Delete orphaned scan VMs older than 30 min
+
+Examples:
+  ./cloud/dev start                 # Spin up VM (~60s)
+  ./cloud/dev build                 # Sync + build (~5min cached)
+  ./cloud/dev scan standard         # Run scan, stream output
+  ./cloud/dev results               # Download reports
+  ./cloud/dev stop                  # Stop when done
+  ./cloud/dev scan-staging quick    # Ephemeral staging scan
+  ./cloud/dev scan-prod thorough    # Ephemeral production scan (spot)
+
+Costs:
+  Dev VM:   ~\$0.134/hr (e2-standard-4), auto-shutdown 10 min idle
+  Staging:  ~\$0.50/scan (ephemeral, self-terminate)
+  Prod:     ~\$0.20/scan (ephemeral, spot pricing)
+EOF
+}
+
+case "${1:-}" in
+  start)
+    bash "${LIB_DIR}/vm-start.sh"
+    ;;
+  stop)
+    bash "${LIB_DIR}/vm-stop.sh"
+    ;;
+  destroy)
+    bash "${LIB_DIR}/vm-delete.sh"
+    ;;
+  status)
+    source "${LIB_DIR}/config.sh"
+    status=$(vm_status)
+    if [ -z "$status" ]; then
+      echo "VM '${VM_NAME}': not found"
+      # Check if data disk exists
+      if gcloud compute disks describe "${DATA_DISK_NAME}" \
+          --zone="${GCP_ZONE}" --project="${GCP_PROJECT}" &>/dev/null; then
+        echo "Data disk '${DATA_DISK_NAME}': exists (persistent)"
+      else
+        echo "Data disk '${DATA_DISK_NAME}': not found"
+      fi
+    else
+      echo "VM '${VM_NAME}': ${status}"
+      if [ "$status" = "RUNNING" ]; then
+        # Show uptime and IP
+        IP=$(gcloud compute instances describe "${VM_NAME}" \
+          --zone="${GCP_ZONE}" --project="${GCP_PROJECT}" \
+          --format="value(networkInterfaces[0].accessConfigs[0].natIP)" 2>/dev/null || echo "N/A")
+        CREATED=$(gcloud compute instances describe "${VM_NAME}" \
+          --zone="${GCP_ZONE}" --project="${GCP_PROJECT}" \
+          --format="value(creationTimestamp)" 2>/dev/null || echo "N/A")
+        echo "  IP: ${IP}"
+        echo "  Created: ${CREATED}"
+        echo "  Machine: ${VM_MACHINE_TYPE}"
+
+        # Check Docker status
+        DOCKER_STATUS=$(vm_ssh "systemctl is-active docker 2>/dev/null" || echo "unknown")
+        echo "  Docker: ${DOCKER_STATUS}"
+
+        # Check running containers
+        CONTAINERS=$(vm_ssh "docker ps --format '{{.Names}}' 2>/dev/null | wc -l" || echo "0")
+        echo "  Running containers: ${CONTAINERS}"
+
+        # Disk usage on data disk
+        DISK_USAGE=$(vm_ssh "df -h ${DATA_MOUNT_POINT} 2>/dev/null | tail -1 | awk '{print \$3\"/\"\$2\" (\"\$5\")\"}'" || echo "N/A")
+        echo "  Data disk usage: ${DISK_USAGE}"
+      fi
+      echo "Data disk '${DATA_DISK_NAME}': attached (auto-delete: no)"
+    fi
+    ;;
+  build)
+    shift
+    bash "${LIB_DIR}/build.sh" "$@"
+    ;;
+  scan)
+    shift
+    bash "${LIB_DIR}/scan.sh" "${1:-standard}"
+    ;;
+  results)
+    bash "${LIB_DIR}/results.sh"
+    ;;
+  ssh)
+    bash "${LIB_DIR}/vm-ssh.sh"
+    ;;
+  logs)
+    source "${LIB_DIR}/config.sh"
+    status=$(vm_status)
+    if [ "$status" != "RUNNING" ]; then
+      log_error "VM is not running"
+      exit 1
+    fi
+    log_info "Tailing scan logs (Ctrl+C to stop)..."
+    vm_ssh "docker logs -f \$(docker ps -lq --filter 'name=pentest-scan') 2>/dev/null || echo 'No running scan container found'"
+    ;;
+  scan-staging)
+    shift
+    bash "${LIB_DIR}/scan-vm.sh" staging "${1:-standard}" "${2:-latest}"
+    ;;
+  scan-prod)
+    shift
+    bash "${LIB_DIR}/scan-vm.sh" production "${1:-standard}" "${2:-latest}"
+    ;;
+  scavenge)
+    bash "${LIB_DIR}/scavenge-vms.sh"
+    ;;
+  help|--help|-h|"")
+    usage
+    ;;
+  *)
+    echo "Unknown command: $1"
+    echo ""
+    usage
+    exit 1
+    ;;
+esac

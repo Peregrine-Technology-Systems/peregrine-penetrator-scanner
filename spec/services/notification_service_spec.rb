@@ -1,10 +1,10 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe NotificationService do
   let(:target) { create(:target, name: 'Test App') }
   let(:scan) do
-    create(:scan, :completed, target: target, profile: 'standard',
-           summary: { 'total_findings' => 10, 'by_severity' => { 'critical' => 2, 'high' => 3, 'medium' => 4, 'low' => 1 } })
+    create(:scan, :completed, target:, profile: 'standard',
+                              summary: { 'total_findings' => 10, 'by_severity' => { 'critical' => 2, 'high' => 3, 'medium' => 4, 'low' => 1 } })
   end
   let(:service) { described_class.new(scan) }
 
@@ -29,7 +29,7 @@ RSpec.describe NotificationService do
 
       it 'sends correct Slack payload structure' do
         stub = stub_request(:post, 'https://hooks.slack.com/test')
-          .to_return(status: 200, body: 'ok')
+               .to_return(status: 200, body: 'ok')
 
         service.notify
 
@@ -40,15 +40,17 @@ RSpec.describe NotificationService do
       end
 
       it 'includes scan target name and findings in payload' do
-        stub_request(:post, 'https://hooks.slack.com/test')
-          .with { |request|
-            body = JSON.parse(request.body)
-            body['text'].include?('Test App') &&
-              body['blocks'].any? { |b| b['type'] == 'header' }
-          }
-          .to_return(status: 200, body: 'ok')
+        stub = stub_request(:post, 'https://hooks.slack.com/test')
+               .with do |request|
+                 body = JSON.parse(request.body)
+                 body['text'].include?('Test App') &&
+                   body['blocks'].any? { |b| b['type'] == 'header' }
+               end
+               .to_return(status: 200, body: 'ok')
 
         service.notify
+
+        expect(stub).to have_been_requested
       end
     end
 
@@ -62,8 +64,7 @@ RSpec.describe NotificationService do
 
       it 'delegates to EmailNotifier when SMTP is configured' do
         email_notifier = instance_double(Notifiers::EmailNotifier)
-        allow(Notifiers::EmailNotifier).to receive(:new).and_return(email_notifier)
-        allow(Notifiers::EmailNotifier).to receive(:configured?).and_return(true)
+        allow(Notifiers::EmailNotifier).to receive_messages(new: email_notifier, configured?: true)
         expect(email_notifier).to receive(:send_notification)
 
         described_class.new(scan).notify
@@ -116,7 +117,7 @@ RSpec.describe NotificationService do
         stub_request(:post, 'https://hooks.slack.com/test')
           .to_raise(Faraday::ConnectionFailed.new('connection refused'))
 
-        expect(Rails.logger).to receive(:error).with(/Notification failed/)
+        expect(Penetrator.logger).to receive(:error).with(/Notification failed/)
 
         expect { service.notify }.not_to raise_error
       end

@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ReportGenerator do
   subject(:generator) { described_class.new(scan) }
@@ -49,11 +49,11 @@ RSpec.describe ReportGenerator do
       end
 
       it 'sets signed_url_expires_at to 7 days from now' do
-        freeze_time do
-          report = generator.generate('json')
+        before = 7.days.from_now
+        report = generator.generate('json')
+        after = 7.days.from_now
 
-          expect(report.signed_url_expires_at).to be_within(1.second).of(7.days.from_now)
-        end
+        expect(report.signed_url_expires_at).to be_between(before, after)
       end
     end
 
@@ -75,7 +75,7 @@ RSpec.describe ReportGenerator do
 
     context 'with unknown format' do
       it 'raises an error due to format validation' do
-        expect { generator.generate('csv') }.to raise_error(ActiveRecord::RecordInvalid, /Format is not included/)
+        expect { generator.generate('csv') }.to raise_error(Sequel::ValidationFailed, /format/i)
       end
     end
 
@@ -87,9 +87,8 @@ RSpec.describe ReportGenerator do
       end
 
       it 'marks the report as failed' do
-        expect { generator.generate('json') }.to raise_error(StandardError)
+        report = generator.generate('json')
 
-        report = Report.last
         expect(report.status).to eq('failed')
       end
     end

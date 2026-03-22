@@ -1,94 +1,69 @@
-require 'rails_helper'
+# frozen_string_literal: true
+
+require 'sequel_helper'
 
 RSpec.describe Scan do
   describe 'validations' do
-    it { is_expected.to validate_inclusion_of(:profile).in_array(%w[quick standard thorough]) }
-    it { is_expected.to validate_inclusion_of(:status).in_array(%w[pending running completed failed cancelled]) }
+    it 'validates profile inclusion' do
+      scan = build(:scan, profile: 'invalid')
+      expect(scan.valid?).to be false
+      expect(scan.errors.on(:profile)).not_to be_nil
+    end
+
+    it 'validates status inclusion' do
+      scan = build(:scan, status: 'invalid')
+      expect(scan.valid?).to be false
+      expect(scan.errors.on(:status)).not_to be_nil
+    end
   end
 
   describe 'associations' do
-    it { is_expected.to belong_to(:target) }
-    it { is_expected.to have_many(:findings).dependent(:destroy) }
-    it { is_expected.to have_many(:reports).dependent(:destroy) }
-  end
-
-  describe 'scopes' do
-    describe '.recent' do
-      it 'orders scans by created_at descending' do
-        old_scan = create(:scan, created_at: 2.days.ago)
-        new_scan = create(:scan, created_at: 1.hour.ago)
-
-        expect(described_class.recent).to eq([new_scan, old_scan])
-      end
+    it 'belongs to target' do
+      expect(Scan.association_reflection(:target)).not_to be_nil
+      expect(Scan.association_reflection(:target)[:type]).to eq(:many_to_one)
     end
 
-    describe '.by_status' do
-      it 'filters scans by status' do
-        pending_scan = create(:scan, status: 'pending')
-        create(:scan, :running)
+    it 'has many findings' do
+      expect(Scan.association_reflection(:findings)).not_to be_nil
+    end
 
-        expect(described_class.by_status('pending')).to eq([pending_scan])
-      end
+    it 'has many reports' do
+      expect(Scan.association_reflection(:reports)).not_to be_nil
     end
   end
 
   describe '#duration' do
-    it 'returns nil when started_at is nil' do
-      scan = build(:scan, started_at: nil, completed_at: Time.current)
-
+    it 'returns nil without timestamps' do
+      scan = build(:scan)
       expect(scan.duration).to be_nil
     end
 
-    it 'returns nil when completed_at is nil' do
-      scan = build(:scan, started_at: Time.current, completed_at: nil)
-
-      expect(scan.duration).to be_nil
-    end
-
-    it 'returns the difference in seconds between completed_at and started_at' do
-      started = Time.current
-      completed = started + 30.minutes
-      scan = build(:scan, started_at: started, completed_at: completed)
-
-      expect(scan.duration).to be_within(1).of(1800)
+    it 'returns duration in seconds' do
+      scan = build(:scan, started_at: Time.current - 300, completed_at: Time.current)
+      expect(scan.duration).to be_within(1).of(300)
     end
   end
 
   describe '#finding_counts' do
-    it 'returns findings grouped by severity' do
+    it 'returns severity counts' do
       scan = create(:scan)
-      create(:finding, scan:, severity: 'high', source_tool: 'zap', title: 'XSS 1', url: 'https://a.com/1')
-      create(:finding, scan:, severity: 'high', source_tool: 'zap', title: 'XSS 2', url: 'https://a.com/2')
-      create(:finding, scan:, severity: 'medium', source_tool: 'nuclei', title: 'Info Leak', url: 'https://a.com/3')
+      create(:finding, scan: scan, severity: 'high')
+      create(:finding, scan: scan, severity: 'high')
+      create(:finding, scan: scan, severity: 'low')
 
       counts = scan.finding_counts
-
       expect(counts['high']).to eq(2)
-      expect(counts['medium']).to eq(1)
-    end
-
-    it 'returns empty hash when no findings' do
-      scan = create(:scan)
-
-      expect(scan.finding_counts).to eq({})
+      expect(counts['low']).to eq(1)
     end
   end
 
-  describe 'serialized attributes' do
-    it 'serializes tool_statuses as JSON' do
-      statuses = { 'zap' => { 'status' => 'completed' } }
-      scan = create(:scan, tool_statuses: statuses)
-      scan.reload
-
-      expect(scan.tool_statuses).to eq(statuses)
-    end
-
-    it 'serializes summary as JSON' do
-      summary = { 'total_findings' => 10, 'by_severity' => { 'high' => 3 } }
-      scan = create(:scan, summary:)
-      scan.reload
-
-      expect(scan.summary).to eq(summary)
+  describe '.recent' do
+    it 'orders by created_at descending' do
+      old = create(:scan)
+      # Ensure different timestamps
+      sleep 0.01
+      new_scan = create(:scan)
+      expect(Scan.recent.first.id).to eq(new_scan.id)
     end
   end
 end

@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ResultParsers::NiktoParser do
   describe '#parse' do
@@ -182,25 +182,9 @@ RSpec.describe ResultParsers::NiktoParser do
     end
 
     it 'handles host-based nikto output format' do
-      host_format = {
-        'host' => [{
-          'vulnerabilities' => [
-            { 'msg' => 'Test finding', 'id' => '1', 'url' => 'https://example.com' }
-          ]
-        }]
-      }
-
-      tmpfile = Tempfile.new(['nikto_host', '.json'])
-      tmpfile.write(host_format.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
+      results = parse_host_format_data
       expect(results.length).to eq(1)
       expect(results.first[:title]).to eq('Test finding')
-    ensure
-      tmpfile.unlink
     end
 
     it 'returns empty array for missing file' do
@@ -217,6 +201,25 @@ RSpec.describe ResultParsers::NiktoParser do
       expect(parser.parse).to eq([])
     ensure
       tmpfile.unlink
+    end
+
+    def parse_host_format_data
+      host_format = {
+        'host' => [{
+          'vulnerabilities' => [
+            { 'msg' => 'Test finding', 'id' => '1', 'url' => 'https://example.com' }
+          ]
+        }]
+      }
+
+      tmpfile = Tempfile.new(['nikto_host', '.json'])
+      tmpfile.write(host_format.to_json)
+      tmpfile.close
+
+      parser = described_class.new(tmpfile.path)
+      parser.parse
+    ensure
+      tmpfile&.unlink
     end
   end
 end

@@ -27,7 +27,7 @@ module ResultParsers
         }
       end
     rescue JSON::ParserError, Errno::ENOENT => e
-      Rails.logger.error("[FfufParser] Parse error: #{e.message}")
+      Penetrator.logger.error("[FfufParser] Parse error: #{e.message}")
       []
     end
 

@@ -32,9 +32,14 @@ module Scanners
     def build_command(url, output_dir_path)
       level = tool_config[:level] || 1
       risk = tool_config[:risk] || 1
+      threads = tool_config[:threads] || 1
+      delay = tool_config[:delay]
 
-      "sqlmap -u #{Shellwords.escape(url)} --batch --level=#{level} --risk=#{risk} " \
-        "--output-dir=#{output_dir_path} --forms --crawl=2 --threads=4"
+      cmd = "sqlmap -u #{Shellwords.escape(url)} --batch --level=#{level} --risk=#{risk} " \
+            "--output-dir=#{output_dir_path} --forms --crawl=2 --threads=#{threads}"
+      cmd += " --delay=#{delay}" if delay
+
+      cmd
     end
 
     def parse_results(output_dir_path, url)

@@ -109,7 +109,7 @@ scanner_job = Gcp::CloudRunV2::Job.new("pentest-scanner",
   }
 )
 
-# Cloud Scheduler
+# Cloud Scheduler — weekly production scan
 scheduler = Gcp::CloudScheduler::Job.new("pentest-schedule",
   name: "pentest-scanner-schedule",
   schedule: schedule,
@@ -124,9 +124,60 @@ scheduler = Gcp::CloudScheduler::Job.new("pentest-schedule",
   }
 )
 
+# Cloud Function — VM scavenger
+scavenger_function = Gcp::CloudFunctionsV2::Function.new("vm-scavenger",
+  name: "vm-scavenger",
+  location: region,
+  build_config: {
+    runtime: "python312",
+    entry_point: "scavenge_vms",
+    source: {
+      storage_source: {
+        bucket: reports_bucket.name,
+        object: "cloud-functions/vm-scavenger.zip"
+      }
+    }
+  },
+  service_config: {
+    max_instance_count: 1,
+    timeout_seconds: 300,
+    available_memory: "256M",
+    service_account_email: scanner_sa.email,
+    environment_variables: {
+      "GCP_PROJECT" => project,
+      "GCP_REGION" => region,
+      "MAX_AGE_MINUTES" => "30",
+      "HARD_MAX_MINUTES" => "240"
+    },
+    secret_environment_variables: [{
+      key: "SLACK_WEBHOOK_URL",
+      project_id: project,
+      secret: "pentest-slack-webhook-url",
+      version: "latest"
+    }]
+  }
+)
+
+# Cloud Scheduler — VM scavenger every 10 minutes
+scavenger_schedule = Gcp::CloudScheduler::Job.new("vm-scavenger-schedule",
+  name: "vm-scavenger-schedule",
+  schedule: "*/10 * * * *",
+  time_zone: "UTC",
+  region: region,
+  http_target: {
+    uri: scavenger_function.service_config.apply { |sc| sc.uri },
+    http_method: "POST",
+    oidc_token: {
+      service_account_email: scanner_sa.email
+    }
+  }
+)
+
 # Exports
 Pulumi.export("registry_url", registry.id.apply { |_| "#{region}-docker.pkg.dev/#{project}/pentest" })
 Pulumi.export("reports_bucket", reports_bucket.name)
 Pulumi.export("scanner_job", scanner_job.name)
 Pulumi.export("scheduler", scheduler.name)
 Pulumi.export("service_account", scanner_sa.email)
+Pulumi.export("scavenger_function", scavenger_function.name)
+Pulumi.export("scavenger_schedule", scavenger_schedule.name)

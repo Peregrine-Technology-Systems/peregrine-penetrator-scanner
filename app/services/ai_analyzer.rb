@@ -2,6 +2,7 @@
 
 class AiAnalyzer
   MAX_FINDINGS_PER_REQUEST = 20
+  MAX_FINDINGS_FOR_TRIAGE = 50
 
   def initialize
     @claude_client = Ai::ClaudeClient.new
@@ -10,10 +11,19 @@ class AiAnalyzer
   end
 
   def analyze_scan(scan)
-    findings = scan.findings.non_duplicate.order(severity_order)
-    Rails.logger.info("[AiAnalyzer] Analyzing #{findings.count} findings for #{scan.target.name}")
+    findings = scan.findings_dataset.non_duplicate.by_severity
+    total_count = findings.count
+    Penetrator.logger.info("[AiAnalyzer] Analyzing #{total_count} findings for #{scan.target.name}")
 
-    findings.each_slice(MAX_FINDINGS_PER_REQUEST) do |batch|
+    triage_candidates = if total_count > MAX_FINDINGS_FOR_TRIAGE
+                          Penetrator.logger.info("[AiAnalyzer] #{total_count} findings exceeds cap of #{MAX_FINDINGS_FOR_TRIAGE}, " \
+                                            'triaging top findings by severity only')
+                          findings.limit(MAX_FINDINGS_FOR_TRIAGE)
+                        else
+                          findings
+                        end
+
+    triage_candidates.each_slice(MAX_FINDINGS_PER_REQUEST) do |batch|
       triage_findings(batch, scan.target)
     end
 
@@ -47,19 +57,10 @@ class AiAnalyzer
     response = @claude_client.call_claude(prompt)
     @claude_client.parse_json_response(response)
   rescue StandardError => e
-    Rails.logger.error("[AiAnalyzer] Adaptive scan suggestions failed: #{e.message}")
+    Penetrator.logger.error("[AiAnalyzer] Adaptive scan suggestions failed: #{e.message}")
     {}
   end
 
   private
 
-  def severity_order
-    Arel.sql("CASE severity
-      WHEN 'critical' THEN 1
-      WHEN 'high' THEN 2
-      WHEN 'medium' THEN 3
-      WHEN 'low' THEN 4
-      WHEN 'info' THEN 5
-      ELSE 6 END")
-  end
 end
