@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :finding do
-    scan
+    association :scan, strategy: :create
     source_tool { %w[zap nuclei sqlmap ffuf nikto].sample }
     severity { %w[critical high medium low info].sample }
     title { Faker::Hacker.say_something_smart }
