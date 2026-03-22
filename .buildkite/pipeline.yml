@@ -122,3 +122,37 @@ steps:
           - .buildkite/scripts/promote.sh main staging manual
         agents:
           queue: gcp
+
+  - wait
+
+  - group: ":white_check_mark: Smoke Test"
+    steps:
+      - label: ":smoking: Dev smoke test"
+        key: smoke-dev
+        if: build.branch == "development"
+        commands:
+          - .buildkite/scripts/smoke-test.sh development $$BUILDKITE_COMMIT
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
+
+      - label: ":smoking: Staging smoke test"
+        key: smoke-staging
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/smoke-test.sh staging staging
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
+
+      - label: ":smoking: Production smoke test"
+        key: smoke-production
+        if: build.branch == "main"
+        commands:
+          - .buildkite/scripts/smoke-test.sh production production
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
