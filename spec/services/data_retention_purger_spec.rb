@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe DataRetentionPurger do
   let(:mock_bigquery) { instance_double(Google::Cloud::Bigquery::Project) }
@@ -43,9 +43,9 @@ RSpec.describe DataRetentionPurger do
     end
 
     it 'logs the purge event' do
-      allow(Rails.logger).to receive(:info)
+      allow(Penetrator.logger).to receive(:info)
       described_class.new.purge_all
-      expect(Rails.logger).to have_received(:info).with(/data_retention_purge/).once
+      expect(Penetrator.logger).to have_received(:info).with(/data_retention_purge/).once
     end
   end
 

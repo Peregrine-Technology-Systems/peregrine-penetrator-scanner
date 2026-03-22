@@ -13,7 +13,7 @@ module Notifiers
         req.body = payload.to_json
       end
 
-      Rails.logger.info("[NotificationService] Webhook sent: #{response.status}")
+      Penetrator.logger.info("[NotificationService] Webhook sent: #{response.status}")
     end
 
     def self.configured?

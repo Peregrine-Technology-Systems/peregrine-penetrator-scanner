@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :target do
     name { Faker::Company.name }
-    urls { ["https://#{Faker::Internet.domain_name}"].to_json }
+    urls { ["https://#{Faker::Internet.domain_name}"] }
     auth_type { 'none' }
     active { true }
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScanCallbackService do
   let(:target) { create(:target, name: 'Test App', urls: ['https://example.com']) }
@@ -124,7 +124,7 @@ RSpec.describe ScanCallbackService do
       stub_request(:post, callback_url).to_raise(Faraday::ConnectionFailed.new('connection refused'))
 
       service = described_class.new(scan, cost_logger)
-      expect(Rails.logger).to receive(:error).with(/ScanCallbackService/).at_least(:once)
+      expect(Penetrator.logger).to receive(:error).with(/ScanCallbackService/).at_least(:once)
       result = service.notify
 
       expect(result).to be false

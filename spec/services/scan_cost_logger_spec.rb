@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScanCostLogger do
   let(:target) { create(:target, name: 'Test App', urls: ['https://example.com']) }
@@ -184,7 +184,7 @@ RSpec.describe ScanCostLogger do
       allow(mock_bigquery).to receive(:dataset).and_raise(StandardError, 'connection refused')
 
       logger = described_class.new(scan)
-      expect(Rails.logger).to receive(:error).with(/ScanCostLogger.*connection refused/)
+      expect(Penetrator.logger).to receive(:error).with(/ScanCostLogger.*connection refused/)
       expect(logger.log_to_bigquery).to be false
     end
 
