@@ -15,7 +15,7 @@
 - Pass SCAN_MODE env var to Docker in scan VMs so BigQuery logs to correct table (#134)
 - Orphan VM scavenger: auto-delete scan VMs older than 30 minutes (#146)
 - Scan VMs now pull environment-tagged Docker images (`:staging`/`:production`) instead of `:latest` (#148)
-- Repo renamed from `web-app-penetration-test` to `peregrine-penetrator` (#150)
+- Repo renamed from `web-app-penetration-test` to `peregrine-penetrator`, then to `peregrine-penetrator-scanner` (#150, #247)
 - Report TOC: all major sections (Findings Summary, Detailed Findings, Test Methodology, Appendix) now at Level 1 (#154)
 - Auto-assign repo owner as reviewer on staging→main promotion PRs (#161)
 
