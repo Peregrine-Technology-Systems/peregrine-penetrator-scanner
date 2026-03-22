@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :scan do
-    target
+    association :target, strategy: :create
     profile { 'standard' }
     status { 'pending' }
 
