@@ -29,6 +29,7 @@ module Penetrator
     end
 
     def boot!
+      logger.info("[Penetrator] Booting in #{env} environment")
       connect_db
       migrate!
       load_models
@@ -97,16 +98,9 @@ module Penetrator
 
     def build_logger
       logger = Logger.new($stdout, level: ENV.fetch('LOG_LEVEL', 'INFO'))
-      logger.formatter = if env == 'production'
-                           proc { |severity, time, _progname, msg|
-                             { timestamp: time.utc.iso8601(3), level: severity, service: 'penetrator',
-                               message: msg }.to_json + "\n"
-                           }
-                         else
-                           proc { |severity, time, _progname, msg|
-                             "#{time.strftime('%H:%M:%S')} [#{severity}] #{msg}\n"
-                           }
-                         end
+      logger.formatter = proc { |severity, time, _progname, msg|
+        "#{time.strftime('%H:%M:%S')} [#{severity}] #{msg}\n"
+      }
       logger
     end
   end
