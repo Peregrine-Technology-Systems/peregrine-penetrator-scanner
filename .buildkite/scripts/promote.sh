@@ -7,7 +7,7 @@ set -euo pipefail
 BASE="$1"
 HEAD="$2"
 MODE="${3:-manual}"
-REPO="Peregrine-Technology-Systems/peregrine-penetrator"
+REPO="Peregrine-Technology-Systems/peregrine-penetrator-scanner"
 API="https://api.github.com"
 
 if [ -z "${GH_TOKEN:-}" ]; then

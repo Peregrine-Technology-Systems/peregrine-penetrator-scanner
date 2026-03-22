@@ -4,9 +4,10 @@ class ScanCallbackService
   MAX_RETRIES = 3
   RETRY_BASE_DELAY = 0.5
 
-  def initialize(scan, cost_logger)
+  def initialize(scan, cost_logger, gcs_scan_results_path: nil)
     @scan = scan
     @cost_logger = cost_logger
+    @gcs_scan_results_path = gcs_scan_results_path
   end
 
   def notify
@@ -23,14 +24,16 @@ class ScanCallbackService
   private
 
   def build_payload
-    {
+    payload = {
       scan_uuid: ENV.fetch('SCAN_UUID', @scan.id),
       status: @scan.status,
       duration_seconds: @scan.duration&.to_i,
       summary: @scan.summary || {},
+      gcs_scan_results_path: @gcs_scan_results_path,
       gcs_report_paths: report_paths,
       cost_data: @cost_logger.cost_data
     }
+    payload.compact
   end
 
   def report_paths
