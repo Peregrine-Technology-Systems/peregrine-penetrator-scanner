@@ -13,7 +13,7 @@ FactoryBot.define do
       status { 'completed' }
       started_at { 30.minutes.ago }
       completed_at { Time.current }
-      summary { { 'total_findings' => 5, 'by_severity' => { 'high' => 2, 'medium' => 3 } }.to_json }
+      summary { { 'total_findings' => 5, 'by_severity' => { 'high' => 2, 'medium' => 3 } } }
     end
   end
 end

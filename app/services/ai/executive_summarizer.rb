@@ -8,7 +8,7 @@ module Ai
 
     def generate_executive_summary(scan)
       summary = scan.summary || {}
-      findings = scan.findings.non_duplicate
+      findings = scan.findings_dataset.non_duplicate
 
       critical_high = findings.where(severity: %w[critical high]).map do |f|
         finding_summary(f)
@@ -37,7 +37,8 @@ module Ai
 
       response = @claude_client.call_claude(prompt)
 
-      scan.update(summary: summary.merge('executive_summary' => response))
+      scan.summary = summary.merge('executive_summary' => response)
+      scan.save_changes
       response
     rescue StandardError => e
       Penetrator.logger.error("[AiAnalyzer] Executive summary failed: #{e.message}")

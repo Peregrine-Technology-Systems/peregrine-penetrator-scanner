@@ -8,7 +8,7 @@ class ScanResultsExporter
   def initialize(scan)
     @scan = scan
     @target = scan.target
-    @findings = scan.findings.non_duplicate.by_severity
+    @findings = scan.findings_dataset.non_duplicate.by_severity
   end
 
   def export
@@ -46,7 +46,7 @@ class ScanResultsExporter
   def build_summary
     summary = @scan.summary || {}
     {
-      total_findings: summary['total_findings'] || @findings.size,
+      total_findings: summary['total_findings'] || @findings.count,
       by_severity: summary['by_severity'] || @findings.group_and_count(:severity).all.to_h { |r| [r[:severity], r[:count]] },
       tools_run: summary['tools_run'] || (@scan.tool_statuses || {}).keys,
       duration_seconds: summary['duration_seconds'] || @scan.duration&.to_i,

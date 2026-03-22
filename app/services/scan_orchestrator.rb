@@ -44,8 +44,10 @@ class ScanOrchestrator
   end
 
   def mark_completed
-    scan.update(status: 'completed', completed_at: Time.current,
-                summary: ScanSummaryBuilder.new(scan).build)
+    scan.status = 'completed'
+    scan.completed_at = Time.current
+    scan.summary = ScanSummaryBuilder.new(scan).build
+    scan.save_changes
   end
 
   def run_phase(phase)
@@ -73,7 +75,8 @@ class ScanOrchestrator
     return unless @discovered_urls.any? && tool_config.tool != 'ffuf'
 
     all_urls = (scan.target.url_list + @discovered_urls).uniq
-    scan.target.update(urls: all_urls)
+    scan.target.urls = all_urls
+    scan.target.save_changes
   end
 
   def log_unknown_tool(tool)

@@ -69,7 +69,7 @@ module Notifiers
     end
 
     def attach_pdf_report(mail)
-      pdf_report = @scan.reports.find_by(format: 'pdf', status: 'completed')
+      pdf_report = @scan.reports_dataset.where(format: 'pdf', status: 'completed').first
       return unless pdf_report&.gcs_path
 
       local_path = Penetrator.root.join('storage', 'reports', pdf_report.gcs_path)
