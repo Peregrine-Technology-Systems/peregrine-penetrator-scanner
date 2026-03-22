@@ -21,8 +21,10 @@ namespace :scan do
     scan = target.scans.create!(profile:)
     puts "Scan ID: #{scan.id}"
 
-    # Initialize cost tracker
+    # Initialize cost tracker and audit logger
     cost_logger = ScanCostLogger.new(scan)
+    audit = AuditLogger.new
+    audit.scan_started(scan)
 
     # Execute scan
     orchestrator = ScanOrchestrator.new(scan)
@@ -51,6 +53,7 @@ namespace :scan do
     puts "\n--- Scan Results Export ---"
     gcs_scan_results_path = ScanResultsExporter.new(scan).export
     puts "  Exported v#{ScanResultsExporter::SCHEMA_VERSION} to #{gcs_scan_results_path}"
+    audit.json_exported(scan, gcs_path: gcs_scan_results_path)
 
     # Load findings to BigQuery FROM the versioned JSON
     if BigQueryLogger.enabled?
@@ -58,6 +61,7 @@ namespace :scan do
       scan_results = ScanResultsExporter.new(scan).build_envelope
       logged = BigQueryLogger.new.log_from_json(scan_results)
       puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
+      audit.bq_loaded(scan, rows_logged: logged)
     end
 
     # Generate reports — kept during transition, will move to reporter
@@ -93,6 +97,9 @@ namespace :scan do
     # Send notifications
     puts "\n--- Notifications ---"
     NotificationService.new(scan).notify
+
+    # Audit: scan completed
+    audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
 
     # Summary
     scan.reload
