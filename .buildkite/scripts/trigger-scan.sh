@@ -30,10 +30,10 @@ esac
 
 # Fetch secrets for scan notifications
 SLACK_WEBHOOK_URL=$(gcloud secrets versions access latest \
-  --secret="peregrine-penetrator--slack-webhook-url" \
+  --secret="peregrine-penetrator-scanner--slack-webhook-url" \
   --project=ci-runners-de 2>/dev/null || echo "")
 NOTIFICATION_EMAIL=$(gcloud secrets versions access latest \
-  --secret="peregrine-penetrator--notification-email" \
+  --secret="peregrine-penetrator-scanner--notification-email" \
   --project=ci-runners-de 2>/dev/null || echo "")
 
 echo "Launching ${ENV} scan VM: ${VM_NAME}"
