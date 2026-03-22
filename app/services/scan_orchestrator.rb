@@ -32,7 +32,7 @@ class ScanOrchestrator
     Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
     scan
   rescue StandardError => e
-    scan.update!(status: 'failed', completed_at: Time.current, error_message: e.message)
+    scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)
     Penetrator.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
     raise
   end
@@ -40,12 +40,12 @@ class ScanOrchestrator
   private
 
   def mark_running
-    scan.update!(status: 'running', started_at: Time.current)
+    scan.update(status: 'running', started_at: Time.current)
   end
 
   def mark_completed
-    scan.update!(status: 'completed', completed_at: Time.current,
-                 summary: ScanSummaryBuilder.new(scan).build)
+    scan.update(status: 'completed', completed_at: Time.current,
+                summary: ScanSummaryBuilder.new(scan).build)
   end
 
   def run_phase(phase)
@@ -73,7 +73,7 @@ class ScanOrchestrator
     return unless @discovered_urls.any? && tool_config.tool != 'ffuf'
 
     all_urls = (scan.target.url_list + @discovered_urls).uniq
-    scan.target.update!(urls: all_urls.to_json)
+    scan.target.update(urls: all_urls)
   end
 
   def log_unknown_tool(tool)
@@ -82,8 +82,8 @@ class ScanOrchestrator
 
   def save_findings(findings)
     findings.each do |finding_attrs|
-      scan.findings.create!(finding_attrs)
-    rescue ActiveRecord::RecordInvalid => e
+      Finding.create(finding_attrs.merge(scan_id: scan.id))
+    rescue Sequel::ValidationFailed => e
       Penetrator.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
     end
   end

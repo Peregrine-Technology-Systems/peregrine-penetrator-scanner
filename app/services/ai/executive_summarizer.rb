@@ -37,7 +37,7 @@ module Ai
 
       response = @claude_client.call_claude(prompt)
 
-      scan.update!(summary: summary.merge('executive_summary' => response))
+      scan.update(summary: summary.merge('executive_summary' => response))
       response
     rescue StandardError => e
       Penetrator.logger.error("[AiAnalyzer] Executive summary failed: #{e.message}")

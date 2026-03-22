@@ -84,7 +84,7 @@ class TicketingService
     evidence['ticket_url'] = result[:ticket_url]
     evidence['ticket_pushed_at'] = Time.current.iso8601
 
-    finding.update!(evidence:)
+    finding.update(evidence: evidence)
   end
 
   def log_summary(created, total)

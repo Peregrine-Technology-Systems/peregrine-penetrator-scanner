@@ -11,7 +11,7 @@ class AiAnalyzer
   end
 
   def analyze_scan(scan)
-    findings = scan.findings.non_duplicate.order(severity_order)
+    findings = scan.findings_dataset.non_duplicate.by_severity
     total_count = findings.count
     Penetrator.logger.info("[AiAnalyzer] Analyzing #{total_count} findings for #{scan.target.name}")
 
@@ -63,13 +63,4 @@ class AiAnalyzer
 
   private
 
-  def severity_order
-    Arel.sql("CASE severity
-      WHEN 'critical' THEN 1
-      WHEN 'high' THEN 2
-      WHEN 'medium' THEN 3
-      WHEN 'low' THEN 4
-      WHEN 'info' THEN 5
-      ELSE 6 END")
-  end
 end
