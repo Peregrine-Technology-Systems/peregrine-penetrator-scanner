@@ -18,7 +18,7 @@ module Penetrator
     end
 
     def logger
-      @logger ||= Logger.new($stdout, level: log_level)
+      @logger ||= build_logger
     end
 
     def env
@@ -57,8 +57,19 @@ module Penetrator
       Dir[root.join('app', 'services', '**', '*.rb')].sort.each { |f| require f }
     end
 
-    def log_level
-      ENV.fetch('LOG_LEVEL', 'INFO')
+    def build_logger
+      logger = Logger.new($stdout, level: ENV.fetch('LOG_LEVEL', 'INFO'))
+      logger.formatter = if env == 'production'
+                           proc { |severity, time, _progname, msg|
+                             { timestamp: time.utc.iso8601(3), level: severity, service: 'penetrator',
+                               message: msg }.to_json + "\n"
+                           }
+                         else
+                           proc { |severity, time, _progname, msg|
+                             "#{time.strftime('%H:%M:%S')} [#{severity}] #{msg}\n"
+                           }
+                         end
+      logger
     end
   end
 end

@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe ResultParsers::NucleiParser do
   subject(:parser) { described_class.new(fixture_path) }
 
-  let(:fixture_path) { Rails.root.join('spec/fixtures/nuclei_results.jsonl').to_s }
+  let(:fixture_path) { Penetrator.root.join('spec/fixtures/nuclei_results.jsonl').to_s }
 
   describe '#parse' do
     it 'returns an array of finding hashes' do

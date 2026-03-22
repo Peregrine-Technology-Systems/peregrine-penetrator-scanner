@@ -1,5 +1,5 @@
 class NucleiTemplateGenerator
-  TEMPLATES_DIR = Rails.root.join('custom_templates/nuclei')
+  TEMPLATES_DIR = Penetrator.root.join('custom_templates/nuclei')
 
   def initialize
     @client = Anthropic::Client.new(api_key: ENV.fetch('ANTHROPIC_API_KEY'))
@@ -16,7 +16,7 @@ class NucleiTemplateGenerator
 
     save_template(cve_id, yaml_content)
   rescue StandardError => e
-    Rails.logger.error("[NucleiTemplateGen] Failed for #{cve_id}: #{e.message}")
+    Penetrator.logger.error("[NucleiTemplateGen] Failed for #{cve_id}: #{e.message}")
     nil
   end
 
@@ -30,7 +30,7 @@ class NucleiTemplateGenerator
     end
 
     successful = results.count { |r| r[:success] }
-    Rails.logger.info("[NucleiTemplateGen] Generated #{successful}/#{cve_ids.length} templates")
+    Penetrator.logger.info("[NucleiTemplateGen] Generated #{successful}/#{cve_ids.length} templates")
     results
   end
 
@@ -65,7 +65,7 @@ class NucleiTemplateGenerator
     parsed = YAML.safe_load(yaml_content)
     return true if parsed.is_a?(Hash) && parsed['id'] && parsed['info']
 
-    Rails.logger.warn("[NucleiTemplateGen] Invalid template structure for #{cve_id}")
+    Penetrator.logger.warn("[NucleiTemplateGen] Invalid template structure for #{cve_id}")
     false
   end
 
@@ -84,7 +84,7 @@ class NucleiTemplateGenerator
     filename = "#{cve_id.downcase.gsub('-', '_')}.yaml"
     path = TEMPLATES_DIR.join(filename)
     File.write(path, content)
-    Rails.logger.info("[NucleiTemplateGen] Saved template: #{path}")
+    Penetrator.logger.info("[NucleiTemplateGen] Saved template: #{path}")
     path.to_s
   end
 end

@@ -37,7 +37,7 @@ module Ai
         finding.update!(ai_assessment: assessments[idx])
       end
     rescue StandardError => e
-      Rails.logger.error("[AiAnalyzer] Triage failed: #{e.message}")
+      Penetrator.logger.error("[AiAnalyzer] Triage failed: #{e.message}")
     end
 
     private

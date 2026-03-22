@@ -7,7 +7,7 @@ class ScannerBase
   def initialize(scan, tool_config = {})
     @scan = scan
     @tool_config = tool_config
-    @logger = Rails.logger
+    @logger = Penetrator.logger
   end
 
   def run
@@ -85,7 +85,7 @@ class ScannerBase
   end
 
   def output_dir
-    dir = Rails.root.join('tmp', 'scans', scan.id, tool_name)
+    dir = Penetrator.root.join('tmp', 'scans', scan.id, tool_name)
     FileUtils.mkdir_p(dir)
     dir
   end

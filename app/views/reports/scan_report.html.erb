@@ -1836,10 +1836,10 @@
     tool_statuses = scan.tool_statuses || {}
 
     # Peregrine falcon logo (base64 encoded PNG)
-    logo_white_b64 = File.exist?(Rails.root.join('app/assets/images/peregrine_logo_white.png')) ?
-      Base64.strict_encode64(File.binread(Rails.root.join('app/assets/images/peregrine_logo_white.png'))) : ''
-    logo_dark_b64 = File.exist?(Rails.root.join('app/assets/images/peregrine_logo_sm.png')) ?
-      Base64.strict_encode64(File.binread(Rails.root.join('app/assets/images/peregrine_logo_sm.png'))) : ''
+    logo_white_b64 = File.exist?(Penetrator.root.join('app/assets/images/peregrine_logo_white.png')) ?
+      Base64.strict_encode64(File.binread(Penetrator.root.join('app/assets/images/peregrine_logo_white.png'))) : ''
+    logo_dark_b64 = File.exist?(Penetrator.root.join('app/assets/images/peregrine_logo_sm.png')) ?
+      Base64.strict_encode64(File.binread(Penetrator.root.join('app/assets/images/peregrine_logo_sm.png'))) : ''
     logo_white_uri = "data:image/png;base64,#{logo_white_b64}"
     logo_dark_uri = "data:image/png;base64,#{logo_dark_b64}"
   %>
@@ -2308,7 +2308,7 @@
         <div class="section-title">Test Methodology</div>
       </div>
 
-      <%= ERB.new(File.read(Rails.root.join('app/views/reports/_methodology.html.erb'))).result(binding) %>
+      <%= ERB.new(File.read(Penetrator.root.join('app/views/reports/_methodology.html.erb'))).result(binding) %>
     </div>
 
     <!-- ============================================================

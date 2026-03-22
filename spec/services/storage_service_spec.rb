@@ -20,7 +20,7 @@ RSpec.describe StorageService do
 
         result = service.upload(source.path, 'scans/test.json')
 
-        dest_path = Rails.root.join('storage/reports/scans/test.json').to_s
+        dest_path = Penetrator.root.join('storage/reports/scans/test.json').to_s
         expect(File.exist?(dest_path)).to be true
         expect(File.read(dest_path)).to eq('test content')
         expect(result[:path]).to eq('scans/test.json')
@@ -37,11 +37,11 @@ RSpec.describe StorageService do
 
         service.upload(source.path, 'deep/nested/path/report.pdf')
 
-        dest_path = Rails.root.join('storage/reports/deep/nested/path/report.pdf').to_s
+        dest_path = Penetrator.root.join('storage/reports/deep/nested/path/report.pdf').to_s
         expect(File.exist?(dest_path)).to be true
       ensure
         source&.unlink
-        FileUtils.rm_rf(Rails.root.join('storage/reports/deep'))
+        FileUtils.rm_rf(Penetrator.root.join('storage/reports/deep'))
       end
     end
 
@@ -99,10 +99,10 @@ RSpec.describe StorageService do
         source.write('fallback content')
         source.close
 
-        expect(Rails.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back to local/)
+        expect(Penetrator.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back to local/)
         result = service.upload(source.path, 'scans/fallback.json')
 
-        dest_path = Rails.root.join('storage/reports/scans/fallback.json').to_s
+        dest_path = Penetrator.root.join('storage/reports/scans/fallback.json').to_s
         expect(File.exist?(dest_path)).to be true
         expect(result[:path]).to eq('scans/fallback.json')
       ensure
@@ -123,7 +123,7 @@ RSpec.describe StorageService do
 
       it 'returns a file:// URL' do
         url = service.signed_url('scans/report.pdf')
-        expected = Rails.root.join('storage/reports/scans/report.pdf').to_s
+        expected = Penetrator.root.join('storage/reports/scans/report.pdf').to_s
         expect(url).to eq("file://#{expected}")
       end
     end
@@ -178,9 +178,9 @@ RSpec.describe StorageService do
       end
 
       it 'falls back to local file:// URL and logs a warning' do
-        expect(Rails.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back/)
+        expect(Penetrator.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back/)
         url = service.signed_url('scans/report.pdf')
-        expected = Rails.root.join('storage/reports/scans/report.pdf').to_s
+        expected = Penetrator.root.join('storage/reports/scans/report.pdf').to_s
         expect(url).to eq("file://#{expected}")
       end
     end

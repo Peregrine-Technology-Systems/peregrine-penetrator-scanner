@@ -12,7 +12,7 @@ class AuditLogger
   ].freeze
 
   def initialize
-    @logger = Rails.logger
+    @logger = Penetrator.logger
   end
 
   def log(action:, scan_id:, **fields)

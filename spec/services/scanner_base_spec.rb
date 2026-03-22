@@ -89,8 +89,8 @@ RSpec.describe ScannerBase do
     it 'logs scan start and completion' do
       scanner = test_scanner_class.new(scan)
 
-      expect(Rails.logger).to receive(:info).with(/Starting scan for/)
-      expect(Rails.logger).to receive(:info).with(/Completed successfully/)
+      expect(Penetrator.logger).to receive(:info).with(/Starting scan for/)
+      expect(Penetrator.logger).to receive(:info).with(/Completed successfully/)
 
       scanner.run
     end
@@ -98,8 +98,8 @@ RSpec.describe ScannerBase do
     it 'logs errors on failure' do
       scanner = failing_scanner_class.new(scan)
 
-      expect(Rails.logger).to receive(:info).with(/Starting scan/)
-      expect(Rails.logger).to receive(:error).with(/Failed: scan failed/)
+      expect(Penetrator.logger).to receive(:info).with(/Starting scan/)
+      expect(Penetrator.logger).to receive(:error).with(/Failed: scan failed/)
 
       scanner.run
     end

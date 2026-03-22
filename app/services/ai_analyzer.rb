@@ -13,10 +13,10 @@ class AiAnalyzer
   def analyze_scan(scan)
     findings = scan.findings.non_duplicate.order(severity_order)
     total_count = findings.count
-    Rails.logger.info("[AiAnalyzer] Analyzing #{total_count} findings for #{scan.target.name}")
+    Penetrator.logger.info("[AiAnalyzer] Analyzing #{total_count} findings for #{scan.target.name}")
 
     triage_candidates = if total_count > MAX_FINDINGS_FOR_TRIAGE
-                          Rails.logger.info("[AiAnalyzer] #{total_count} findings exceeds cap of #{MAX_FINDINGS_FOR_TRIAGE}, " \
+                          Penetrator.logger.info("[AiAnalyzer] #{total_count} findings exceeds cap of #{MAX_FINDINGS_FOR_TRIAGE}, " \
                                             'triaging top findings by severity only')
                           findings.limit(MAX_FINDINGS_FOR_TRIAGE)
                         else
@@ -57,7 +57,7 @@ class AiAnalyzer
     response = @claude_client.call_claude(prompt)
     @claude_client.parse_json_response(response)
   rescue StandardError => e
-    Rails.logger.error("[AiAnalyzer] Adaptive scan suggestions failed: #{e.message}")
+    Penetrator.logger.error("[AiAnalyzer] Adaptive scan suggestions failed: #{e.message}")
     {}
   end
 

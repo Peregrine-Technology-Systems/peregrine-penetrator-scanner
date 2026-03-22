@@ -14,7 +14,7 @@ class ScanResultsExporter
   def export
     json = build_envelope.to_json
     gcs_path = write_and_upload(json)
-    Rails.logger.info("[ScanResultsExporter] Exported scan #{@scan.id} (v#{SCHEMA_VERSION}) to #{gcs_path}")
+    Penetrator.logger.info("[ScanResultsExporter] Exported scan #{@scan.id} (v#{SCHEMA_VERSION}) to #{gcs_path}")
     gcs_path
   end
 
@@ -55,7 +55,7 @@ class ScanResultsExporter
   end
 
   def write_and_upload(json)
-    local_dir = Rails.root.join('tmp', 'scan_results', @scan.id)
+    local_dir = Penetrator.root.join('tmp', 'scan_results', @scan.id)
     FileUtils.mkdir_p(local_dir)
     local_path = local_dir.join('scan_results.json')
     File.write(local_path, json)

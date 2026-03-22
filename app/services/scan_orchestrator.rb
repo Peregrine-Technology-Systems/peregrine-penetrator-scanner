@@ -20,20 +20,20 @@ class ScanOrchestrator
 
   def execute
     mark_running
-    Rails.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+    Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
 
     profile.phases.each do |phase|
-      Rails.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
+      Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
       run_phase(phase)
     end
 
     FindingNormalizer.new(scan).normalize
     mark_completed
-    Rails.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
+    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
     scan
   rescue StandardError => e
     scan.update!(status: 'failed', completed_at: Time.current, error_message: e.message)
-    Rails.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
+    Penetrator.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
     raise
   end
 
@@ -66,7 +66,7 @@ class ScanOrchestrator
     @discovered_urls.concat(result[:discovered_urls]) if result[:discovered_urls]
     save_findings(result[:findings]) if result[:findings]&.any?
   rescue StandardError => e
-    Rails.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
+    Penetrator.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
   end
 
   def feed_discovered_urls(tool_config)
@@ -77,14 +77,14 @@ class ScanOrchestrator
   end
 
   def log_unknown_tool(tool)
-    Rails.logger.warn("[ScanOrchestrator] Unknown tool: #{tool}")
+    Penetrator.logger.warn("[ScanOrchestrator] Unknown tool: #{tool}")
   end
 
   def save_findings(findings)
     findings.each do |finding_attrs|
       scan.findings.create!(finding_attrs)
     rescue ActiveRecord::RecordInvalid => e
-      Rails.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
+      Penetrator.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
     end
   end
 end

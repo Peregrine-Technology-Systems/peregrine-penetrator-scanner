@@ -21,7 +21,7 @@ class FindingNormalizer
     end
 
     duplicate_count = @scan.findings.where(duplicate: true).count
-    Rails.logger.info("[FindingNormalizer] Marked #{duplicate_count} duplicate findings")
+    Penetrator.logger.info("[FindingNormalizer] Marked #{duplicate_count} duplicate findings")
   end
 
   private

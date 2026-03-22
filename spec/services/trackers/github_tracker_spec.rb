@@ -61,7 +61,7 @@ RSpec.describe Trackers::GithubTracker do
     it 'returns nil and logs on network error' do
       stub_request(:post, github_api_url).to_raise(Faraday::ConnectionFailed)
 
-      expect(Rails.logger).to receive(:error).with(/GithubTracker/)
+      expect(Penetrator.logger).to receive(:error).with(/GithubTracker/)
       result = tracker.create_issue(finding, 'Test App')
       expect(result).to be_nil
     end

@@ -50,15 +50,15 @@ class ScanCallbackService
       response = post_callback(payload)
       return true if response&.status&.between?(200, 299)
 
-      Rails.logger.warn("[ScanCallbackService] Attempt #{attempts}/#{MAX_RETRIES} " \
+      Penetrator.logger.warn("[ScanCallbackService] Attempt #{attempts}/#{MAX_RETRIES} " \
                         "failed (status: #{response&.status})")
       sleep(RETRY_BASE_DELAY * attempts) if attempts < MAX_RETRIES
     end
 
-    Rails.logger.error("[ScanCallbackService] Exhausted #{MAX_RETRIES} retries for #{callback_url}")
+    Penetrator.logger.error("[ScanCallbackService] Exhausted #{MAX_RETRIES} retries for #{callback_url}")
     false
   rescue StandardError => e
-    Rails.logger.error("[ScanCallbackService] Failed: #{e.message}")
+    Penetrator.logger.error("[ScanCallbackService] Failed: #{e.message}")
     false
   end
 

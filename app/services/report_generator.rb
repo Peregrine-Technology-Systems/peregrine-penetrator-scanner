@@ -27,7 +27,7 @@ class ReportGenerator
     raise
   rescue StandardError => e
     report&.update!(status: 'failed')
-    Rails.logger.error("[ReportGenerator] Failed to generate #{format} report: #{e.message}")
+    Penetrator.logger.error("[ReportGenerator] Failed to generate #{format} report: #{e.message}")
     report
   end
 
@@ -61,7 +61,7 @@ class ReportGenerator
     url = begin
       storage.signed_url(remote_path)
     rescue StandardError => e
-      Rails.logger.warn("[ReportGenerator] Signed URL unavailable: #{e.message}")
+      Penetrator.logger.warn("[ReportGenerator] Signed URL unavailable: #{e.message}")
       nil
     end
 
@@ -75,7 +75,7 @@ class ReportGenerator
   end
 
   def save_local(content, filename)
-    dir = Rails.root.join('tmp', 'reports', @scan.id)
+    dir = Penetrator.root.join('tmp', 'reports', @scan.id)
     FileUtils.mkdir_p(dir)
     path = dir.join(filename)
 
