@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe BigQueryLogger do
   let(:target) { create(:target, name: 'Test App', urls: ['https://example.com']) }

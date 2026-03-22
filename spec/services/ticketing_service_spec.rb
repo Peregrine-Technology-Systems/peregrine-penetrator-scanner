@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe TicketingService do
   let(:target) { create(:target, :with_github_tickets) }

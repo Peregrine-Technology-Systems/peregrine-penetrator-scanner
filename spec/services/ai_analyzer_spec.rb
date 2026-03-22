@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe AiAnalyzer do
   let(:mock_anthropic_client) { instance_double(Anthropic::Client) }

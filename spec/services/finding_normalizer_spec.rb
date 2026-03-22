@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe FindingNormalizer do
   subject(:normalizer) { described_class.new(scan) }

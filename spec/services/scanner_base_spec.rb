@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScannerBase do
   let(:scan) { create(:scan, :running) }
