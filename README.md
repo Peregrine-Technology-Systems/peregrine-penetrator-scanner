@@ -1,7 +1,7 @@
 # Peregrine Penetrator
 
 <!-- Badges -->
-[![Build status](https://badge.buildkite.com/3e8ca31d1b42f054f917dd33f13863ef90099294aa2b703484.svg)](https://buildkite.com/chaudhuri-and-co/peregrine-penetrator)
+[![Build status](https://badge.buildkite.com/3e8ca31d1b42f054f917dd33f13863ef90099294aa2b703484.svg)](https://buildkite.com/chaudhuri-and-co/peregrine-penetrator-scanner)
 ![Ruby](https://img.shields.io/badge/ruby-3.2.2-CC342D?logo=ruby&logoColor=white)
 ![Rails](https://img.shields.io/badge/rails-7.1-CC0000?logo=rubyonrails&logoColor=white)
 ![Coverage](https://img.shields.io/badge/coverage-95.85%25-brightgreen)
@@ -68,8 +68,8 @@ Cloud Scheduler (*/10) → vm-scavenger → SSH liveness check → delete orphan
 
 ### Local Development
 ```bash
-git clone https://github.com/Peregrine-Technology-Systems/peregrine-penetrator.git
-cd peregrine-penetrator
+git clone https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner.git
+cd peregrine-penetrator-scanner
 bundle install
 rails db:create db:migrate
 bundle exec rspec
