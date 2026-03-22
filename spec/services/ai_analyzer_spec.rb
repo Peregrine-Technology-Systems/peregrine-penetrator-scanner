@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe AiAnalyzer do
   let(:mock_anthropic_client) { instance_double(Anthropic::Client) }
@@ -63,7 +63,7 @@ RSpec.describe AiAnalyzer do
 
       analyzer.triage_findings([findings.first], target)
 
-      findings.first.reload
+      findings.first.refresh
       expect(findings.first.ai_assessment['false_positive_likelihood']).to eq('high')
     end
 
@@ -100,7 +100,7 @@ RSpec.describe AiAnalyzer do
       result = analyzer.generate_executive_summary(scan)
 
       expect(result).to eq(summary_text)
-      scan.reload
+      scan.refresh
       expect(scan.summary['executive_summary']).to eq(summary_text)
     end
 
@@ -109,7 +109,7 @@ RSpec.describe AiAnalyzer do
 
       analyzer.generate_executive_summary(scan)
 
-      scan.reload
+      scan.refresh
       expect(scan.summary['total_findings']).to eq(5)
       expect(scan.summary['executive_summary']).to eq('Executive summary here')
     end
@@ -151,7 +151,7 @@ RSpec.describe AiAnalyzer do
 
       analyzer.analyze_scan(scan)
 
-      scan.reload
+      scan.refresh
       expect(scan.summary['executive_summary']).to eq('Executive summary text')
     end
   end

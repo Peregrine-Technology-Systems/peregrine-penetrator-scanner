@@ -8,13 +8,13 @@ class ScanResultsExporter
   def initialize(scan)
     @scan = scan
     @target = scan.target
-    @findings = scan.findings.non_duplicate.by_severity
+    @findings = scan.findings_dataset.non_duplicate.by_severity
   end
 
   def export
     json = build_envelope.to_json
     gcs_path = write_and_upload(json)
-    Rails.logger.info("[ScanResultsExporter] Exported scan #{@scan.id} (v#{SCHEMA_VERSION}) to #{gcs_path}")
+    Penetrator.logger.info("[ScanResultsExporter] Exported scan #{@scan.id} (v#{SCHEMA_VERSION}) to #{gcs_path}")
     gcs_path
   end
 
@@ -46,8 +46,8 @@ class ScanResultsExporter
   def build_summary
     summary = @scan.summary || {}
     {
-      total_findings: summary['total_findings'] || @findings.size,
-      by_severity: summary['by_severity'] || @findings.group(:severity).count,
+      total_findings: summary['total_findings'] || @findings.count,
+      by_severity: summary['by_severity'] || @findings.group_and_count(:severity).all.to_h { |r| [r[:severity], r[:count]] },
       tools_run: summary['tools_run'] || (@scan.tool_statuses || {}).keys,
       duration_seconds: summary['duration_seconds'] || @scan.duration&.to_i,
       executive_summary: summary['executive_summary']
@@ -55,7 +55,7 @@ class ScanResultsExporter
   end
 
   def write_and_upload(json)
-    local_dir = Rails.root.join('tmp', 'scan_results', @scan.id)
+    local_dir = Penetrator.root.join('tmp', 'scan_results', @scan.id)
     FileUtils.mkdir_p(local_dir)
     local_path = local_dir.join('scan_results.json')
     File.write(local_path, json)

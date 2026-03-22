@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Trackers::GithubTracker do
   let(:tracker) { described_class.new(owner: 'test-org', repo: 'test-repo', token: 'ghp_test123') }
@@ -61,7 +61,7 @@ RSpec.describe Trackers::GithubTracker do
     it 'returns nil and logs on network error' do
       stub_request(:post, github_api_url).to_raise(Faraday::ConnectionFailed)
 
-      expect(Rails.logger).to receive(:error).with(/GithubTracker/)
+      expect(Penetrator.logger).to receive(:error).with(/GithubTracker/)
       result = tracker.create_issue(finding, 'Test App')
       expect(result).to be_nil
     end

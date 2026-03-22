@@ -12,7 +12,7 @@ class AuditLogger
   ].freeze
 
   def initialize
-    @logger = Rails.logger
+    @logger = Penetrator.logger
   end
 
   def log(action:, scan_id:, **fields)
@@ -45,7 +45,7 @@ class AuditLogger
       scan_id: scan.id,
       target_name: scan.target.name,
       profile: scan.profile,
-      finding_count: scan.findings.non_duplicate.count,
+      finding_count: scan.findings_dataset.non_duplicate.count,
       duration_seconds: scan.duration&.to_i,
       status: scan.status,
       gcs_output_path: gcs_path
@@ -69,7 +69,7 @@ class AuditLogger
       action: 'json_exported',
       scan_id: scan.id,
       gcs_output_path: gcs_path,
-      finding_count: scan.findings.non_duplicate.count
+      finding_count: scan.findings_dataset.non_duplicate.count
     )
   end
 

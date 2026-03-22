@@ -34,7 +34,7 @@ module ResultParsers
         }
       end
     rescue JSON::ParserError, Errno::ENOENT => e
-      Rails.logger.error("[DawnParser] Parse error: #{e.message}")
+      Penetrator.logger.error("[DawnParser] Parse error: #{e.message}")
       []
     end
   end

@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe TicketingService do
   let(:target) { create(:target, :with_github_tickets) }
@@ -22,7 +22,7 @@ RSpec.describe TicketingService do
       before { stub_const('ENV', ENV.to_h.except('GITHUB_TOKEN')) }
 
       it 'returns 0 and logs error' do
-        expect(Rails.logger).to receive(:error).with(/Token env/)
+        expect(Penetrator.logger).to receive(:error).with(/Token env/)
         expect(described_class.new(scan).create_tickets).to eq(0)
       end
     end
@@ -54,7 +54,7 @@ RSpec.describe TicketingService do
 
       it 'stamps finding evidence with ticket metadata' do
         described_class.new(scan).create_tickets
-        high_finding.reload
+        high_finding.refresh
 
         expect(high_finding.evidence['ticket_system']).to eq('github')
         expect(high_finding.evidence['ticket_ref']).to eq('test-org/test-repo#1')
@@ -64,7 +64,7 @@ RSpec.describe TicketingService do
 
       it 'does not create tickets for info findings' do
         described_class.new(scan).create_tickets
-        info_finding.reload
+        info_finding.refresh
 
         expect(info_finding.evidence).not_to include('ticket_ref')
       end

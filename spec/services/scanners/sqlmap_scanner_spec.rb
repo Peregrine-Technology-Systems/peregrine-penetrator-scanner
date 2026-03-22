@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Scanners::SqlmapScanner do
   let(:target) { create(:target, urls: ['https://example.com/page?id=1'].to_json) }

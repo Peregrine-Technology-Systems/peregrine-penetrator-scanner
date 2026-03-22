@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Notifiers::EmailNotifier do
   subject(:notifier) { described_class.new(scan) }
@@ -129,13 +129,13 @@ RSpec.describe Notifiers::EmailNotifier do
 
     context 'when PDF report file exists' do
       before do
-        report_dir = Rails.root.join('storage/reports')
+        report_dir = Penetrator.root.join('storage/reports')
         FileUtils.mkdir_p(report_dir)
         File.write(report_dir.join('test_report.pdf'), 'fake-pdf')
       end
 
       after do
-        FileUtils.rm_f(Rails.root.join('storage/reports/test_report.pdf'))
+        FileUtils.rm_f(Penetrator.root.join('storage/reports/test_report.pdf'))
       end
 
       it 'attaches the PDF report' do

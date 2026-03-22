@@ -7,7 +7,7 @@ class ScannerBase
   def initialize(scan, tool_config = {})
     @scan = scan
     @tool_config = tool_config
-    @logger = Rails.logger
+    @logger = Penetrator.logger
   end
 
   def run
@@ -85,7 +85,7 @@ class ScannerBase
   end
 
   def output_dir
-    dir = Rails.root.join('tmp', 'scans', scan.id, tool_name)
+    dir = Penetrator.root.join('tmp', 'scans', scan.id, tool_name)
     FileUtils.mkdir_p(dir)
     dir
   end
@@ -124,8 +124,8 @@ class ScannerBase
   end
 
   def update_status(status, error = nil)
-    statuses = scan.tool_statuses || {}
-    statuses[tool_name] = { status:, updated_at: Time.current.iso8601, error: }.compact
-    scan.update!(tool_statuses: statuses)
+    entry = { status:, updated_at: Time.current.iso8601, error: }.compact
+    scan.tool_statuses = (scan.tool_statuses || {}).merge(tool_name => entry)
+    scan.save_changes
   end
 end

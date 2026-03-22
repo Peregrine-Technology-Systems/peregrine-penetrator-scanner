@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe BigQueryLogger do
   let(:target) { create(:target, name: 'Test App', urls: ['https://example.com']) }
@@ -166,7 +166,7 @@ RSpec.describe BigQueryLogger do
 
     it 'handles BQ failure gracefully' do
       allow(mock_bigquery).to receive(:dataset).and_raise(StandardError, 'connection refused')
-      expect(Rails.logger).to receive(:error).with(/BigQueryLogger.*connection refused/)
+      expect(Penetrator.logger).to receive(:error).with(/BigQueryLogger.*connection refused/)
       expect(described_class.new.log_from_json(scan_results)).to eq(0)
     end
   end

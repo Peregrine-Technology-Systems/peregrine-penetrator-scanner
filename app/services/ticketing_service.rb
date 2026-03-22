@@ -32,7 +32,7 @@ class TicketingService
     log_summary(created, findings.size)
     created
   rescue StandardError => e
-    Rails.logger.error("[TicketingService] Failed: #{e.message}")
+    Penetrator.logger.error("[TicketingService] Failed: #{e.message}")
     0
   end
 
@@ -43,7 +43,7 @@ class TicketingService
     when 'github'
       build_github_tracker
     else
-      Rails.logger.warn("[TicketingService] Unsupported tracker: #{@target.ticket_tracker}")
+      Penetrator.logger.warn("[TicketingService] Unsupported tracker: #{@target.ticket_tracker}")
       nil
     end
   end
@@ -53,7 +53,7 @@ class TicketingService
     token = ENV.fetch(config['token_env'], nil)
 
     unless token
-      Rails.logger.error("[TicketingService] Token env '#{config['token_env']}' not set")
+      Penetrator.logger.error("[TicketingService] Token env '#{config['token_env']}' not set")
       return nil
     end
 
@@ -64,7 +64,7 @@ class TicketingService
     min = @target.ticket_config&.dig('min_severity') || 'low'
     severities = SEVERITY_ORDER.first(SEVERITY_ORDER.index(min).to_i + 1)
 
-    @scan.findings.non_duplicate.where(severity: severities)
+    @scan.findings_dataset.non_duplicate.where(severity: severities)
   end
 
   def load_existing_tickets(findings)
@@ -84,10 +84,11 @@ class TicketingService
     evidence['ticket_url'] = result[:ticket_url]
     evidence['ticket_pushed_at'] = Time.current.iso8601
 
-    finding.update!(evidence:)
+    finding.evidence = evidence
+    finding.save_changes
   end
 
   def log_summary(created, total)
-    Rails.logger.info("[TicketingService] Created #{created} tickets for #{total} qualifying findings")
+    Penetrator.logger.info("[TicketingService] Created #{created} tickets for #{total} qualifying findings")
   end
 end
