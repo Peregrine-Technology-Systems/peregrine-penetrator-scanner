@@ -14,6 +14,7 @@ ENV['APP_ENV'] = 'test'
 require_relative '../lib/penetrator'
 
 Penetrator.boot!
+Penetrator.boot_services!
 
 require 'database_cleaner-sequel'
 require 'factory_bot'

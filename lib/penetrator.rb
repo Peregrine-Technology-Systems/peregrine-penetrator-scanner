@@ -51,10 +51,45 @@ module Penetrator
 
     def load_models
       Dir[root.join('lib', 'models', '*.rb')].sort.each { |f| require f }
+      # Value objects in app/models/ (not Sequel models)
+      Dir[root.join('app', 'models', '*.rb')].sort.each { |f| require f }
     end
 
     def load_services
-      Dir[root.join('app', 'services', '**', '*.rb')].sort.each { |f| require f }
+      services_dir = root.join('app', 'services')
+
+      # 1. Load report generator modules in dependency order
+      generators = services_dir.join('report_generators')
+      %w[helpers methodology_content component_styles markdown_formatters
+         markdown_sections markdown_converter report_styles
+         json_report markdown_report html_report pdf_report].each do |name|
+        path = generators.join("#{name}.rb")
+        require path.to_s if path.exist?
+      end
+
+      # 2. Load base classes that subdirectories inherit from
+      loaded = Dir[generators.join('*.rb')].map { |f| File.expand_path(f) }
+      %w[scanner_base].each do |base|
+        path = services_dir.join("#{base}.rb")
+        if path.exist?
+          require path.to_s
+          loaded << File.expand_path(path)
+        end
+      end
+
+      # 3. Load all subdirectory files (scanners, parsers, ai, cve_clients, etc.)
+      Dir[services_dir.join('**', '*.rb')].sort.each do |f|
+        next if loaded.include?(File.expand_path(f))
+        next if File.dirname(f) == services_dir.to_s
+
+        require f
+        loaded << File.expand_path(f)
+      end
+
+      # 4. Load remaining top-level service files
+      Dir[services_dir.join('*.rb')].sort.each do |f|
+        require f unless loaded.include?(File.expand_path(f))
+      end
     end
 
     def build_logger

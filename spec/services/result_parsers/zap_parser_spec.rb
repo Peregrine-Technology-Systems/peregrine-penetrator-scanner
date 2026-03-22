@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ResultParsers::ZapParser do
   subject(:parser) { described_class.new(fixture_path) }

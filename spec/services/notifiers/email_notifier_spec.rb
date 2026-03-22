@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Notifiers::EmailNotifier do
   subject(:notifier) { described_class.new(scan) }

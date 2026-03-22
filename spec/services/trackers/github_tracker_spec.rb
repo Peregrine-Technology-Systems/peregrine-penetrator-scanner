@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Trackers::GithubTracker do
   let(:tracker) { described_class.new(owner: 'test-org', repo: 'test-repo', token: 'ghp_test123') }

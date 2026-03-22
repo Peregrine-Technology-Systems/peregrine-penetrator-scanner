@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ReportGenerator do
   subject(:generator) { described_class.new(scan) }

@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ReportGenerators::HtmlReport do
   let(:report) { described_class.new(scan:, findings:, target:) }

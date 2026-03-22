@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ResultParsers::SqlmapParser do
   describe '#parse' do

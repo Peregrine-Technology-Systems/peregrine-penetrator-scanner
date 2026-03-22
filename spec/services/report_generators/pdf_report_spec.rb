@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ReportGenerators::PdfReport do
   subject(:report) { described_class.new(scan:, findings:, target:) }

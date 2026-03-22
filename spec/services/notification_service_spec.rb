@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe NotificationService do
   let(:target) { create(:target, name: 'Test App') }

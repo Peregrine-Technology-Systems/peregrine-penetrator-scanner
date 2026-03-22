@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Scanners::DawnScanner do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }

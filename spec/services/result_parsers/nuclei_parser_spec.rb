@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ResultParsers::NucleiParser do
   subject(:parser) { described_class.new(fixture_path) }

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScanResultsExporter do
   subject(:exporter) { described_class.new(scan) }

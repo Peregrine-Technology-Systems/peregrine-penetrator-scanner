@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe DataRetentionPurger do
   let(:mock_bigquery) { instance_double(Google::Cloud::Bigquery::Project) }
