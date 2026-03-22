@@ -64,7 +64,7 @@ class TicketingService
     min = @target.ticket_config&.dig('min_severity') || 'low'
     severities = SEVERITY_ORDER.first(SEVERITY_ORDER.index(min).to_i + 1)
 
-    @scan.findings.non_duplicate.where(severity: severities)
+    @scan.findings_dataset.non_duplicate.where(severity: severities)
   end
 
   def load_existing_tickets(findings)
@@ -84,7 +84,8 @@ class TicketingService
     evidence['ticket_url'] = result[:ticket_url]
     evidence['ticket_pushed_at'] = Time.current.iso8601
 
-    finding.update(evidence: evidence)
+    finding.evidence = evidence
+    finding.save_changes
   end
 
   def log_summary(created, total)

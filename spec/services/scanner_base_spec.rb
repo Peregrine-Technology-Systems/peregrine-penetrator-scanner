@@ -51,7 +51,7 @@ RSpec.describe ScannerBase do
       scanner = test_scanner_class.new(scan)
       scanner.run
 
-      scan.reload
+      scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['test_scanner']['status']).to eq('completed')
     end
@@ -68,7 +68,7 @@ RSpec.describe ScannerBase do
       scanner = failing_scanner_class.new(scan)
       scanner.run
 
-      scan.reload
+      scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['failing_scanner']['status']).to eq('failed')
       expect(statuses['failing_scanner']['error']).to eq('scan failed')
@@ -81,7 +81,7 @@ RSpec.describe ScannerBase do
       expect(result[:success]).to be false
       expect(result[:error]).to eq('unexpected error')
 
-      scan.reload
+      scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['exception_scanner']['status']).to eq('failed')
     end
@@ -162,7 +162,7 @@ RSpec.describe ScannerBase do
 
   describe '#target_urls' do
     it "returns the target's url_list" do
-      scan.target.update!(urls: '["https://example.com", "https://test.com"]')
+      scan.target.update(urls: '["https://example.com", "https://test.com"]')
       scanner = test_scanner_class.new(scan)
 
       expect(scanner.send(:target_urls)).to eq(['https://example.com', 'https://test.com'])

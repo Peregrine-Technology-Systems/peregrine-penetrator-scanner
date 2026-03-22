@@ -28,13 +28,13 @@ RSpec.describe ScanOrchestrator do
 
     it 'updates scan status to running' do
       orchestrator.execute
-      scan.reload
+      scan.refresh
       expect(scan.started_at).to be_present
     end
 
     it 'updates scan status to completed when done' do
       orchestrator.execute
-      scan.reload
+      scan.refresh
       expect(scan.status).to eq('completed')
       expect(scan.completed_at).to be_present
     end
@@ -83,7 +83,7 @@ RSpec.describe ScanOrchestrator do
 
       orchestrator.execute
 
-      scan.reload
+      scan.refresh
       summary = scan.summary
       expect(summary['total_findings']).to eq(2)
       expect(summary['by_severity']).to include('high' => 1, 'medium' => 1)
@@ -127,7 +127,7 @@ RSpec.describe ScanOrchestrator do
       setup_discovery_and_active_phases
       orchestrator.execute
 
-      target.reload
+      target.refresh
       expect(target.url_list).to include('https://example.com/admin')
     end
 
@@ -148,7 +148,7 @@ RSpec.describe ScanOrchestrator do
 
       expect { orchestrator_instance.execute }.to raise_error(StandardError)
 
-      scan.reload
+      scan.refresh
       expect(scan.status).to eq('failed')
       expect(scan.error_message).to include('Something broke')
     end

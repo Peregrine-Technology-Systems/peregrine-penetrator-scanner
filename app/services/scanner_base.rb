@@ -124,8 +124,8 @@ class ScannerBase
   end
 
   def update_status(status, error = nil)
-    statuses = scan.tool_statuses || {}
-    statuses[tool_name] = { status:, updated_at: Time.current.iso8601, error: }.compact
-    scan.update(tool_statuses: statuses)
+    entry = { status:, updated_at: Time.current.iso8601, error: }.compact
+    scan.tool_statuses = (scan.tool_statuses || {}).merge(tool_name => entry)
+    scan.save_changes
   end
 end

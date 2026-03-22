@@ -6,7 +6,7 @@ class FindingNormalizer
   end
 
   def normalize
-    findings = @scan.findings.order(:created_at)
+    findings = @scan.findings_dataset.order(:created_at)
     seen_fingerprints = Set.new
 
     findings.each do |finding|
@@ -20,7 +20,7 @@ class FindingNormalizer
       end
     end
 
-    duplicate_count = @scan.findings.where(duplicate: true).count
+    duplicate_count = @scan.findings_dataset.where(duplicate: true).count
     Penetrator.logger.info("[FindingNormalizer] Marked #{duplicate_count} duplicate findings")
   end
 

@@ -10,7 +10,7 @@ RSpec.describe FindingNormalizer do
       finding = create(:finding, scan:, title: 'XSS', url: 'https://example.com/search', source_tool: 'zap', cwe_id: 'CWE-79')
 
       normalizer.normalize
-      finding.reload
+      finding.refresh
 
       expect(finding.fingerprint).to be_present
       expect(finding.fingerprint).to match(/\A[0-9a-f]{64}\z/)
@@ -28,8 +28,8 @@ RSpec.describe FindingNormalizer do
 
       normalizer.normalize
 
-      finding1.reload
-      finding2.reload
+      finding1.refresh
+      finding2.refresh
 
       expect(finding1.duplicate).to be false
       expect(finding2.duplicate).to be true
@@ -45,8 +45,8 @@ RSpec.describe FindingNormalizer do
 
       normalizer.normalize
 
-      finding1.reload
-      finding2.reload
+      finding1.refresh
+      finding2.refresh
 
       expect(finding1.duplicate).to be false
       expect(finding2.duplicate).to be false
@@ -67,8 +67,8 @@ RSpec.describe FindingNormalizer do
 
       normalizer.normalize
 
-      finding1.reload
-      finding2.reload
+      finding1.refresh
+      finding2.refresh
 
       # The normalizer's fingerprint (host+path without query) matches for both,
       # marking finding2 as duplicate. Then the model callback regenerates using
@@ -84,7 +84,7 @@ RSpec.describe FindingNormalizer do
 
       expect { normalizer.normalize }.not_to raise_error
 
-      finding.reload
+      finding.refresh
       expect(finding.fingerprint).to be_present
     end
 

@@ -8,6 +8,9 @@ require 'digest'
 require 'sequel'
 require 'active_support'
 require 'active_support/core_ext'
+require 'faraday'
+require 'anthropic'
+require 'mail'
 
 module Penetrator
   class << self

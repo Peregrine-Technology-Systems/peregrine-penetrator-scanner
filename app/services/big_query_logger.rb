@@ -64,7 +64,7 @@ class BigQueryLogger
 
   # Legacy interface: load from ActiveRecord scan object (backward compatible)
   def log_findings(scan)
-    findings = scan.findings.non_duplicate
+    findings = scan.findings_dataset.non_duplicate
     rows = findings.map { |f| build_row_from_ar(f, scan) }
     return 0 if rows.empty?
 

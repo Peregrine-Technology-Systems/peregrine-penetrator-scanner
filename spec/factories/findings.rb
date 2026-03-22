@@ -6,7 +6,7 @@ FactoryBot.define do
     title { Faker::Hacker.say_something_smart }
     url { Faker::Internet.url }
     cwe_id { "CWE-#{rand(1..1000)}" }
-    evidence { { 'description' => Faker::Lorem.sentence }.to_json }
+    evidence { { 'description' => Faker::Lorem.sentence } }
     fingerprint { SecureRandom.hex(32) }
     duplicate { false }
   end

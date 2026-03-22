@@ -37,7 +37,7 @@ class ScanCallbackService
   end
 
   def report_paths
-    @scan.reports.where(status: 'completed').map do |report|
+    @scan.reports_dataset.where(status: 'completed').map do |report|
       { format: report.format, gcs_path: report.gcs_path }
     end
   end

@@ -54,7 +54,7 @@ RSpec.describe TicketingService do
 
       it 'stamps finding evidence with ticket metadata' do
         described_class.new(scan).create_tickets
-        high_finding.reload
+        high_finding.refresh
 
         expect(high_finding.evidence['ticket_system']).to eq('github')
         expect(high_finding.evidence['ticket_ref']).to eq('test-org/test-repo#1')
@@ -64,7 +64,7 @@ RSpec.describe TicketingService do
 
       it 'does not create tickets for info findings' do
         described_class.new(scan).create_tickets
-        info_finding.reload
+        info_finding.refresh
 
         expect(info_finding.evidence).not_to include('ticket_ref')
       end
