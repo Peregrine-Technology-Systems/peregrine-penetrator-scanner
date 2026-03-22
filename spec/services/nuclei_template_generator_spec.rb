@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe NucleiTemplateGenerator do
   let(:mock_client) { instance_double(Anthropic::Client) }
@@ -166,7 +166,7 @@ RSpec.describe NucleiTemplateGenerator do
     end
 
     it 'creates the templates directory' do
-      templates_dir = Rails.root.join('custom_templates/nuclei')
+      templates_dir = Penetrator.root.join('custom_templates/nuclei')
       FileUtils.rm_rf(templates_dir)
 
       allow(mock_messages).to receive(:create).and_raise(StandardError, 'API error')

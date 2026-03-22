@@ -12,22 +12,22 @@ class ReportGenerator
 
   def initialize(scan)
     @scan = scan
-    @findings = scan.findings.non_duplicate.where.not(severity: 'info').order(severity_order)
+    @findings = scan.findings_dataset.non_duplicate.exclude(severity: 'info').by_severity
     @target = scan.target
   end
 
   def generate(format)
-    report = @scan.reports.create!(format:, status: 'generating')
+    report = Report.create(scan_id: @scan.id, format: format, status: 'generating')
     formatter = build_formatter(format)
 
     content = formatter.generate
     local_path = save_local(content, formatter.filename)
     upload_and_finalize(report, local_path, formatter)
-  rescue ActiveRecord::RecordInvalid
+  rescue Sequel::ValidationFailed
     raise
   rescue StandardError => e
-    report&.update!(status: 'failed')
-    Rails.logger.error("[ReportGenerator] Failed to generate #{format} report: #{e.message}")
+    report&.update(status: 'failed')
+    Penetrator.logger.error("[ReportGenerator] Failed to generate #{format} report: #{e.message}")
     report
   end
 
@@ -61,11 +61,11 @@ class ReportGenerator
     url = begin
       storage.signed_url(remote_path)
     rescue StandardError => e
-      Rails.logger.warn("[ReportGenerator] Signed URL unavailable: #{e.message}")
+      Penetrator.logger.warn("[ReportGenerator] Signed URL unavailable: #{e.message}")
       nil
     end
 
-    report.update!(
+    report.update(
       status: 'completed',
       gcs_path: remote_path,
       signed_url: url,
@@ -75,7 +75,7 @@ class ReportGenerator
   end
 
   def save_local(content, filename)
-    dir = Rails.root.join('tmp', 'reports', @scan.id)
+    dir = Penetrator.root.join('tmp', 'reports', @scan.id)
     FileUtils.mkdir_p(dir)
     path = dir.join(filename)
 

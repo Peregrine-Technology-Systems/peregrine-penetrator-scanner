@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScanProfile do
   describe '.load' do

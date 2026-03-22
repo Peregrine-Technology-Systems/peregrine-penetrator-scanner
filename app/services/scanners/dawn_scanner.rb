@@ -8,7 +8,7 @@ module Scanners
 
     def execute
       output_file = output_dir.join('dawn_results.json')
-      cmd = "dawn --json -F #{output_file} #{Rails.root}"
+      cmd = "dawn --json -F #{output_file} #{Penetrator.root}"
       run_command(cmd, timeout: tool_config[:timeout] || 120)
 
       findings = parse_results(output_file)

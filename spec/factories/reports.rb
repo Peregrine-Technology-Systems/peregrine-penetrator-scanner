@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :report do
-    scan
+    association :scan, strategy: :create
     format { 'json' }
     status { 'pending' }
   end

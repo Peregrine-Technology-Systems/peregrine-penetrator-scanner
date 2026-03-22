@@ -52,10 +52,8 @@ COPY docker/wordlists/common.txt /usr/share/seclists/Discovery/Web-Content/commo
 FROM --platform=linux/amd64 ruby:3.2.2-slim AS app
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV RAILS_ENV=production
-ENV RAILS_LOG_TO_STDOUT=true
+ENV APP_ENV=production
 ENV RUBY_YJIT_ENABLE=1
-ENV SECRET_KEY_BASE=placeholder_for_build_only
 
 # System deps for Rails + Chromium for PDF generation
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -107,12 +105,9 @@ RUN mkdir -p tmp/scans tmp/reports storage/reports log custom_templates/nuclei
 RUN echo '{"dependencies":{"puppeteer":"latest"}}' > package.json && \
     PUPPETEER_SKIP_DOWNLOAD=true npm install
 
-# Set up database
-RUN bundle exec rails db:create db:migrate
-
 # Grover/Puppeteer config for Chromium
 ENV GROVER_NO_SANDBOX=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-ENTRYPOINT ["bundle", "exec"]
-CMD ["rake", "scan:run"]
+# Database is created at boot (Penetrator.boot! runs migrations)
+CMD ["bin/scan"]

@@ -19,6 +19,6 @@ RSpec.describe 'promote.sh' do # rubocop:disable RSpec/DescribeClass
   end
 
   it 'uses the correct repo path' do
-    expect(script).to include('Peregrine-Technology-Systems/peregrine-penetrator')
+    expect(script).to include('Peregrine-Technology-Systems/peregrine-penetrator-scanner')
   end
 end

@@ -34,10 +34,11 @@ module Ai
       findings.each_with_index do |finding, idx|
         next unless assessments[idx]
 
-        finding.update!(ai_assessment: assessments[idx])
+        finding.ai_assessment = assessments[idx]
+        finding.save_changes
       end
     rescue StandardError => e
-      Rails.logger.error("[AiAnalyzer] Triage failed: #{e.message}")
+      Penetrator.logger.error("[AiAnalyzer] Triage failed: #{e.message}")
     end
 
     private

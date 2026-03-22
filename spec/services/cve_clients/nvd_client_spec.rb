@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe CveClients::NvdClient do
   let(:http) do

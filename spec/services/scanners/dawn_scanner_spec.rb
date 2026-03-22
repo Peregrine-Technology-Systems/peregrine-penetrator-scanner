@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe Scanners::DawnScanner do
   let(:target) { create(:target, urls: ['https://example.com'].to_json) }
@@ -22,7 +22,7 @@ RSpec.describe Scanners::DawnScanner do
     it 'builds the correct dawn command' do
       expect(scanner).to receive(:run_command) do |cmd, **_opts|
         expect(cmd).to include('dawn --json -F')
-        expect(cmd).to include(Rails.root.to_s)
+        expect(cmd).to include(Penetrator.root.to_s)
         success_result
       end
 

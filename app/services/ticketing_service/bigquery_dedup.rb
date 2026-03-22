@@ -17,7 +17,7 @@ class TicketingService
 
       query_existing(client, fingerprints, site)
     rescue StandardError => e
-      Rails.logger.error("[BigqueryDedup] Query failed: #{e.message}")
+      Penetrator.logger.error("[BigqueryDedup] Query failed: #{e.message}")
       {}
     end
 

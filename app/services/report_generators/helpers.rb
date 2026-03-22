@@ -1,15 +1,5 @@
 module ReportGenerators
   module Helpers
-    def severity_order
-      Arel.sql("CASE severity
-        WHEN 'critical' THEN 1
-        WHEN 'high' THEN 2
-        WHEN 'medium' THEN 3
-        WHEN 'low' THEN 4
-        WHEN 'info' THEN 5
-        ELSE 6 END")
-    end
-
     def finding_to_hash(finding)
       {
         id: finding.id,

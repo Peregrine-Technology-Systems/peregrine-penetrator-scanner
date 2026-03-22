@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ScanCallbackService do
   let(:target) { create(:target, name: 'Test App', urls: ['https://example.com']) }
@@ -124,7 +124,7 @@ RSpec.describe ScanCallbackService do
       stub_request(:post, callback_url).to_raise(Faraday::ConnectionFailed.new('connection refused'))
 
       service = described_class.new(scan, cost_logger)
-      expect(Rails.logger).to receive(:error).with(/ScanCallbackService/).at_least(:once)
+      expect(Penetrator.logger).to receive(:error).with(/ScanCallbackService/).at_least(:once)
       result = service.notify
 
       expect(result).to be false
@@ -138,6 +138,31 @@ RSpec.describe ScanCallbackService do
 
       expect(result).to be false
       expect(WebMock).not_to have_requested(:post, callback_url)
+    end
+
+    it 'includes gcs_scan_results_path when provided' do
+      stub_request(:post, callback_url).to_return(status: 200, body: '{"ok":true}')
+      gcs_path = 'scan-results/target-1/scan-1/scan_results.json'
+
+      service = described_class.new(scan, cost_logger, gcs_scan_results_path: gcs_path)
+      service.notify
+
+      expect(WebMock).to(have_requested(:post, callback_url).with do |req|
+        body = JSON.parse(req.body)
+        body['gcs_scan_results_path'] == gcs_path
+      end)
+    end
+
+    it 'omits gcs_scan_results_path when not provided' do
+      stub_request(:post, callback_url).to_return(status: 200, body: '{"ok":true}')
+
+      service = described_class.new(scan, cost_logger)
+      service.notify
+
+      expect(WebMock).to(have_requested(:post, callback_url).with do |req|
+        body = JSON.parse(req.body)
+        !body.key?('gcs_scan_results_path')
+      end)
     end
 
     it 'includes scan duration in the payload' do

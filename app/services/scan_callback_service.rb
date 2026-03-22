@@ -4,9 +4,10 @@ class ScanCallbackService
   MAX_RETRIES = 3
   RETRY_BASE_DELAY = 0.5
 
-  def initialize(scan, cost_logger)
+  def initialize(scan, cost_logger, gcs_scan_results_path: nil)
     @scan = scan
     @cost_logger = cost_logger
+    @gcs_scan_results_path = gcs_scan_results_path
   end
 
   def notify
@@ -23,18 +24,20 @@ class ScanCallbackService
   private
 
   def build_payload
-    {
+    payload = {
       scan_uuid: ENV.fetch('SCAN_UUID', @scan.id),
       status: @scan.status,
       duration_seconds: @scan.duration&.to_i,
       summary: @scan.summary || {},
+      gcs_scan_results_path: @gcs_scan_results_path,
       gcs_report_paths: report_paths,
       cost_data: @cost_logger.cost_data
     }
+    payload.compact
   end
 
   def report_paths
-    @scan.reports.where(status: 'completed').map do |report|
+    @scan.reports_dataset.where(status: 'completed').map do |report|
       { format: report.format, gcs_path: report.gcs_path }
     end
   end
@@ -47,15 +50,15 @@ class ScanCallbackService
       response = post_callback(payload)
       return true if response&.status&.between?(200, 299)
 
-      Rails.logger.warn("[ScanCallbackService] Attempt #{attempts}/#{MAX_RETRIES} " \
+      Penetrator.logger.warn("[ScanCallbackService] Attempt #{attempts}/#{MAX_RETRIES} " \
                         "failed (status: #{response&.status})")
       sleep(RETRY_BASE_DELAY * attempts) if attempts < MAX_RETRIES
     end
 
-    Rails.logger.error("[ScanCallbackService] Exhausted #{MAX_RETRIES} retries for #{callback_url}")
+    Penetrator.logger.error("[ScanCallbackService] Exhausted #{MAX_RETRIES} retries for #{callback_url}")
     false
   rescue StandardError => e
-    Rails.logger.error("[ScanCallbackService] Failed: #{e.message}")
+    Penetrator.logger.error("[ScanCallbackService] Failed: #{e.message}")
     false
   end
 
