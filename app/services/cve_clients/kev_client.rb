@@ -27,7 +27,7 @@ module CveClients
       @cache_time = Time.current
       @cache
     rescue StandardError => e
-      Rails.logger.error("[CveIntelligence] KEV fetch failed: #{e.message}")
+      Penetrator.logger.error("[CveIntelligence] KEV fetch failed: #{e.message}")
       @cache || Set.new
     end
   end

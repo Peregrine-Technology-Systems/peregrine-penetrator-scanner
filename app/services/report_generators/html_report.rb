@@ -51,7 +51,7 @@ module ReportGenerators
     end
 
     def logo_data_uri
-      logo_path = Rails.root.join('app/assets/images/peregrine_logo_embossed.jpg')
+      logo_path = Penetrator.root.join('app/assets/images/peregrine_logo_embossed.jpg')
       return nil unless File.exist?(logo_path)
 
       "data:image/jpeg;base64,#{Base64.strict_encode64(File.binread(logo_path))}"

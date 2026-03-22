@@ -214,6 +214,7 @@ def trigger_scan(request):
         metadata=compute_v1.Metadata(items=[
             compute_v1.Items(key='SCAN_MODE', value='production'),
             compute_v1.Items(key='SCAN_PROFILE', value='standard'),
+            compute_v1.Items(key='TARGET_NAME', value='AuxScan Production'),
             compute_v1.Items(
                 key='TARGET_URLS',
                 value='["https://auxscan.app.data-estate.cloud"]',

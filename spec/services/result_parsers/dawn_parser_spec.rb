@@ -1,4 +1,4 @@
-require 'rails_helper'
+require 'sequel_helper'
 
 RSpec.describe ResultParsers::DawnParser do
   describe '#parse' do

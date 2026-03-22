@@ -13,7 +13,7 @@ module Notifiers
 
       mail.delivery_method :smtp, smtp_settings
       mail.deliver
-      Rails.logger.info('[NotificationService] Email sent')
+      Penetrator.logger.info('[NotificationService] Email sent')
     end
 
     def self.configured?
@@ -69,10 +69,10 @@ module Notifiers
     end
 
     def attach_pdf_report(mail)
-      pdf_report = @scan.reports.find_by(format: 'pdf', status: 'completed')
+      pdf_report = @scan.reports_dataset.where(format: 'pdf', status: 'completed').first
       return unless pdf_report&.gcs_path
 
-      local_path = Rails.root.join('storage', 'reports', pdf_report.gcs_path)
+      local_path = Penetrator.root.join('storage', 'reports', pdf_report.gcs_path)
       mail.add_file(filename: 'scan_report.pdf', content: File.read(local_path)) if File.exist?(local_path)
     end
   end

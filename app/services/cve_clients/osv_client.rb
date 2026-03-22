@@ -25,7 +25,7 @@ module CveClients
         }
       end
     rescue StandardError => e
-      Rails.logger.error("[CveIntelligence] OSV query failed: #{e.message}")
+      Penetrator.logger.error("[CveIntelligence] OSV query failed: #{e.message}")
       []
     end
 

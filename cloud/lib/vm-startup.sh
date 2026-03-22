@@ -2,11 +2,12 @@
 set -euo pipefail
 
 # Unified VM startup script for all environments
-# Behavior determined by SCAN_MODE instance metadata: dev | staging | production
+# Behavior determined by SCAN_MODE instance metadata: dev | development | staging | production
 #
-# dev:        Mount data disk, start Docker, install idle-shutdown, wait for SSH
-# staging:    Pull image, run scan, upload results to GCS, self-terminate
-# production: Same as staging but with spot pricing
+# dev:         Mount data disk, start Docker, install idle-shutdown, wait for SSH
+# development: Pull image, run scan, upload results to GCS, self-terminate (smoke test)
+# staging:     Pull image, run scan, upload results to GCS, self-terminate
+# production:  Same as staging but with spot pricing
 
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
 METADATA_HEADER="Metadata-Flavor: Google"
@@ -64,7 +65,7 @@ case "$SCAN_MODE" in
     echo "Dev mode startup complete — waiting for SSH"
     ;;
 
-  staging|production)
+  development|staging|production)
     echo "=== Scan Mode: ${SCAN_MODE} ==="
 
     # Read scan configuration from metadata
@@ -72,6 +73,7 @@ case "$SCAN_MODE" in
     IMAGE_TAG=$(get_metadata "IMAGE_TAG" "latest")
     SCAN_PROFILE=$(get_metadata "SCAN_PROFILE" "standard")
     TARGET_URLS=$(get_metadata "TARGET_URLS" "")
+    TARGET_NAME=$(get_metadata "TARGET_NAME" "")
     GCS_BUCKET=$(get_metadata "GCS_BUCKET" "${PROJECT_ID}-pentest-reports")
     SLACK_WEBHOOK_URL=$(get_metadata "SLACK_WEBHOOK_URL" "")
     NOTIFICATION_EMAIL=$(get_metadata "NOTIFICATION_EMAIL" "")
@@ -117,6 +119,7 @@ case "$SCAN_MODE" in
       -e SCAN_PROFILE="${SCAN_PROFILE}" \
       -e "SCAN_MODE=${SCAN_MODE}" \
       -e RAILS_ENV=production \
+      -e "TARGET_NAME=${TARGET_NAME}" \
       -e "TARGET_URLS=${TARGET_URLS}" \
       -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
       -e "NVD_API_KEY=${NVD_API_KEY}" \

@@ -14,7 +14,7 @@ module CveClients
 
       response.body['data']&.first
     rescue StandardError => e
-      Rails.logger.error("[CveIntelligence] EPSS fetch failed for #{cve_id}: #{e.message}")
+      Penetrator.logger.error("[CveIntelligence] EPSS fetch failed for #{cve_id}: #{e.message}")
       nil
     end
   end

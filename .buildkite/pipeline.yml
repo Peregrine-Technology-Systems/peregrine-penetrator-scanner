@@ -6,8 +6,7 @@ steps:
         commands:
           - apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null 2>&1
           - bundle install --jobs 4 --quiet
-          - RAILS_ENV=test bundle exec rails db:create db:migrate
-          - bundle exec rspec --format documentation
+          - APP_ENV=test bundle exec rspec --format documentation
           - chmod -R a+rwX . || true
         plugins:
           - docker#v5.11.0:
@@ -122,3 +121,37 @@ steps:
           - .buildkite/scripts/promote.sh main staging manual
         agents:
           queue: gcp
+
+  - wait
+
+  - group: ":white_check_mark: Smoke Test"
+    steps:
+      - label: ":smoking: Dev smoke test"
+        key: smoke-dev
+        if: build.branch == "development"
+        commands:
+          - .buildkite/scripts/smoke-test.sh development $$BUILDKITE_COMMIT
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
+
+      - label: ":smoking: Staging smoke test"
+        key: smoke-staging
+        if: build.branch == "staging"
+        commands:
+          - .buildkite/scripts/smoke-test.sh staging staging
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true
+
+      - label: ":smoking: Production smoke test"
+        key: smoke-production
+        if: build.branch == "main"
+        commands:
+          - .buildkite/scripts/smoke-test.sh production production
+        agents:
+          queue: gcp
+        timeout_in_minutes: 20
+        soft_fail: true

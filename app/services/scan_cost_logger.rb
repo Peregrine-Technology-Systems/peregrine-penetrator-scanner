@@ -65,10 +65,10 @@ class ScanCostLogger
     row = cost_data.merge(created_at: Time.current)
     table.insert([row]) # rubocop:disable Rails/SkipsModelValidations
 
-    Rails.logger.info("[ScanCostLogger] Logged cost data for scan #{@scan.id}")
+    Penetrator.logger.info("[ScanCostLogger] Logged cost data for scan #{@scan.id}")
     true
   rescue StandardError => e
-    Rails.logger.error("[ScanCostLogger] Failed: #{e.message}")
+    Penetrator.logger.error("[ScanCostLogger] Failed: #{e.message}")
     false
   end
 
