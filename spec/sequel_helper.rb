@@ -25,7 +25,7 @@ Dir[Penetrator.root.join('spec', 'factories', '**', '*.rb')].each { |f| require 
 
 # Configure FactoryBot for Sequel (uses save instead of save!)
 FactoryBot.define do
-  to_create { |instance| instance.save }
+  to_create(&:save)
 end
 
 RSpec.configure do |config|

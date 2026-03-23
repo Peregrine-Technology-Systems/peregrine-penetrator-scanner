@@ -51,7 +51,7 @@ class ScanCallbackService
       return true if response&.status&.between?(200, 299)
 
       Penetrator.logger.warn("[ScanCallbackService] Attempt #{attempts}/#{MAX_RETRIES} " \
-                        "failed (status: #{response&.status})")
+                             "failed (status: #{response&.status})")
       sleep(RETRY_BASE_DELAY * attempts) if attempts < MAX_RETRIES
     end
 

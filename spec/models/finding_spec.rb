@@ -22,9 +22,9 @@ RSpec.describe Finding do
       attrs = { scan: scan, source_tool: 'zap', title: 'XSS', url: 'https://example.com',
                 parameter: 'q', cwe_id: 'CWE-79' }
       create(:finding, **attrs)
-      expect {
+      expect do
         create(:finding, **attrs)
-      }.to raise_error(Sequel::ValidationFailed, /fingerprint/)
+      end.to raise_error(Sequel::ValidationFailed, /fingerprint/)
     end
 
     it 'allows same composite key in different scans' do

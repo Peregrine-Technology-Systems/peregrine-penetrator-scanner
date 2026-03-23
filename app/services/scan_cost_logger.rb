@@ -63,7 +63,7 @@ class ScanCostLogger
     client = Google::Cloud::Bigquery.new
     table = ensure_table(client)
     row = cost_data.merge(created_at: Time.current)
-    table.insert([row]) # rubocop:disable Rails/SkipsModelValidations
+    table.insert([row])
 
     Penetrator.logger.info("[ScanCostLogger] Logged cost data for scan #{@scan.id}")
     true
