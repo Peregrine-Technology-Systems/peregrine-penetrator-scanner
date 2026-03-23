@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.1 — 2026-03-23
+
 - Hybrid Docker model: dev clones at boot, staging builds baked image, prod re-tags (#276, #286, #309)
 - CI enforces RELEASE_NOTES.md update when code files change (#309)
 - Scheduler vm-startup.sh updated to APP_ENV and bin/scan (#309)
@@ -50,7 +52,7 @@ Major refactor: stripped scanner to its core responsibility. Report generation, 
 - 389 specs, 0 failures, 94.96% coverage, 0 RuboCop offenses
 - 20 focused open issues (was 50+) — 18 closed, 13 transferred to reporter repo
 
-## Unreleased
+## v0.3.1 — 2026-03-23
 
 ### Features
 - Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
