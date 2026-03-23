@@ -20,13 +20,13 @@ steps:
     commands:
       - scripts/woodpecker/build.sh
 
-  - name: notify-failure
+  - name: notify-status
     image: bash
     environment:
       SLACK_WEBHOOK_URL:
         from_secret: slack_webhook_url
     commands:
-      - scripts/woodpecker/notify-slack.sh
+      - scripts/woodpecker/notify-status.sh
     when:
-      - status: failure
+      - status: [success, failure]
     depends_on: [build]
