@@ -21,6 +21,16 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
+# Guard: skip if this pipeline was triggered by a version-bump commit (prevents infinite loop)
+COMMIT_MSG="${CI_COMMIT_MESSAGE:-}"
+if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
+  echo "Skipping — this commit is a version-bump commit (prevents loop)"
+  exit 0
+fi
+
+# Unshallow clone to access tags (Woodpecker clones with --depth 1)
+git fetch --unshallow 2>/dev/null || git fetch --tags 2>/dev/null || true
+
 # Read current version
 if [ ! -f VERSION ]; then
   echo "ERROR: VERSION file not found"
@@ -110,6 +120,37 @@ if [ -n "${DOCKER_REGISTRY:-}" ]; then
   gcloud artifacts docker tags add \
     "${DOCKER_REGISTRY}/scanner:staging" \
     "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
+fi
+
+# Send the production release Slack notification directly (notify-status would
+# read stale CI_COMMIT_MESSAGE from the triggering merge, not from our release commit)
+if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
+  COMMIT_URL="https://github.com/${REPO}/commit/$(git rev-parse HEAD)"
+  SHORT_SHA=$(git rev-parse --short HEAD)
+  WOODPECKER_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"
+  REPO_NAME="${REPO##*/}"
+  REPO_URL="https://github.com/${REPO}"
+
+  curl -s -X POST "$SLACK_WEBHOOK_URL" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"text\": \":rocket::rocket::rocket: PRODUCTION RELEASE ${TAG} — ${REPO_NAME}\",
+      \"blocks\": [
+        {\"type\": \"divider\"},
+        {
+          \"type\": \"header\",
+          \"text\": {\"type\": \"plain_text\", \"text\": \":rocket: PRODUCTION RELEASE ${TAG}\", \"emoji\": true}
+        },
+        {
+          \"type\": \"section\",
+          \"text\": {
+            \"type\": \"mrkdwn\",
+            \"text\": \"*<${REPO_URL}|${REPO_NAME}>* deployed to production\n\n*Version:* \`${TAG}\`\n*Commit:* <${COMMIT_URL}|\`${SHORT_SHA}\`> — release: ${TAG}\n*Bump:* ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})\n*Pipeline:* <${WOODPECKER_URL}|View in Woodpecker>\"
+          }
+        },
+        {\"type\": \"divider\"}
+      ]
+    }" || echo "Warning: Slack notification failed"
 fi
 
 echo "=== Release ${TAG} complete ==="
