@@ -1,23 +1,18 @@
-# Deploy staging: trigger scan with baked image (after build completes)
+# Production release: tag staging image as production (no build, no CI)
 when:
   - event: push
-    branch: staging
-
-depends_on:
-  - build
+    branch: main
 
 labels:
   platform: linux
   backend: local
 
 steps:
-  - name: deploy
+  - name: promote-image
     image: bash
     environment:
       DOCKER_REGISTRY:
         from_secret: docker_registry
-      SLACK_WEBHOOK_URL:
-        from_secret: slack_webhook_url
     commands:
       - scripts/woodpecker/deploy.sh
 
@@ -30,4 +25,4 @@ steps:
       - scripts/woodpecker/notify-status.sh
     when:
       - status: [success, failure]
-    depends_on: [deploy]
+    depends_on: [promote-image]

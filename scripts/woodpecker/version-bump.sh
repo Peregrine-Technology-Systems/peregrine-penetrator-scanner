@@ -81,6 +81,9 @@ fi
 git config user.name "woodpecker-ci[bot]"
 git config user.email "woodpecker-ci[bot]@users.noreply.github.com"
 
+# Set push URL with token (Woodpecker clone uses HTTPS without push credentials)
+git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+
 git add VERSION RELEASE_NOTES.md
 git commit -m "release: ${TAG}
 
