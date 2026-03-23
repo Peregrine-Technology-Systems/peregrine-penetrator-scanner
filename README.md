@@ -1,28 +1,27 @@
-# Peregrine Penetrator
+# Peregrine Penetrator Scanner
 
 <!-- Badges -->
-[![Build status](https://badge.buildkite.com/3e8ca31d1b42f054f917dd33f13863ef90099294aa2b703484.svg)](https://buildkite.com/chaudhuri-and-co/peregrine-penetrator-scanner)
+[![Woodpecker CI](https://d3ci42.peregrinetechsys.net/api/badges/5/status.svg)](https://d3ci42.peregrinetechsys.net/repos/5)
 ![Ruby](https://img.shields.io/badge/ruby-3.2.2-CC342D?logo=ruby&logoColor=white)
-![Rails](https://img.shields.io/badge/rails-7.1-CC0000?logo=rubyonrails&logoColor=white)
-![Coverage](https://img.shields.io/badge/coverage-95.85%25-brightgreen)
+![Sequel](https://img.shields.io/badge/ORM-Sequel-blue)
+![Coverage](https://img.shields.io/badge/coverage-94.96%25-brightgreen)
 ![RuboCop](https://img.shields.io/badge/rubocop-0%20offenses-brightgreen)
 ![License](https://img.shields.io/badge/license-BSL%201.1-blue)
 ![Platform](https://img.shields.io/badge/platform-GCP-4285F4?logo=googlecloud&logoColor=white)
 
-Automated security scanning platform that orchestrates best-in-class open-source tools against target web applications, aggregates findings, and generates professional reports.
+Automated security scanning engine that orchestrates open-source penetration testing tools against target web applications, normalizes and deduplicates findings, enriches with CVE intelligence, and exports structured results to GCS and BigQuery.
 
-> **v0.1.0** — See [RELEASE_NOTES.md](RELEASE_NOTES.md) for what's new.
+> **v0.3.0** — See [RELEASE_NOTES.md](RELEASE_NOTES.md) for what's new.
 
 ### Project Scope (March 2026)
 
-| Metric | Count |
+| Metric | Value |
 |--------|-------|
-| Application code | 3,700 lines |
-| Test code | 5,141 lines |
-| Test:Code ratio | 1.39:1 |
-| Test examples | 413 |
-| Line coverage | 95.85% |
+| Application code | ~1,150 lines |
+| Test examples | 389 |
+| Line coverage | 94.96% |
 | RuboCop offenses | 0 |
+| Gems | 15 |
 
 ---
 
@@ -34,20 +33,38 @@ All tools in this repository are for **authorized testing only**. Explicit writt
 
 ## Architecture
 
-```
-Cloud Scheduler → Cloud Function → Ephemeral Spot VM → ScanOrchestrator
-Buildkite CI    → trigger-scan.sh ↗                      ├── Discovery (ffuf + Nikto)
-Dev CLI         → ./cloud/dev scan ↗                     ├── Active Scan (OWASP ZAP)
-                                                          └── Targeted (Nuclei + sqlmap)
-                                                               ↓
-                                              FindingNormalizer → CVE Enrichment
-                                                               ↓
-                                              AI Analysis (Claude) → BigQuery Log
-                                                               ↓
-                                              ReportGenerator (JSON/MD/HTML/PDF) → Notify
+The scanner is one component of a three-service platform:
 
-Cloud Scheduler (*/10) → vm-scavenger → SSH liveness check → delete orphans → Slack
+| Service | Responsibility |
+|---------|---------------|
+| **Scanner** (this repo) | Orchestrate tools, normalize findings, export JSON to GCS |
+| **Reporter** ([peregrine-penetrator-reporter](https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-reporter)) | AI analysis, report generation (HTML/PDF), ticketing, email |
+| **Backend** | Orchestration API, scheduling, billing, notifications |
+
 ```
+Cloud Scheduler → Cloud Function → Ephemeral Spot VM → bin/scan
+                                                          ├── Phase 1: Discovery (ffuf + Nikto)
+                                                          ├── Phase 2: Active Scan (OWASP ZAP)
+                                                          └── Phase 3: Targeted (Nuclei + sqlmap)
+                                                               ↓
+                                                FindingNormalizer (SHA256 dedup)
+                                                               ↓
+                                                CveIntelligenceService (NVD, CISA KEV, EPSS, OSV)
+                                                               ↓
+                                                ScanResultsExporter → GCS (v1.0 JSON envelope)
+                                                               ↓
+                                                BigQueryLogger (findings + metadata + costs)
+                                                               ↓
+                                                ScanCallbackService → Backend API
+                                                               ↓
+                                                SlackNotifier → Webhook
+```
+
+### VM Lifecycle
+Scan VMs self-terminate on completion. A Cloud Function scavenger runs every 10 minutes as a safety net:
+- VMs < 30 min old: left alone
+- VMs 30 min – 4 hours: SSH liveness check — deletes only if no active scan
+- VMs > 4 hours: force-deleted regardless of state
 
 ## Security Tool Stack
 
@@ -71,24 +88,26 @@ Cloud Scheduler (*/10) → vm-scavenger → SSH liveness check → delete orphan
 git clone https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner.git
 cd peregrine-penetrator-scanner
 bundle install
-rails db:create db:migrate
 bundle exec rspec
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions, environment variables, and testing details.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions and environment variables.
 
-### Docker
+### Run a Scan
 ```bash
-docker build --platform linux/amd64 -f docker/Dockerfile -t pentest-platform .
+# Via CLI
+bin/scan --profile quick --name "My App" --urls '["https://example.com"]'
 
-# Run a scan
+# Via environment variables (Docker/VM)
+SCAN_PROFILE=standard TARGET_NAME="My App" TARGET_URLS='["https://example.com"]' bin/scan
+
+# Via Docker
+docker build --platform linux/amd64 -f docker/Dockerfile -t scanner .
 docker run --platform linux/amd64 \
   -e SCAN_PROFILE=quick \
   -e TARGET_NAME="My App" \
   -e TARGET_URLS='["https://example.com"]' \
-  -e ANTHROPIC_API_KEY="sk-..." \
-  -v "$(pwd)/storage/reports:/app/storage/reports" \
-  pentest-platform rake scan:run
+  scanner
 ```
 
 ### Cloud Development
@@ -96,34 +115,9 @@ docker run --platform linux/amd64 \
 ./cloud/dev start          # Create/start GCP dev VM
 ./cloud/dev build          # Sync code + Docker build on VM
 ./cloud/dev scan quick     # Run scan, stream output
-./cloud/dev results        # Download reports locally
+./cloud/dev results        # Download results locally
 ./cloud/dev stop           # Stop VM (preserves Docker cache)
 ```
-
-### Production
-```bash
-./cloud/dev scan-prod      # On-demand production scan (ephemeral spot VM)
-# Scheduled: Cloud Scheduler triggers weekly Monday 2am UTC
-```
-
-### VM Lifecycle Management
-Scan VMs self-terminate on completion. A Cloud Function scavenger runs every 10 minutes as a safety net:
-- VMs < 30 min old: left alone
-- VMs 30 min – 4 hours: SSH liveness check — deletes only if no active scan container or VM is unreachable
-- VMs > 4 hours: force-deleted regardless of state
-- Slack notifications for all deletions with container info and reason
-
-```bash
-./cloud/dev scavenge       # Manual orphan cleanup
-```
-
-### Reports
-Reports are generated in JSON, Markdown, HTML, and PDF formats. PDF reports feature:
-- Branded title page with Peregrine falcon logo
-- Clickable table of contents with PDF bookmarks
-- CONFIDENTIAL watermark on content pages
-- Test methodology appendix with OWASP Top 10 mapping
-- Professional LaTeX typesetting via pandoc/xelatex
 
 ## Scan Profiles
 
@@ -133,6 +127,13 @@ Reports are generated in JSON, Markdown, HTML, and PDF formats. PDF reports feat
 | standard | ~30 min | ZAP full + Nuclei + Nikto + ffuf |
 | thorough | ~2 hours | All tools, deep crawl |
 
+## Key Design Decisions
+
+- **Sequel ORM** over Rails/ActiveRecord — 80MB RAM, <1s boot, 15 gems (was 300MB, 5s, 38 gems)
+- **Ephemeral VMs** — each scan runs on a fresh spot VM that self-terminates
+- **JSON-first pipeline** — canonical v1.0 JSON envelope exported to GCS, then loaded to BigQuery
+- **Separation of duties** — scanner scans, reporter reports, backend orchestrates
+
 ## Documentation
 
 | Document | Description |
@@ -140,13 +141,21 @@ Reports are generated in JSON, Markdown, HTML, and PDF formats. PDF reports feat
 | [docs/DESIGN.md](docs/DESIGN.md) | Architecture, data model, and design decisions |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup, testing, environment configuration |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | GCP deployment, infrastructure, and operations |
+| [docs/schema_versioning.md](docs/schema_versioning.md) | v1.0 JSON envelope contract |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md) | Version history and changelog |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards and ethics |
 
-## Contributing
+## CI/CD
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). Pipelines:
+
+| Pipeline | Trigger | Steps |
+|----------|---------|-------|
+| `ci.yaml` | Push (all branches) | RSpec + RuboCop |
+| `build.yaml` | Push to development | Docker build + push to Artifact Registry |
+| `deploy.yaml` | Push to dev/staging/main | Tag image, trigger scan |
+| `promote.yaml` | Push to dev/staging | Auto-promote to next branch |
+| `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS |
 
 ## License
 
