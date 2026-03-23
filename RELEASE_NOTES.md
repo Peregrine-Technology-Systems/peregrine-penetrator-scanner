@@ -10,6 +10,7 @@
 - Slack status notification on every build: success (green), failure (red), production release (gold with version number)
 - CI enforces 90% minimum test coverage gate
 - Fix: promote.sh uses GitHub Compare API instead of git rev-list (shallow clone fix)
+- Fix: full clone depth for build and version-bump pipelines (Docker build + tags need full repo)
 
 ## v0.3.0 — 2026-03-23
 
