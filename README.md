@@ -157,14 +157,33 @@ docker run --platform linux/amd64 \
 | [RELEASE_NOTES.md](RELEASE_NOTES.md) | Version history and changelog |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 
+## Docker Image Architecture
+
+The scanner uses a **two-image split** to avoid rebuilding ~500MB of security tools on every code push:
+
+| Image | Contents | Rebuild frequency |
+|-------|----------|-------------------|
+| `scanner-base` | Ruby 3.2.2 + ZAP + Nuclei + sqlmap + ffuf + Nikto + system deps | Monthly or on tool version bump |
+| `scanner` | `FROM scanner-base` + gems + app code | Every push to development |
+
+Tool versions are pinned in `docker/base-versions.txt`. Changing that file or `docker/Dockerfile.base` triggers a base image rebuild. App-only changes rebuild in under 2 minutes.
+
+```
+docker/
+  Dockerfile.base      # Base image — security tools + runtime (rebuilt rarely)
+  Dockerfile           # App image — FROM base, gems + code (rebuilt on push)
+  base-versions.txt    # Pinned tool versions (Nuclei, ffuf, etc.)
+```
+
 ## CI/CD
 
 CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). Pipelines:
 
 | Pipeline | Trigger | Steps |
 |----------|---------|-------|
-| `ci.yaml` | Push (all branches) | RSpec + RuboCop |
-| `build.yaml` | Push to development | Docker build + push to Artifact Registry |
+| `ci.yaml` | Push (all branches except main) | RSpec + RuboCop |
+| `build-base.yaml` | Push to development (Dockerfile.base or base-versions.txt changes) | Build + push scanner-base image |
+| `build.yaml` | Push to development (Gemfile or Dockerfile changes) | Build + push scanner app image |
 | `deploy.yaml` | Push to dev/staging/main | Tag image, trigger scan |
 | `promote.yaml` | Push to dev/staging | Auto-promote to next branch |
 | `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS |
