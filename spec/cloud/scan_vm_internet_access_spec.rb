@@ -4,7 +4,7 @@ RSpec.describe 'scan VM internet access' do # rubocop:disable RSpec/DescribeClas
   let(:project_root) { File.expand_path('../..', __dir__) }
 
   describe 'trigger-scan.sh' do
-    let(:script) { File.read(File.join(project_root, '.buildkite/scripts/trigger-scan.sh')) }
+    let(:script) { File.read(File.join(project_root, 'scripts/woodpecker/trigger-scan.sh')) }
 
     it 'does not use --no-address flag' do
       expect(script).not_to include('--no-address')

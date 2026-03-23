@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Infrastructure
+- Migrate CI/CD from Buildkite to self-hosted Woodpecker CI — eliminates concurrency throttling and SaaS dependency (Issue #270)
+
 ### Features
 - Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
 - Scan completion callback: ScanCallbackService POSTs scan summary, cost data, and report paths to backend API on scan completion (#186)

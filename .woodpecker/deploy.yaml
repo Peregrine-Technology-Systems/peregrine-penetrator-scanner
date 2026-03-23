@@ -1,0 +1,41 @@
+# Tag images + trigger scans — branch-conditional
+when:
+  - event: push
+    branch: [development, staging, main]
+
+depends_on:
+  - ci
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: deploy
+    image: bash
+    environment:
+      DOCKER_REGISTRY:
+        from_secret: docker_registry
+      GCP_PROJECT_DEV:
+        from_secret: gcp_project_dev
+      GCP_PROJECT_STG:
+        from_secret: gcp_project_stg
+      GCP_PROJECT_PRD:
+        from_secret: gcp_project_prd
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+      NOTIFICATION_EMAIL:
+        from_secret: notification_email
+    commands:
+      - scripts/woodpecker/deploy.sh
+
+  - name: notify-failure
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-slack.sh
+    when:
+      - status: failure
+    depends_on: [deploy]
