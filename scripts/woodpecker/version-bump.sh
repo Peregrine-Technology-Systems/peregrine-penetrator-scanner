@@ -21,6 +21,13 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
+# Guard: skip if this pipeline was triggered by a version-bump commit (prevents infinite loop)
+COMMIT_MSG="${CI_COMMIT_MESSAGE:-}"
+if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
+  echo "Skipping — this commit is a version-bump commit (prevents loop)"
+  exit 0
+fi
+
 # Read current version
 if [ ! -f VERSION ]; then
   echo "ERROR: VERSION file not found"
