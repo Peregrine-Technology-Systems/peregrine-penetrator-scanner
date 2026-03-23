@@ -15,8 +15,10 @@ RSpec.describe 'Docker image environment tagging' do # rubocop:disable RSpec/Des
   describe 'trigger-scan.sh' do
     let(:script) { File.read(File.join(project_root, 'scripts/woodpecker/trigger-scan.sh')) }
 
-    it 'uses environment name as image tag in metadata' do
-      expect(script).to match(/IMAGE_TAG=.*\$.*ENV/)
+    it 'maps each environment to a specific image tag' do
+      expect(script).to include('IMAGE_TAG="development"')
+      expect(script).to include('IMAGE_TAG="staging"')
+      expect(script).to include('IMAGE_TAG="production"')
     end
 
     it 'does not default to latest' do
