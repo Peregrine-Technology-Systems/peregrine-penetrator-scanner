@@ -12,17 +12,13 @@ gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
 SHORT_SHA="${CI_COMMIT_SHA:0:7}"
 
-echo "=== Building scanner image ==="
-echo "  Registry: ${DOCKER_REGISTRY}"
+echo "=== Building scanner app image ==="
+echo "  Base: ${DOCKER_REGISTRY}/scanner-base:latest"
 echo "  Tags: ${SHORT_SHA}, latest"
 
-# Use buildx with registry cache for faster builds
-docker buildx create --name ci-builder --use 2>/dev/null || docker buildx use ci-builder 2>/dev/null || true
-
 docker buildx build \
-  --cache-from "type=registry,ref=${DOCKER_REGISTRY}/scanner:buildcache" \
-  --cache-to "type=registry,ref=${DOCKER_REGISTRY}/scanner:buildcache,mode=max" \
   -f docker/Dockerfile \
+  --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
   -t "${DOCKER_REGISTRY}/scanner:${SHORT_SHA}" \
   -t "${DOCKER_REGISTRY}/scanner:latest" \
   --push \

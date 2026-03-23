@@ -1,32 +1,26 @@
-# Docker build + push to Artifact Registry — development only
+# Build scanner-base image — security tools + runtime deps
+# Triggers only when Dockerfile.base or tool versions change
 when:
   - event: push
     branch: development
     path:
       include:
-        - "docker/Dockerfile"
-        - "Gemfile"
-        - "Gemfile.lock"
-      exclude:
         - "docker/Dockerfile.base"
         - "docker/base-versions.txt"
         - "docker/wordlists/**"
-
-depends_on:
-  - ci
 
 labels:
   platform: linux
   backend: local
 
 steps:
-  - name: build
+  - name: build-base
     image: bash
     environment:
       DOCKER_REGISTRY:
         from_secret: docker_registry
     commands:
-      - scripts/woodpecker/build.sh
+      - scripts/woodpecker/build-base.sh
 
   - name: notify-failure
     image: bash
@@ -37,4 +31,4 @@ steps:
       - scripts/woodpecker/notify-slack.sh
     when:
       - status: failure
-    depends_on: [build]
+    depends_on: [build-base]
