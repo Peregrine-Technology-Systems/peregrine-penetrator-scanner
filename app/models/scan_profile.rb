@@ -1,5 +1,5 @@
 class ScanProfile
-  attr_reader :name, :description, :estimated_duration_minutes, :phases
+  attr_reader :name, :description, :estimated_duration_minutes, :phases, :smoke
 
   PROFILES_DIR = Penetrator.root.join('config/scan_profiles')
 
@@ -19,7 +19,8 @@ class ScanProfile
     @name = config[:name]
     @description = config[:description]
     @estimated_duration_minutes = config[:estimated_duration_minutes]
-    @phases = config[:phases].map { |p| Phase.new(p) }
+    @smoke = config[:smoke] || false
+    @phases = (config[:phases] || []).map { |p| Phase.new(p) }
   end
 
   def tools_for_phase(phase_name)

@@ -22,14 +22,12 @@ class ScanOrchestrator
     mark_running
     Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
 
-    profile.phases.each do |phase|
-      Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
-      run_phase(phase)
+    if profile.smoke
+      run_smoke_checks
+    else
+      run_scan_phases
     end
 
-    FindingNormalizer.new(scan).normalize
-    mark_completed
-    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings_dataset.count} findings")
     scan
   rescue StandardError => e
     scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)
@@ -38,6 +36,33 @@ class ScanOrchestrator
   end
 
   private
+
+  def run_scan_phases
+    profile.phases.each do |phase|
+      Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
+      run_phase(phase)
+    end
+
+    FindingNormalizer.new(scan).normalize
+    mark_completed
+    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings_dataset.count} findings")
+  end
+
+  def run_smoke_checks
+    checker = SmokeChecker.new(scan)
+    summary = checker.run
+
+    scan.status = checker.passed? ? 'completed' : 'failed'
+    scan.completed_at = Time.current
+    scan.summary = summary
+    scan.save_changes
+
+    status = checker.passed? ? 'PASSED' : 'FAILED'
+    Penetrator.logger.info("[ScanOrchestrator] Smoke test #{status}")
+    checker.results.each do |check, result|
+      Penetrator.logger.info("[SmokeChecker] #{check}: #{result[:status]} — #{result[:detail]}")
+    end
+  end
 
   def mark_running
     scan.update(status: 'running', started_at: Time.current)
