@@ -9,6 +9,7 @@
 - Automated version bump on main merge: updates RELEASE_NOTES, creates git tag, tags Docker image
 - Slack status notification on every build: success (green), failure (red), production release (gold with version number)
 - CI enforces 90% minimum test coverage gate
+- Fix: promote.sh uses GitHub Compare API instead of git rev-list (shallow clone fix)
 
 ## v0.3.0 — 2026-03-23
 
