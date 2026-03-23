@@ -1,0 +1,33 @@
+# Version bump on main merge — tag release, update RELEASE_NOTES, tag Docker image
+when:
+  - event: push
+    branch: main
+
+depends_on:
+  - ci
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: version-bump
+    image: bash
+    environment:
+      GH_TOKEN:
+        from_secret: gh_token
+      DOCKER_REGISTRY:
+        from_secret: docker_registry
+    commands:
+      - scripts/woodpecker/version-bump.sh
+
+  - name: notify-failure
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-slack.sh
+    when:
+      - status: failure
+    depends_on: [version-bump]
