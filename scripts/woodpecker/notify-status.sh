@@ -22,7 +22,7 @@ COMMIT_URL="https://github.com/${REPO}/commit/${FULL_SHA}"
 # Truncate commit message to first line
 MESSAGE=$(echo "$MESSAGE" | head -1 | cut -c1-80)
 
-# Determine notification style
+# Determine notification style — failure first, then environment-specific success
 if [ "$STATUS" = "failure" ]; then
   EMOJI=":red_circle:"
   COLOR="#dc3545"
@@ -35,11 +35,16 @@ elif [ "$BRANCH" = "main" ] && [ -f VERSION ]; then
 elif [ "$BRANCH" = "staging" ]; then
   EMOJI=":large_blue_circle:"
   COLOR="#0d6efd"
-  TITLE="Staging build"
-else
+  TITLE="Staging passed"
+elif [ "$BRANCH" = "development" ]; then
   EMOJI=":white_check_mark:"
   COLOR="#28a745"
-  TITLE="Pipeline passed"
+  TITLE="Development passed"
+else
+  # Feature branches
+  EMOJI=":white_check_mark:"
+  COLOR="#6c757d"
+  TITLE="CI passed (${BRANCH})"
 fi
 
 # Build the message
