@@ -1,0 +1,31 @@
+# Branch promotion — development→staging (auto), staging→main (manual)
+when:
+  - event: push
+    branch: [development, staging]
+
+depends_on:
+  - ci
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: promote
+    image: bash
+    environment:
+      GH_TOKEN:
+        from_secret: gh_token
+    commands:
+      - scripts/woodpecker/promote.sh
+
+  - name: notify-status
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-status.sh
+    when:
+      - status: [success, failure]
+    depends_on: [promote]

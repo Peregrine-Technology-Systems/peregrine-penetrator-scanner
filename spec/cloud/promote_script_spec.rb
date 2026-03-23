@@ -2,7 +2,7 @@
 
 RSpec.describe 'promote.sh' do # rubocop:disable RSpec/DescribeClass
   let(:project_root) { File.expand_path('../..', __dir__) }
-  let(:script) { File.read(File.join(project_root, '.buildkite/scripts/promote.sh')) }
+  let(:script) { File.read(File.join(project_root, 'scripts/woodpecker/promote.sh')) }
 
   it 'requests a reviewer for manual (staging→main) PRs' do
     expect(script).to include('requested_reviewers')
