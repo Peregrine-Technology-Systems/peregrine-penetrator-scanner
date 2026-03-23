@@ -35,6 +35,17 @@ self_terminate() {
 
 if [ "$SCAN_MODE" != "dev" ]; then
   trap self_terminate EXIT
+
+  # Self-check: verify the trap is set — prevents orphan VMs (#200)
+  if ! trap -p EXIT | grep -q "self_terminate"; then
+    echo "FATAL: self-terminate trap not set — aborting to prevent orphan VM"
+    gcloud logging write vm-self-check \
+      "self-terminate trap missing on ${INSTANCE_NAME} (${SCAN_MODE})" \
+      --severity=CRITICAL --project="${PROJECT_ID}" 2>/dev/null || true
+    gcloud compute instances delete "${INSTANCE_NAME}" \
+      --zone="${ZONE}" --project="${PROJECT_ID}" --quiet 2>/dev/null || true
+    exit 1
+  fi
 fi
 
 echo "=== Pentest VM Startup (mode: ${SCAN_MODE}) ==="
