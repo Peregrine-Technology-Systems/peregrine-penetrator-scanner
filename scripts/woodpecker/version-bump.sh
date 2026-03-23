@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Version bump on main merge:
+# 1. Scan commits since last tag for bump type:
+#    - feat!: or BREAKING CHANGE → major
+#    - feat: → minor
+#    - everything else → patch
+# 2. Increment VERSION
+# 3. Update RELEASE_NOTES — move Unreleased items under version header
+# 4. Commit + tag
+# 5. Tag Docker image (scanner:staging → scanner:vX.Y.Z + scanner:production)
+
+REPO="Peregrine-Technology-Systems/peregrine-penetrator-scanner"
+API="https://api.github.com"
+
+if [ -z "${GH_TOKEN:-}" ]; then
+  echo "GH_TOKEN not set, skipping version bump"
+  exit 0
+fi
+
+AUTH="Authorization: Bearer ${GH_TOKEN}"
+
+# Read current version
+if [ ! -f VERSION ]; then
+  echo "ERROR: VERSION file not found"
+  exit 1
+fi
+
+CURRENT=$(cat VERSION | tr -d '[:space:]')
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+# Determine bump type from commits since last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+if [ -n "$LAST_TAG" ]; then
+  COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || echo "")
+else
+  COMMITS=$(git log --pretty=format:"%s" 2>/dev/null || echo "")
+fi
+
+BUMP_TYPE="patch"
+if echo "$COMMITS" | grep -qE '^feat!:|BREAKING CHANGE'; then
+  BUMP_TYPE="major"
+elif echo "$COMMITS" | grep -qE '^feat:'; then
+  BUMP_TYPE="minor"
+fi
+
+# Increment version
+case "$BUMP_TYPE" in
+  major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+  minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+  patch) PATCH=$((PATCH + 1)) ;;
+esac
+
+NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+TAG="v${NEW_VERSION}"
+
+echo "=== Version Bump: ${CURRENT} → ${NEW_VERSION} (${BUMP_TYPE}) ==="
+
+# Check if tag already exists (idempotent)
+EXISTING=$(curl -s -o /dev/null -w "%{http_code}" -H "$AUTH" "${API}/repos/${REPO}/git/refs/tags/${TAG}")
+if [ "$EXISTING" = "200" ]; then
+  echo "Tag ${TAG} already exists — skipping"
+  exit 0
+fi
+
+# Update VERSION file
+echo "${NEW_VERSION}" > VERSION
+echo "VERSION: ${CURRENT} → ${NEW_VERSION}"
+
+# Update RELEASE_NOTES.md — replace ## Unreleased with ## vX.Y.Z — date
+DATE=$(date +%Y-%m-%d)
+if grep -q '^## Unreleased' RELEASE_NOTES.md; then
+  sed -i "s/^## Unreleased$/## ${TAG} — ${DATE}/" RELEASE_NOTES.md
+  echo "RELEASE_NOTES: ## Unreleased → ## ${TAG} — ${DATE}"
+else
+  echo "WARNING: No ## Unreleased section found in RELEASE_NOTES.md"
+fi
+
+# Commit all version changes
+git config user.name "woodpecker-ci[bot]"
+git config user.email "woodpecker-ci[bot]@users.noreply.github.com"
+
+git add VERSION RELEASE_NOTES.md
+git commit -m "release: ${TAG}
+
+Bump: ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})
+
+Co-Authored-By: woodpecker-ci[bot] <woodpecker-ci[bot]@users.noreply.github.com>"
+git push origin main
+
+# Create tag
+git tag -a "${TAG}" -m "Release ${TAG}"
+git push origin "${TAG}"
+echo "Created and pushed tag: ${TAG}"
+
+# Tag Docker image: scanner:staging → scanner:vX.Y.Z + scanner:production
+if [ -n "${DOCKER_REGISTRY:-}" ]; then
+  gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+  echo "Tagging scanner:staging as scanner:${TAG}"
+  gcloud artifacts docker tags add \
+    "${DOCKER_REGISTRY}/scanner:staging" \
+    "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
+
+  echo "Tagging scanner:staging as scanner:production"
+  gcloud artifacts docker tags add \
+    "${DOCKER_REGISTRY}/scanner:staging" \
+    "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
+fi
+
+echo "=== Release ${TAG} complete ==="

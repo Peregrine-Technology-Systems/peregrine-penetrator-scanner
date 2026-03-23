@@ -1,5 +1,11 @@
 # See https://git-scm.com/docs/gitattributes for more about git attribute files.
 
+# Both sides' additions are kept automatically — no conflicts on promotions
+RELEASE_NOTES.md merge=union
+
+# Binary PDFs — on conflict, keep target branch version (develop-canonical flow)
+*.pdf binary merge=ours
+
 # Mark the database schema as having been generated.
 db/schema.rb linguist-generated
 

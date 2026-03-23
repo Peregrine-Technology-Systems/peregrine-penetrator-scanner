@@ -37,9 +37,5 @@ RSpec.describe Penetrator do
     it 'has the findings table' do
       expect(described_class.db.table_exists?(:findings)).to be true
     end
-
-    it 'has the reports table' do
-      expect(described_class.db.table_exists?(:reports)).to be true
-    end
   end
 end

@@ -29,7 +29,7 @@ class ScanOrchestrator
 
     FindingNormalizer.new(scan).normalize
     mark_completed
-    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings.count} findings")
+    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings_dataset.count} findings")
     scan
   rescue StandardError => e
     scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)

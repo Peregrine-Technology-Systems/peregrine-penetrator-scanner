@@ -1,0 +1,33 @@
+# Deploy: staging triggers scan, main promotes image tag
+when:
+  - event: push
+    branch: [staging, main]
+
+depends_on:
+  - ci
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: deploy
+    image: bash
+    environment:
+      DOCKER_REGISTRY:
+        from_secret: docker_registry
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/deploy.sh
+
+  - name: notify-status
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-status.sh
+    when:
+      - status: [success, failure]
+    depends_on: [deploy]

@@ -3,9 +3,9 @@
 require 'google/cloud/bigquery'
 
 class BigQueryLogger
-  DATASET_ID = 'pentest_history'.freeze
-  FINDINGS_TABLE_PREFIX = 'scan_findings'.freeze
-  METADATA_TABLE_PREFIX = 'scan_metadata'.freeze
+  DATASET_ID = 'pentest_history'
+  FINDINGS_TABLE_PREFIX = 'scan_findings'
+  METADATA_TABLE_PREFIX = 'scan_metadata'
 
   FINDINGS_SCHEMA = [
     { name: 'fingerprint', type: 'STRING', mode: 'REQUIRED' },
@@ -106,7 +106,7 @@ class BigQueryLogger
       profile: metadata['profile'] || metadata[:profile],
       duration_seconds: summary['duration_seconds'] || summary[:duration_seconds],
       tool_statuses: (metadata['tool_statuses'] || metadata[:tool_statuses] || {}).to_json,
-      schema_version: schema_version,
+      schema_version:,
       scan_date: metadata['started_at'] || metadata[:started_at] || Time.now.iso8601,
       total_findings: summary['total_findings'] || summary[:total_findings],
       by_severity: (summary['by_severity'] || summary[:by_severity] || {}).to_json
@@ -123,7 +123,7 @@ class BigQueryLogger
       scan_id: metadata['scan_id'] || metadata[:scan_id],
       scan_date: metadata['started_at'] || metadata[:started_at] || Time.now.iso8601,
       profile: metadata['profile'] || metadata[:profile],
-      schema_version: schema_version,
+      schema_version:,
       severity: finding['severity'] || finding[:severity],
       title: finding['title'] || finding[:title],
       tool: finding['source_tool'] || finding[:source_tool],
@@ -179,7 +179,7 @@ class BigQueryLogger
   end
 
   def insert_rows(table, rows, label)
-    response = table.insert(rows) # rubocop:disable Rails/SkipsModelValidations
+    response = table.insert(rows)
 
     if response.success?
       Penetrator.logger.info("[BigQueryLogger] Logged #{rows.size} #{label} rows to #{table.table_id}")

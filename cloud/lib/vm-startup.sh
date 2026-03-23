@@ -87,9 +87,6 @@ case "$SCAN_MODE" in
     MACHINE_TYPE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/machine-type" 2>/dev/null | rev | cut -d'/' -f1 | rev || echo "unknown")
     SPOT_INSTANCE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/scheduling/preemptible" 2>/dev/null || echo "false")
 
-    FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
-
-    echo "Image: ${FULL_IMAGE}"
     echo "Profile: ${SCAN_PROFILE}"
     echo "Target: ${TARGET_URLS}"
 
@@ -104,43 +101,80 @@ case "$SCAN_MODE" in
     SMTP_PASSWORD=$(fetch_secret "pentest-smtp-password")
     SCAN_CALLBACK_SECRET=$(fetch_secret "pentest-scan-callback-secret")
 
-    # Pull image
-    echo "Pulling image..."
-    docker pull "${FULL_IMAGE}"
+    # Common env vars for docker run
+    SCAN_ENV=(
+      -e SCAN_PROFILE="${SCAN_PROFILE}"
+      -e "SCAN_MODE=${SCAN_MODE}"
+      -e APP_ENV=production
+      -e "TARGET_NAME=${TARGET_NAME}"
+      -e "TARGET_URLS=${TARGET_URLS}"
+      -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+      -e "NVD_API_KEY=${NVD_API_KEY}"
+      -e "SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}"
+      -e "NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL}"
+      -e "SMTP_HOST=${SMTP_HOST}"
+      -e "SMTP_PORT=${SMTP_PORT}"
+      -e "SMTP_USERNAME=${SMTP_USERNAME}"
+      -e "SMTP_PASSWORD=${SMTP_PASSWORD}"
+      -e "GCS_BUCKET=${GCS_BUCKET}"
+      -e "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
+      -e "VERSION=${VERSION}"
+      -e "VM_MACHINE_TYPE=${MACHINE_TYPE}"
+      -e "SPOT_INSTANCE=${SPOT_INSTANCE}"
+      -e "SCAN_UUID=${SCAN_UUID}"
+      -e "CALLBACK_URL=${CALLBACK_URL}"
+      -e "SCAN_CALLBACK_SECRET=${SCAN_CALLBACK_SECRET}"
+    )
 
-    # Create results directory
     RESULTS_DIR="/tmp/scan-results"
     mkdir -p "${RESULTS_DIR}"
 
-    # Run scan
-    echo "Running ${SCAN_PROFILE} scan..."
     SCAN_EXIT=0
-    docker run --rm \
-      -e SCAN_PROFILE="${SCAN_PROFILE}" \
-      -e "SCAN_MODE=${SCAN_MODE}" \
-      -e RAILS_ENV=production \
-      -e "TARGET_NAME=${TARGET_NAME}" \
-      -e "TARGET_URLS=${TARGET_URLS}" \
-      -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
-      -e "NVD_API_KEY=${NVD_API_KEY}" \
-      -e "SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}" \
-      -e "NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL}" \
-      -e "SMTP_HOST=${SMTP_HOST}" \
-      -e "SMTP_PORT=${SMTP_PORT}" \
-      -e "SMTP_USERNAME=${SMTP_USERNAME}" \
-      -e "SMTP_PASSWORD=${SMTP_PASSWORD}" \
-      -e "GCS_BUCKET=${GCS_BUCKET}" \
-      -e "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}" \
-      -e "VERSION=${VERSION}" \
-      -e "VM_MACHINE_TYPE=${MACHINE_TYPE}" \
-      -e "SPOT_INSTANCE=${SPOT_INSTANCE}" \
-      -e "SCAN_UUID=${SCAN_UUID}" \
-      -e "CALLBACK_URL=${CALLBACK_URL}" \
-      -e "SCAN_CALLBACK_SECRET=${SCAN_CALLBACK_SECRET}" \
-      -v "${RESULTS_DIR}:/app/storage/reports" \
-      --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
-      "${FULL_IMAGE}" \
-      rake scan:run || SCAN_EXIT=$?
+
+    # Dual-mode execution:
+    #   development = clone code + volume mount into base image (fast iteration)
+    #   staging/production = pull baked image (immutable, tested)
+    if [ "${IMAGE_TAG}" = "development" ]; then
+      # --- Clone mode: git clone + bundle install at boot ---
+      BASE_IMAGE="${REGISTRY}/scanner-base:latest"
+      REPO_URL="https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner.git"
+
+      echo "Mode: clone (development)"
+      echo "Base image: ${BASE_IMAGE}"
+
+      docker pull "${BASE_IMAGE}"
+
+      APP_DIR="/tmp/scanner-app"
+      echo "Cloning repo (branch: development)..."
+      git clone --depth 1 --branch development "${REPO_URL}" "${APP_DIR}"
+
+      echo "Running ${SCAN_PROFILE} scan..."
+      docker run --rm \
+        "${SCAN_ENV[@]}" \
+        -v "${APP_DIR}:/app" \
+        -v "${RESULTS_DIR}:/app/storage/reports" \
+        --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
+        "${BASE_IMAGE}" \
+        bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bin/scan" \
+        || SCAN_EXIT=$?
+    else
+      # --- Image mode: pull baked image (staging or production) ---
+      FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
+
+      echo "Mode: baked image (${IMAGE_TAG})"
+      echo "Image: ${FULL_IMAGE}"
+
+      docker pull "${FULL_IMAGE}"
+
+      echo "Running ${SCAN_PROFILE} scan..."
+      docker run --rm \
+        "${SCAN_ENV[@]}" \
+        -v "${RESULTS_DIR}:/app/storage/reports" \
+        --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
+        "${FULL_IMAGE}" \
+        bin/scan \
+        || SCAN_EXIT=$?
+    fi
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
       echo "Scan completed successfully"

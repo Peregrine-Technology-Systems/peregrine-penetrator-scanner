@@ -20,8 +20,8 @@ class AuditLogger
       event: 'audit',
       event_id: SecureRandom.uuid,
       timestamp: Time.now.utc.iso8601,
-      action: action,
-      scan_id: scan_id,
+      action:,
+      scan_id:,
       actor: actor_identity,
       schema_version: defined?(ScanResultsExporter) ? ScanResultsExporter::SCHEMA_VERSION : nil
     }.merge(fields).compact
@@ -77,7 +77,7 @@ class AuditLogger
     log(
       action: 'bq_loaded',
       scan_id: scan.id,
-      rows_logged: rows_logged
+      rows_logged:
     )
   end
 
@@ -86,7 +86,7 @@ class AuditLogger
   def actor_identity
     {
       vm_name: ENV['VM_NAME'] || ENV['HOSTNAME'] || Socket.gethostname,
-      service_account: ENV['GOOGLE_SERVICE_ACCOUNT'],
+      service_account: ENV.fetch('GOOGLE_SERVICE_ACCOUNT', nil),
       scan_mode: ENV.fetch('SCAN_MODE', 'dev')
     }.compact
   end

@@ -26,7 +26,7 @@ class Finding < Sequel::Model
     super
     validates_presence %i[source_tool title severity fingerprint]
     validates_includes %w[critical high medium low info], :severity
-    validates_unique(:fingerprint) { |ds| ds.where(scan_id: scan_id) }
+    validates_unique(:fingerprint) { |ds| ds.where(scan_id:) }
   end
 
   dataset_module do

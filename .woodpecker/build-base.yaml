@@ -1,0 +1,34 @@
+# Build scanner-base image — security tools + runtime deps
+# Triggers only when Dockerfile.base or tool versions change
+when:
+  - event: push
+    branch: development
+    path:
+      include:
+        - "docker/Dockerfile.base"
+        - "docker/base-versions.txt"
+        - "docker/wordlists/**"
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: build-base
+    image: bash
+    environment:
+      DOCKER_REGISTRY:
+        from_secret: docker_registry
+    commands:
+      - scripts/woodpecker/build-base.sh
+
+  - name: notify-status
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-status.sh
+    when:
+      - status: [success, failure]
+    depends_on: [build-base]
