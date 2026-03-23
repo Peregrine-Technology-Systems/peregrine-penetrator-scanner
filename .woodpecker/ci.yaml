@@ -1,4 +1,4 @@
-# Test & Lint — all branches except main
+# Test & Lint — all branches except main (already tested on staging)
 when:
   - event: push
     branch:
