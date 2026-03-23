@@ -6,6 +6,8 @@
 
 ## v0.3.1 — 2026-03-23
 
+## v0.3.1 — 2026-03-23
+
 - Hybrid Docker model: dev clones at boot, staging builds baked image, prod re-tags (#276, #286, #309)
 - CI enforces RELEASE_NOTES.md update when code files change (#309)
 - Scheduler vm-startup.sh updated to APP_ENV and bin/scan (#309)
