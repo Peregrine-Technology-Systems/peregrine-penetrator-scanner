@@ -9,10 +9,16 @@ labels:
   backend: local
 
 steps:
+  - name: check-release-notes
+    image: bash
+    commands:
+      - scripts/woodpecker/check-release-notes.sh
+
   - name: test
     image: bash
     commands:
       - scripts/woodpecker/test.sh
+    depends_on: []
 
   - name: lint
     image: bash
@@ -31,4 +37,4 @@ steps:
       - scripts/woodpecker/notify-slack.sh
     when:
       - status: failure
-    depends_on: [test, lint]
+    depends_on: [check-release-notes, test, lint]
