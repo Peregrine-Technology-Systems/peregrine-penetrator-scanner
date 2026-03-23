@@ -9,18 +9,22 @@ if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
   exit 0
 fi
 
-REPO="${CI_REPO:-unknown}"
+REPO_FULL="${CI_REPO:-unknown}"
+REPO="${REPO_FULL##*/}"  # Strip org prefix — just the repo name
 BRANCH="${CI_COMMIT_BRANCH:-${CI_COMMIT_TAG:-unknown}}"
 COMMIT="${CI_COMMIT_SHA:0:7}"
+FULL_SHA="${CI_COMMIT_SHA:-}"
 AUTHOR="${CI_COMMIT_AUTHOR:-unknown}"
 MESSAGE="${CI_COMMIT_MESSAGE:-no message}"
 STATUS="${CI_PIPELINE_STATUS:-unknown}"
 WOODPECKER_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"
+COMMIT_URL="https://github.com/${REPO_FULL}/commit/${FULL_SHA}"
+REPO_URL="https://github.com/${REPO_FULL}"
 
 # Truncate commit message to first line
 MESSAGE=$(echo "$MESSAGE" | head -1 | cut -c1-80)
 
-# Determine notification style
+# Determine notification style — failure first, then environment-specific success
 if [ "$STATUS" = "failure" ]; then
   EMOJI=":red_circle:"
   COLOR="#dc3545"
@@ -33,38 +37,69 @@ elif [ "$BRANCH" = "main" ] && [ -f VERSION ]; then
 elif [ "$BRANCH" = "staging" ]; then
   EMOJI=":large_blue_circle:"
   COLOR="#0d6efd"
-  TITLE="Staging build"
-else
+  TITLE="Staging passed"
+elif [ "$BRANCH" = "development" ]; then
   EMOJI=":white_check_mark:"
   COLOR="#28a745"
-  TITLE="Pipeline passed"
+  TITLE="Development passed"
+else
+  # Feature branches
+  EMOJI=":white_check_mark:"
+  COLOR="#6c757d"
+  TITLE="CI passed (${BRANCH})"
 fi
 
-# Build the message
-DETAILS="*Repo:* ${REPO}\n*Branch:* ${BRANCH}\n*Commit:* \`${COMMIT}\` — ${MESSAGE}\n*Author:* ${AUTHOR}"
+# Build the message — repo name linked, no org prefix
+DETAILS="*Branch:* ${BRANCH}\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}"
 
 # Production releases get extra emphasis
 if [ "$BRANCH" = "main" ] && [ -f VERSION ]; then
   VERSION=$(cat VERSION | tr -d '[:space:]')
-  DETAILS="*Repo:* ${REPO}\n*Version:* \`v${VERSION}\`\n*Commit:* \`${COMMIT}\` — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Status:* Deployed to production"
+  DETAILS="*Version:* \`v${VERSION}\`\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Status:* Deployed to production"
 fi
 
-curl -s -X POST "$SLACK_WEBHOOK_URL" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"text\": \"${EMOJI} ${TITLE} — ${REPO}\",
-    \"attachments\": [
-      {
-        \"color\": \"${COLOR}\",
-        \"blocks\": [
-          {
-            \"type\": \"section\",
-            \"text\": {
-              \"type\": \"mrkdwn\",
-              \"text\": \"${EMOJI} *${TITLE}* — <${WOODPECKER_URL}|View pipeline>\n${DETAILS}\"
-            }
+# Production release gets a distinct, prominent message
+if [ "$BRANCH" = "main" ] && [ -f VERSION ] && [ "$STATUS" != "failure" ]; then
+  VERSION=$(cat VERSION | tr -d '[:space:]')
+  curl -s -X POST "$SLACK_WEBHOOK_URL" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"text\": \":rocket::rocket::rocket: PRODUCTION RELEASE v${VERSION} — ${REPO}\",
+      \"blocks\": [
+        {\"type\": \"divider\"},
+        {
+          \"type\": \"header\",
+          \"text\": {\"type\": \"plain_text\", \"text\": \":rocket: PRODUCTION RELEASE v${VERSION}\", \"emoji\": true}
+        },
+        {
+          \"type\": \"section\",
+          \"text\": {
+            \"type\": \"mrkdwn\",
+            \"text\": \":yellow_square: *<${REPO_URL}|${REPO}>* deployed to production\n\n*Version:* \`v${VERSION}\`\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Pipeline:* <${WOODPECKER_URL}|View in Woodpecker>\"
           }
-        ]
-      }
-    ]
-  }" || echo "Warning: Slack notification failed"
+        },
+        {\"type\": \"divider\"}
+      ]
+    }" || echo "Warning: Slack notification failed"
+else
+  # Standard notification for all other builds
+  curl -s -X POST "$SLACK_WEBHOOK_URL" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"text\": \"${EMOJI} ${TITLE} — ${REPO}\",
+      \"attachments\": [
+        {
+          \"color\": \"${COLOR}\",
+          \"blocks\": [
+            {
+              \"type\": \"section\",
+              \"text\": {
+                \"type\": \"mrkdwn\",
+                \"text\": \"${EMOJI} *${TITLE}* :yellow_square: *<${REPO_URL}|${REPO}>*\n${DETAILS}\n<${WOODPECKER_URL}|View pipeline>\"
+              }
+            }
+          ]
+        }
+      ]
+    }" || echo "Warning: Slack notification failed"
+fi
