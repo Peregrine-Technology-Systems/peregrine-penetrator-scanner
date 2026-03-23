@@ -110,7 +110,7 @@ case "$SCAN_MODE" in
     docker run --rm \
       -e SCAN_PROFILE="${SCAN_PROFILE}" \
       -e "SCAN_MODE=${SCAN_MODE}" \
-      -e RAILS_ENV=production \
+      -e APP_ENV=production \
       -e "TARGET_NAME=${TARGET_NAME}" \
       -e "TARGET_URLS=${TARGET_URLS}" \
       -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
@@ -127,7 +127,7 @@ case "$SCAN_MODE" in
       -v "${RESULTS_DIR}:/app/storage/reports" \
       --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
       "${FULL_IMAGE}" \
-      rake scan:run || SCAN_EXIT=$?
+      bin/scan || SCAN_EXIT=$?
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
       echo "Scan completed successfully"
