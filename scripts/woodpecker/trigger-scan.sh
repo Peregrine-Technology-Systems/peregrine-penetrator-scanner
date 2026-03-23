@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Launch an ephemeral scan VM from Buildkite
+# Launch an ephemeral scan VM on GCP
 # Usage: trigger-scan.sh <development|staging|production> <profile> <image_tag>
 
 ENV="${1:?Usage: trigger-scan.sh <development|staging|production> <profile> <image_tag>}"
@@ -35,21 +35,16 @@ case "$ENV" in
     ;;
 esac
 
-# Fetch secrets for scan notifications
-SLACK_WEBHOOK_URL=$(gcloud secrets versions access latest \
-  --secret="peregrine-penetrator--slack-webhook-url" \
-  --project=ci-runners-de 2>/dev/null || echo "")
-NOTIFICATION_EMAIL=$(gcloud secrets versions access latest \
-  --secret="peregrine-penetrator--notification-email" \
-  --project=ci-runners-de 2>/dev/null || echo "")
+# Notification secrets from Woodpecker env (injected via from_secret)
+SLACK_URL="${SLACK_WEBHOOK_URL:-}"
+EMAIL="${NOTIFICATION_EMAIL:-}"
 
 echo "Launching ${ENV} scan VM: ${VM_NAME}"
 echo "  Image: ${REGISTRY}/scanner:${IMAGE_TAG}"
 echo "  Profile: ${PROFILE}"
 echo "  Target: ${TARGET_URLS}"
 
-# Get the startup script path (relative to repo root)
-STARTUP_SCRIPT="$(dirname "$0")/../../cloud/lib/vm-startup.sh"
+STARTUP_SCRIPT="${CI_WORKSPACE}/cloud/lib/vm-startup.sh"
 
 gcloud compute instances create "${VM_NAME}" \
   --zone="${GCP_ZONE}" \
@@ -62,7 +57,7 @@ gcloud compute instances create "${VM_NAME}" \
   --boot-disk-auto-delete \
   --service-account="pentest-scanner@${GCP_PROJECT}.iam.gserviceaccount.com" \
   --scopes=cloud-platform \
-  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${IMAGE_TAG},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL},NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL},VERSION=${IMAGE_TAG}" \
+  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${IMAGE_TAG},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_URL},NOTIFICATION_EMAIL=${EMAIL},VERSION=${IMAGE_TAG}" \
   --metadata-from-file=startup-script="${STARTUP_SCRIPT}" \
   --tags=pentest-scan \
   --labels="env=${ENV},project=pentest,scan=true" \
