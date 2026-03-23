@@ -34,6 +34,9 @@ if [ "$EXISTING" -gt 0 ]; then
   exit 0
 fi
 
+# Fetch target branch for comparison (Woodpecker only clones the current branch)
+git fetch origin "${BASE}" 2>/dev/null || true
+
 # Check for new commits
 COMMITS=$(git rev-list "origin/${BASE}..origin/${BRANCH}" --count 2>/dev/null || echo "0")
 if [ "$COMMITS" = "0" ]; then
