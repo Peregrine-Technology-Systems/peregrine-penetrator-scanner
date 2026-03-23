@@ -1,0 +1,6 @@
+# Scanner base image — pinned tool versions
+# Bump a version here to trigger a base image rebuild via build-base.yaml
+NUCLEI_VERSION=3.7.1
+FFUF_VERSION=2.1.0
+ZAP_IMAGE=ghcr.io/zaproxy/zaproxy:stable
+RUBY_VERSION=3.2.2
