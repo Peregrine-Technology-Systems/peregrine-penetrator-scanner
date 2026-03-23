@@ -75,7 +75,7 @@ if [ "$BRANCH" = "main" ] && [ -f VERSION ] && [ "$STATUS" != "failure" ]; then
           \"type\": \"section\",
           \"text\": {
             \"type\": \"mrkdwn\",
-            \"text\": \":yellow_square: *<${REPO_URL}|${REPO}>* deployed to production\n\n*Version:* \`v${VERSION}\`\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Pipeline:* <${WOODPECKER_URL}|View in Woodpecker>\"
+            \"text\": \"*<${REPO_URL}|${REPO}>* deployed to production\n\n*Version:* \`v${VERSION}\`\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Pipeline:* <${WOODPECKER_URL}|View in Woodpecker>\"
           }
         },
         {\"type\": \"divider\"}
@@ -95,7 +95,7 @@ else
               \"type\": \"section\",
               \"text\": {
                 \"type\": \"mrkdwn\",
-                \"text\": \"${EMOJI} *${TITLE}* :yellow_square: *<${REPO_URL}|${REPO}>*\n${DETAILS}\n<${WOODPECKER_URL}|View pipeline>\"
+                \"text\": \"${EMOJI} *${TITLE}* *<${REPO_URL}|${REPO}>*\n${DETAILS}\n<${WOODPECKER_URL}|View pipeline>\"
               }
             }
           ]
