@@ -55,12 +55,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV APP_ENV=production
 ENV RUBY_YJIT_ENABLE=1
 
-# System deps for Rails + Chromium for PDF generation
+# System deps for scanner runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libsqlite3-dev \
     default-jre-headless python3 perl libnet-ssleay-perl libjson-perl libxml-writer-perl \
-    chromium nodejs npm python3-pip \
-    pandoc texlive-xetex texlive-fonts-recommended texlive-latex-extra lmodern \
+    python3-pip \
     curl wget git ca-certificates \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
@@ -100,14 +99,6 @@ COPY . .
 
 # Create necessary directories
 RUN mkdir -p tmp/scans tmp/reports storage/reports log custom_templates/nuclei
-
-# Install Puppeteer for PDF generation via Grover
-RUN echo '{"dependencies":{"puppeteer":"latest"}}' > package.json && \
-    PUPPETEER_SKIP_DOWNLOAD=true npm install
-
-# Grover/Puppeteer config for Chromium
-ENV GROVER_NO_SANDBOX=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Database is created at boot (Penetrator.boot! runs migrations)
 CMD ["bin/scan"]

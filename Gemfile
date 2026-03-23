@@ -11,9 +11,6 @@ gem "sqlite3", "~> 1.4"
 # ActiveSupport core extensions (standalone, no Rails)
 gem "activesupport", "~> 7.1"
 
-# PDF generation
-gem "grover"
-
 # Cloud storage
 gem "google-cloud-storage", "~> 1.44"
 
@@ -22,12 +19,6 @@ gem "google-cloud-bigquery", "~> 1.49"
 
 # HTTP client for CVE APIs and webhooks
 gem "faraday", "~> 2.7"
-
-# Anthropic Claude API
-gem "ruby-anthropic", "~> 0.4"
-
-# Email
-gem "mail", "~> 2.8"
 
 # UUID support
 gem "uuidtools", "~> 2.2"

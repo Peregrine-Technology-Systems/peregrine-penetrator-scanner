@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class ScanResultsExporter
-  include ReportGenerators::Helpers
-
   SCHEMA_VERSION = '1.0'
 
   def initialize(scan)
@@ -51,6 +49,24 @@ class ScanResultsExporter
       tools_run: summary['tools_run'] || (@scan.tool_statuses || {}).keys,
       duration_seconds: summary['duration_seconds'] || @scan.duration&.to_i,
       executive_summary: summary['executive_summary']
+    }
+  end
+
+  def finding_to_hash(finding)
+    {
+      id: finding.id,
+      source_tool: finding.source_tool,
+      severity: finding.severity,
+      title: finding.title,
+      url: finding.url,
+      parameter: finding.parameter,
+      cwe_id: finding.cwe_id,
+      cve_id: finding.cve_id,
+      cvss_score: finding.cvss_score,
+      epss_score: finding.epss_score,
+      kev_known_exploited: finding.kev_known_exploited,
+      evidence: finding.evidence,
+      ai_assessment: finding.ai_assessment
     }
   end
 

@@ -34,19 +34,6 @@ namespace :scan do
       CveIntelligenceService.new.enrich_scan(scan)
     end
 
-    # AI Analysis (if API key configured) — will move to reporter
-    if ENV['ANTHROPIC_API_KEY'].present?
-      puts "\n--- AI Analysis ---"
-      AiAnalyzer.new.analyze_scan(scan)
-    end
-
-    # Create remediation tickets
-    if scan.target.ticketing_enabled?
-      puts "\n--- Remediation Tickets ---"
-      created = TicketingService.new(scan).create_tickets
-      puts "  Created #{created} tickets"
-    end
-
     # Export versioned JSON to GCS (canonical scan output)
     puts "\n--- Scan Results Export ---"
     gcs_scan_results_path = ScanResultsExporter.new(scan).export
@@ -60,14 +47,6 @@ namespace :scan do
       logged = BigQueryLogger.new.log_from_json(scan_results)
       puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
       audit.bq_loaded(scan, rows_logged: logged)
-    end
-
-    # Generate reports — kept during transition, will move to reporter
-    puts "\n--- Report Generation ---"
-    generator = ReportGenerator.new(scan)
-    reports = generator.generate_all
-    reports.each do |report|
-      puts "  #{report.format.upcase}: #{report.gcs_path || 'local'} (#{report.status})"
     end
 
     # Log scan costs to BigQuery
@@ -137,23 +116,5 @@ namespace :scan do
     end
 
     exit 1 if errors.any?
-  end
-
-  desc 'Generate Nuclei templates for uncovered CVEs'
-  task generate_templates: :environment do
-    cve_ids = ENV.fetch('CVE_IDS', '').split(',').map(&:strip)
-
-    if cve_ids.empty?
-      puts 'Usage: rake scan:generate_templates CVE_IDS=CVE-2024-1234,CVE-2024-5678'
-      exit 1
-    end
-
-    generator = NucleiTemplateGenerator.new
-    results = generator.generate_batch(cve_ids)
-
-    results.each do |r|
-      status = r[:success] ? 'generated' : 'failed'
-      puts "#{status} #{r[:cve_id]}: #{r[:template_path] || 'failed'}"
-    end
   end
 end

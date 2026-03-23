@@ -7,7 +7,6 @@ class Scan < Sequel::Model
 
   many_to_one :target
   one_to_many :findings
-  one_to_many :reports
 
   def before_create
     self.id ||= SecureRandom.uuid
