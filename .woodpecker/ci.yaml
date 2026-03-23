@@ -26,15 +26,13 @@ steps:
       - scripts/woodpecker/lint.sh
     depends_on: []
 
-  - name: notify-failure
+  - name: notify-status
     image: bash
     environment:
       SLACK_WEBHOOK_URL:
         from_secret: slack_webhook_url
-      NOTIFICATION_EMAIL:
-        from_secret: notification_email
     commands:
-      - scripts/woodpecker/notify-slack.sh
+      - scripts/woodpecker/notify-status.sh
     when:
-      - status: failure
+      - status: [success, failure]
     depends_on: [check-release-notes, test, lint]

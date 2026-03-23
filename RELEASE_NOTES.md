@@ -7,6 +7,7 @@
 - Scheduler vm-startup.sh updated to APP_ENV and bin/scan (was RAILS_ENV and rake)
 - VERSION file (semver) — single source of truth, read by `Penetrator::VERSION`
 - Automated version bump on main merge: updates RELEASE_NOTES, creates git tag, tags Docker image
+- Slack status notification on every build: success (green), failure (red), production release (gold with version number)
 
 ## v0.3.0 — 2026-03-23
 
