@@ -15,7 +15,7 @@ class Scan < Sequel::Model
 
   def validate
     super
-    validates_includes %w[quick standard thorough], :profile
+    validates_includes %w[quick standard thorough smoke], :profile
     validates_includes %w[pending running completed failed cancelled], :status
   end
 
