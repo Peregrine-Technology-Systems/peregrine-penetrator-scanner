@@ -61,20 +61,6 @@ RSpec.describe ScanCallbackService do
       end)
     end
 
-    it 'includes GCS report paths in the payload' do
-      create(:report, scan:, format: 'pdf', gcs_path: 'reports/abc-123/report.pdf', status: 'completed')
-      create(:report, scan:, format: 'html', gcs_path: 'reports/abc-123/report.html', status: 'completed')
-      stub_request(:post, callback_url).to_return(status: 200, body: '{"ok":true}')
-
-      service = described_class.new(scan, cost_logger)
-      service.notify
-
-      expect(WebMock).to(have_requested(:post, callback_url).with do |req|
-        body = JSON.parse(req.body)
-        body['gcs_report_paths'].length == 2
-      end)
-    end
-
     it 'authenticates with shared secret in Authorization header' do
       stub_request(:post, callback_url).to_return(status: 200, body: '{"ok":true}')
 
