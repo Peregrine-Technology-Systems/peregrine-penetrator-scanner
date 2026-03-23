@@ -13,7 +13,7 @@ RSpec.describe 'Docker image environment tagging' do # rubocop:disable RSpec/Des
   end
 
   describe 'trigger-scan.sh' do
-    let(:script) { File.read(File.join(project_root, '.buildkite/scripts/trigger-scan.sh')) }
+    let(:script) { File.read(File.join(project_root, 'scripts/woodpecker/trigger-scan.sh')) }
 
     it 'uses environment name as image tag in metadata' do
       expect(script).to match(/IMAGE_TAG=.*\$.*ENV/)

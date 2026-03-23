@@ -11,7 +11,7 @@ class FindingNormalizer
 
     findings.each do |finding|
       fingerprint = generate_fingerprint(finding)
-      finding.update(fingerprint: fingerprint)
+      finding.update(fingerprint:)
 
       if seen_fingerprints.include?(fingerprint)
         finding.update(duplicate: true)
