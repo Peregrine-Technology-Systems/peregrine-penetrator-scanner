@@ -8,8 +8,8 @@ BRANCH="${CI_COMMIT_BRANCH}"
 
 case "$BRANCH" in
   development) GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="latest" ;;
-  staging)     GCP_PROJECT="${GCP_PROJECT_STG:?GCP_PROJECT_STG not set}"; IMAGE_TAG="staging" ;;
-  main)        GCP_PROJECT="${GCP_PROJECT_PRD:?GCP_PROJECT_PRD not set}"; IMAGE_TAG="production" ;;
+  staging)     GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="staging" ;;
+  main)        GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="production" ;;
   *)           echo "No smoke test for branch: $BRANCH"; exit 0 ;;
 esac
 
