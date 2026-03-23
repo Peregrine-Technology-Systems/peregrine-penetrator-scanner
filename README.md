@@ -13,6 +13,18 @@ Automated security scanning engine that orchestrates open-source penetration tes
 
 > **v0.3.0** — See [RELEASE_NOTES.md](RELEASE_NOTES.md) for what's new.
 
+### Design Approach
+
+This project followed **stepwise refinement** — the classic Agile approach of building a working monolith first, then extracting clean service boundaries once the domain is understood. The scanner started as a single Rails application handling scanning, AI analysis, report generation, ticketing, and notifications (~3,700 lines, 38 gems, 300MB RAM). Through iterative development and refactoring, each responsibility was extracted to its own service as the boundaries became clear:
+
+| Version | What happened |
+|---------|--------------|
+| v0.1.0 | Monolith — Rails app doing everything: scan, analyze, report, notify |
+| v0.2.0 | Rails stripped — migrated to Sequel ORM + plain Ruby CLI (80MB RAM, <1s boot) |
+| v0.3.0 | Service extraction — report generation, AI, ticketing, email moved to reporter and backend (-7,030 lines) |
+
+The result is a focused engine (~1,150 lines, 15 gems) that does one thing well: scan targets and export structured results. You can't design clean service boundaries on day one — you have to build it, understand it, then refactor.
+
 ### Project Scope (March 2026)
 
 | Metric | Value |
