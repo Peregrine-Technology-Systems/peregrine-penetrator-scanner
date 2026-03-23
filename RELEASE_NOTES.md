@@ -1,5 +1,9 @@
 # Release Notes
 
+## Unreleased
+
+- Split Docker build into base image (security tools, rebuilt rarely) and app image (gems + code, rebuilt on push) (#276)
+
 ## v0.3.0 — 2026-03-23
 
 Major refactor: stripped scanner to its core responsibility. Report generation, AI analysis, ticketing, and email notifications extracted to dedicated services (reporter, backend).
