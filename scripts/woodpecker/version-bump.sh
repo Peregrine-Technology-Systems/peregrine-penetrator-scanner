@@ -28,6 +28,9 @@ if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
   exit 0
 fi
 
+# Unshallow clone to access tags (Woodpecker clones with --depth 1)
+git fetch --unshallow 2>/dev/null || git fetch --tags 2>/dev/null || true
+
 # Read current version
 if [ ! -f VERSION ]; then
   echo "ERROR: VERSION file not found"
