@@ -11,6 +11,8 @@ require 'active_support/core_ext'
 require 'faraday'
 
 module Penetrator
+  VERSION = File.read(File.expand_path('../VERSION', __dir__)).strip.freeze
+
   class << self
     attr_reader :db
 
