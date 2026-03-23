@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Split Docker build into base image (security tools, rebuilt rarely) and app image (gems + code, rebuilt on push) (#276)
+- Hybrid Docker model: development clones code at VM boot (no Docker build), staging builds baked image, production re-tags staging (zero rebuild) (#276, #286)
+- CI enforces RELEASE_NOTES.md update when code files change
+- Scheduler vm-startup.sh updated to APP_ENV and bin/scan (was RAILS_ENV and rake)
 
 ## v0.3.0 — 2026-03-23
 
