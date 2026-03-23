@@ -5,6 +5,8 @@
 - Hybrid Docker model: development clones code at VM boot (no Docker build), staging builds baked image, production re-tags staging (zero rebuild) (#276, #286)
 - CI enforces RELEASE_NOTES.md update when code files change
 - Scheduler vm-startup.sh updated to APP_ENV and bin/scan (was RAILS_ENV and rake)
+- VERSION file (semver) — single source of truth, read by `Penetrator::VERSION`
+- Automated version bump on main merge: updates RELEASE_NOTES, creates git tag, tags Docker image
 
 ## v0.3.0 — 2026-03-23
 
