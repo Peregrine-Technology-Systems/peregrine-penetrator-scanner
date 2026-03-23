@@ -13,7 +13,7 @@ RSpec.describe ScanOrchestrator do
   end
 
   before do
-    mock_profile = instance_double(ScanProfile, name: 'standard', phases: [mock_phase])
+    mock_profile = instance_double(ScanProfile, name: 'standard', smoke: false, phases: [mock_phase])
     allow(ScanProfile).to receive(:load).and_return(mock_profile)
     allow(FindingNormalizer).to receive(:new).and_return(instance_double(FindingNormalizer, normalize: nil))
   end
@@ -53,7 +53,7 @@ RSpec.describe ScanOrchestrator do
       tool2 = instance_double(ScanProfile::ToolConfig, tool: 'nikto', config: {})
       allow(parallel_phase).to receive(:tools).and_return([tool1, tool2])
 
-      profile = instance_double(ScanProfile, name: 'standard', phases: [parallel_phase])
+      profile = instance_double(ScanProfile, name: 'standard', smoke: false, phases: [parallel_phase])
       allow(ScanProfile).to receive(:load).and_return(profile)
 
       ffuf_scanner = instance_double(Scanners::FfufScanner)
@@ -109,7 +109,7 @@ RSpec.describe ScanOrchestrator do
       phase = instance_double(ScanProfile::Phase, name: 'test', parallel: false)
       allow(phase).to receive(:tools).and_return([failing_tool, working_tool])
 
-      profile = instance_double(ScanProfile, name: 'standard', phases: [phase])
+      profile = instance_double(ScanProfile, name: 'standard', smoke: false, phases: [phase])
       allow(ScanProfile).to receive(:load).and_return(profile)
 
       failing_scanner = instance_double(Scanners::ZapScanner)
@@ -136,7 +136,7 @@ RSpec.describe ScanOrchestrator do
       phase = instance_double(ScanProfile::Phase, name: 'test', parallel: false)
       allow(phase).to receive(:tools).and_return([unknown_tool])
 
-      profile = instance_double(ScanProfile, name: 'standard', phases: [phase])
+      profile = instance_double(ScanProfile, name: 'standard', smoke: false, phases: [phase])
       allow(ScanProfile).to receive(:load).and_return(profile)
 
       expect { orchestrator.execute }.not_to raise_error
@@ -164,7 +164,7 @@ RSpec.describe ScanOrchestrator do
     allow(phase1).to receive(:tools).and_return([tool1])
     allow(phase2).to receive(:tools).and_return([tool2])
 
-    profile = instance_double(ScanProfile, name: 'standard', phases: [phase1, phase2])
+    profile = instance_double(ScanProfile, name: 'standard', smoke: false, phases: [phase1, phase2])
     allow(ScanProfile).to receive(:load).and_return(profile)
 
     ffuf_scanner = instance_double(Scanners::FfufScanner)
@@ -191,7 +191,7 @@ RSpec.describe ScanOrchestrator do
     zap_tool = instance_double(ScanProfile::ToolConfig, tool: 'zap', config: { mode: 'baseline' })
     allow(zap_phase).to receive(:tools).and_return([zap_tool])
 
-    profile = instance_double(ScanProfile, name: 'standard', phases: [ffuf_phase, zap_phase])
+    profile = instance_double(ScanProfile, name: 'standard', smoke: false, phases: [ffuf_phase, zap_phase])
     allow(ScanProfile).to receive(:load).and_return(profile)
 
     ffuf_scanner = instance_double(Scanners::FfufScanner)
