@@ -26,7 +26,7 @@ class Scan < Sequel::Model
     end
 
     def by_status(status)
-      where(status: status)
+      where(status:)
     end
   end
 

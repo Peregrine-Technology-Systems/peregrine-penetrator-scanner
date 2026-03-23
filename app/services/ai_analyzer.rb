@@ -17,7 +17,7 @@ class AiAnalyzer
 
     triage_candidates = if total_count > MAX_FINDINGS_FOR_TRIAGE
                           Penetrator.logger.info("[AiAnalyzer] #{total_count} findings exceeds cap of #{MAX_FINDINGS_FOR_TRIAGE}, " \
-                                            'triaging top findings by severity only')
+                                                 'triaging top findings by severity only')
                           findings.limit(MAX_FINDINGS_FOR_TRIAGE)
                         else
                           findings
@@ -60,7 +60,4 @@ class AiAnalyzer
     Penetrator.logger.error("[AiAnalyzer] Adaptive scan suggestions failed: #{e.message}")
     {}
   end
-
-  private
-
 end

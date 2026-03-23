@@ -1,0 +1,31 @@
+# Docker build + push to Artifact Registry — development only
+when:
+  - event: push
+    branch: development
+
+depends_on:
+  - ci
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: build
+    image: bash
+    environment:
+      DOCKER_REGISTRY:
+        from_secret: docker_registry
+    commands:
+      - scripts/woodpecker/build.sh
+
+  - name: notify-failure
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-slack.sh
+    when:
+      - status: failure
+    depends_on: [build]

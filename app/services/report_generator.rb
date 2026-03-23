@@ -12,12 +12,12 @@ class ReportGenerator
 
   def initialize(scan)
     @scan = scan
-    @findings = scan.findings_dataset.non_duplicate.exclude(severity: 'info').by_severity
+    @findings = scan.findings_dataset.non_duplicate.exclude(severity: 'info').by_severity.all
     @target = scan.target
   end
 
   def generate(format)
-    report = Report.create(scan_id: @scan.id, format: format, status: 'generating')
+    report = Report.create(scan_id: @scan.id, format:, status: 'generating')
     formatter = build_formatter(format)
 
     content = formatter.generate

@@ -1,0 +1,34 @@
+# Test & Lint — all branches except main
+when:
+  - event: push
+    branch:
+      exclude: main
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: test
+    image: bash
+    commands:
+      - scripts/woodpecker/test.sh
+
+  - name: lint
+    image: bash
+    commands:
+      - scripts/woodpecker/lint.sh
+    depends_on: []
+
+  - name: notify-failure
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+      NOTIFICATION_EMAIL:
+        from_secret: notification_email
+    commands:
+      - scripts/woodpecker/notify-slack.sh
+    when:
+      - status: failure
+    depends_on: [test, lint]

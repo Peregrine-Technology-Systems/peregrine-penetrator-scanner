@@ -64,7 +64,7 @@ class TicketingService
     min = @target.ticket_config&.dig('min_severity') || 'low'
     severities = SEVERITY_ORDER.first(SEVERITY_ORDER.index(min).to_i + 1)
 
-    @scan.findings_dataset.non_duplicate.where(severity: severities)
+    @scan.findings_dataset.non_duplicate.where(severity: severities).all
   end
 
   def load_existing_tickets(findings)
@@ -76,15 +76,15 @@ class TicketingService
   end
 
   def stamp_finding(finding, result)
-    evidence = finding.evidence || {}
-    evidence = JSON.parse(evidence) if evidence.is_a?(String)
+    base = finding.evidence || {}
+    base = JSON.parse(base) if base.is_a?(String)
 
-    evidence['ticket_system'] = @target.ticket_tracker
-    evidence['ticket_ref'] = result[:ticket_ref]
-    evidence['ticket_url'] = result[:ticket_url]
-    evidence['ticket_pushed_at'] = Time.current.iso8601
-
-    finding.evidence = evidence
+    finding.evidence = base.merge(
+      'ticket_system' => @target.ticket_tracker,
+      'ticket_ref' => result[:ticket_ref],
+      'ticket_url' => result[:ticket_url],
+      'ticket_pushed_at' => Time.current.iso8601
+    )
     finding.save_changes
   end
 

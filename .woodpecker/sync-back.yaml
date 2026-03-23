@@ -1,0 +1,28 @@
+# Sync RELEASE_NOTES.md from main back to development/staging after tag
+when:
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: sync-back
+    image: bash
+    environment:
+      GH_TOKEN:
+        from_secret: gh_token
+    commands:
+      - scripts/woodpecker/sync-back.sh
+
+  - name: notify-failure
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-slack.sh
+    when:
+      - status: failure
+    depends_on: [sync-back]
