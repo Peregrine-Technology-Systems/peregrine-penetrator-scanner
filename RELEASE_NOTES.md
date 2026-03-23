@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Smoke scan profile for fast CI verification — validates boot, tools, GCS, secrets in <30s without scanning (#300)
+
 ## v0.3.1 — 2026-03-23
 
 ## v0.3.1 — 2026-03-23

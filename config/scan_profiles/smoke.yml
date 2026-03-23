@@ -1,0 +1,5 @@
+name: smoke
+description: "CI verification — validates app boot, tool availability, GCS connectivity, and secrets. No actual scanning."
+estimated_duration_minutes: 1
+smoke: true
+phases: []
