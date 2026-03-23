@@ -11,6 +11,8 @@
 - CI enforces 90% minimum test coverage gate
 - Fix: promote.sh uses GitHub Compare API instead of git rev-list (shallow clone fix)
 - Fix: full clone depth for build and version-bump pipelines (Docker build + tags need full repo)
+- Fix: version-bump and deploy run independently on main (no depends_on ci — tests already passed on staging)
+- Slack commit hash now links to GitHub commit
 
 ## v0.3.0 — 2026-03-23
 
