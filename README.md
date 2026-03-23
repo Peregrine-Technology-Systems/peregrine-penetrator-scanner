@@ -159,21 +159,29 @@ docker run --platform linux/amd64 \
 
 ## Docker Image Architecture
 
-The scanner uses a single **base image** containing security tools and the Ruby runtime. Application code and gems are **not** baked into any Docker image — they're cloned from git and installed at scan VM boot time.
+The scanner uses a **hybrid model** — development is fast (no Docker build), staging/production use immutable baked images.
 
-| Component | Where it lives | Changes when |
-|-----------|---------------|-------------|
-| Security tools (ZAP, Nuclei, sqlmap, ffuf, Nikto) | `scanner-base` Docker image | Tool version bump (monthly) |
-| Ruby runtime + system deps | `scanner-base` Docker image | Rarely |
-| Gems | Installed at VM boot (`bundle install`) | Gemfile changes (no Docker rebuild) |
-| Application code | Cloned from git at VM boot | Every push (no Docker rebuild) |
+| Environment | How scan VMs run | Docker build? |
+|-------------|-----------------|---------------|
+| **Development** | Clone code from git + `bundle install` at boot | No |
+| **Staging** | Pull `scanner:staging` baked image | Yes (on staging merge) |
+| **Production** | Pull `scanner:production` (same image as staging, re-tagged) | No (tag only) |
 
-Tool versions are pinned in `docker/base-versions.txt`. Only changes to `docker/Dockerfile.base` or `docker/base-versions.txt` trigger a Docker build.
+### Images
+
+| Image | Contents | Rebuilt when |
+|-------|----------|-------------|
+| `scanner-base` | Security tools (ZAP, Nuclei, sqlmap, ffuf, Nikto) + Ruby runtime | `Dockerfile.base` or `base-versions.txt` changes (monthly) |
+| `scanner:staging` | `FROM scanner-base` + gems + app code (frozen) | Every staging merge |
+| `scanner:production` | Same bytes as `scanner:staging` (re-tagged) | Main merge (tag only, no build) |
+
+VERSION is an env var passed at runtime, not baked into the image. RELEASE_NOTES lives in git — updated on main after the image is built.
 
 ```
 docker/
-  Dockerfile.base      # Base image — security tools + runtime (only Docker image)
-  base-versions.txt    # Pinned tool versions (Nuclei, ffuf, etc.)
+  Dockerfile.base      # Base: security tools + runtime (rebuilt rarely)
+  Dockerfile           # Baked app image for staging/production
+  base-versions.txt    # Pinned tool versions
 ```
 
 ## CI/CD
@@ -184,7 +192,8 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). P
 |----------|---------|-------|
 | `ci.yaml` | Push (all branches except main) | RSpec + RuboCop |
 | `build-base.yaml` | Push to development (Dockerfile.base or base-versions.txt changes only) | Build + push scanner-base image |
-| `deploy.yaml` | Push to staging/main | Trigger scan VMs |
+| `build.yaml` | Push to staging | Build baked scanner:staging image |
+| `deploy.yaml` | Push to staging/main | Staging: trigger scan VM. Main: tag staging as production |
 | `promote.yaml` | Push to dev/staging | Auto-promote to next branch |
 | `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS |
 

@@ -4,8 +4,10 @@ set -euo pipefail
 # Launch an ephemeral scan VM on GCP
 # Usage: trigger-scan.sh <development|staging|production> <profile>
 #
-# The VM pulls scanner-base (tools image), clones app code at the
-# matching branch, installs gems, and runs the scan.
+# Hybrid model:
+#   development → VM clones code + bundle install (IMAGE_TAG=development)
+#   staging     → VM pulls baked scanner:staging image (IMAGE_TAG=staging)
+#   production  → VM pulls baked scanner:production image (IMAGE_TAG=production)
 
 ENV="${1:?Usage: trigger-scan.sh <development|staging|production> <profile>}"
 PROFILE="${2:-standard}"
@@ -15,24 +17,23 @@ GCP_ZONE="${GCP_ZONE:-us-central1-a}"
 REGISTRY="${DOCKER_REGISTRY:-us-central1-docker.pkg.dev/${GCP_PROJECT}/pentest}"
 VM_NAME="pentest-scan-${ENV}-$(date +%Y%m%d-%H%M%S)"
 
-# Map environment to git branch
 case "$ENV" in
   development)
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
     TARGET_NAME="auxscan-dev"
-    BRANCH="development"
+    IMAGE_TAG="development"
     SPOT_FLAG=""
     ;;
   staging)
     TARGET_URLS='["https://auxscan.stage.data-estate.cloud"]'
     TARGET_NAME="auxscan-staging"
-    BRANCH="staging"
+    IMAGE_TAG="staging"
     SPOT_FLAG=""
     ;;
   production)
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
     TARGET_NAME="auxscan-production"
-    BRANCH="main"
+    IMAGE_TAG="production"
     SPOT_FLAG="--provisioning-model=SPOT --instance-termination-action=DELETE"
     ;;
   *)
@@ -41,13 +42,11 @@ case "$ENV" in
     ;;
 esac
 
-# Notification secrets from Woodpecker env (injected via from_secret)
 SLACK_URL="${SLACK_WEBHOOK_URL:-}"
 EMAIL="${NOTIFICATION_EMAIL:-}"
 
 echo "Launching ${ENV} scan VM: ${VM_NAME}"
-echo "  Base image: ${REGISTRY}/scanner-base:latest"
-echo "  App branch: ${BRANCH}"
+echo "  Image tag: ${IMAGE_TAG} ($([ "$IMAGE_TAG" = "development" ] && echo "clone mode" || echo "baked image"))"
 echo "  Profile: ${PROFILE}"
 echo "  Target: ${TARGET_URLS}"
 
@@ -64,7 +63,7 @@ gcloud compute instances create "${VM_NAME}" \
   --boot-disk-auto-delete \
   --service-account="pentest-scanner@${GCP_PROJECT}.iam.gserviceaccount.com" \
   --scopes=cloud-platform \
-  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${BRANCH},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_URL},NOTIFICATION_EMAIL=${EMAIL},VERSION=${BRANCH}" \
+  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${IMAGE_TAG},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_URL},NOTIFICATION_EMAIL=${EMAIL},VERSION=${IMAGE_TAG}" \
   --metadata-from-file=startup-script="${STARTUP_SCRIPT}" \
   --tags=pentest-scan \
   --labels="env=${ENV},project=pentest,scan=true" \
