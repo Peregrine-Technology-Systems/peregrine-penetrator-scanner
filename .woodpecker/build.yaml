@@ -7,12 +7,6 @@ when:
 depends_on:
   - ci
 
-clone:
-  - name: clone
-    image: woodpeckerci/plugin-git
-    settings:
-      depth: 0
-
 labels:
   platform: linux
   backend: local
