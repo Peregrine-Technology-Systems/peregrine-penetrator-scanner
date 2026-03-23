@@ -2,6 +2,12 @@
 when:
   - event: push
     branch: development
+    path:
+      include:
+        - "Dockerfile"
+        - "docker/**"
+        - "Gemfile"
+        - "Gemfile.lock"
 
 depends_on:
   - ci

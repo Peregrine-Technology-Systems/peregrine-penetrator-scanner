@@ -9,8 +9,6 @@ require 'sequel'
 require 'active_support'
 require 'active_support/core_ext'
 require 'faraday'
-require 'anthropic'
-require 'mail'
 
 module Penetrator
   class << self
@@ -65,17 +63,8 @@ module Penetrator
     def load_services
       services_dir = root.join('app', 'services')
 
-      # 1. Load report generator modules in dependency order
-      generators = services_dir.join('report_generators')
-      %w[helpers methodology_content component_styles markdown_formatters
-         markdown_sections markdown_converter report_styles
-         json_report markdown_report html_report pdf_report].each do |name|
-        path = generators.join("#{name}.rb")
-        require path.to_s if path.exist?
-      end
-
-      # 2. Load base classes that subdirectories inherit from
-      loaded = Dir[generators.join('*.rb')].map { |f| File.expand_path(f) }
+      # 1. Load base classes that subdirectories inherit from
+      loaded = []
       %w[scanner_base].each do |base|
         path = services_dir.join("#{base}.rb")
         if path.exist?
