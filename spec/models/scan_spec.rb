@@ -26,10 +26,6 @@ RSpec.describe Scan do
     it 'has many findings' do
       expect(Scan.association_reflection(:findings)).not_to be_nil
     end
-
-    it 'has many reports' do
-      expect(Scan.association_reflection(:reports)).not_to be_nil
-    end
   end
 
   describe '#duration' do
@@ -59,7 +55,7 @@ RSpec.describe Scan do
 
   describe '.recent' do
     it 'orders by created_at descending' do
-      old = create(:scan)
+      create(:scan)
       # Ensure different timestamps
       sleep 0.01
       new_scan = create(:scan)

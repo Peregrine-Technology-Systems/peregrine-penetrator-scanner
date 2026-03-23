@@ -1,0 +1,38 @@
+# Test & Lint — all branches except main
+when:
+  - event: push
+    branch:
+      exclude: main
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: check-release-notes
+    image: bash
+    commands:
+      - scripts/woodpecker/check-release-notes.sh
+
+  - name: test
+    image: bash
+    commands:
+      - scripts/woodpecker/test.sh
+    depends_on: []
+
+  - name: lint
+    image: bash
+    commands:
+      - scripts/woodpecker/lint.sh
+    depends_on: []
+
+  - name: notify-status
+    image: bash
+    environment:
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+    commands:
+      - scripts/woodpecker/notify-status.sh
+    when:
+      - status: [success, failure]
+    depends_on: [check-release-notes, test, lint]

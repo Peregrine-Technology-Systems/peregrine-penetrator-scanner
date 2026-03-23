@@ -4,8 +4,8 @@ require 'google/cloud/bigquery'
 
 class DataRetentionPurger
   RETENTION_MONTHS = 18
-  DATASET_ID = 'pentest_history'.freeze
-  AUDIT_DATASET_ID = 'audit_logs'.freeze
+  DATASET_ID = 'pentest_history'
+  AUDIT_DATASET_ID = 'audit_logs'
 
   PURGEABLE_TABLES = {
     'scan_findings' => { date_column: 'scan_date', dataset: DATASET_ID },
@@ -68,7 +68,7 @@ class DataRetentionPurger
     rows_deleted = result.total || 0
 
     Penetrator.logger.info("[DataRetentionPurger] Purged #{rows_deleted} rows from #{table_name}")
-    { success: true, rows_deleted: rows_deleted }
+    { success: true, rows_deleted: }
   rescue StandardError => e
     Penetrator.logger.error("[DataRetentionPurger] Failed to purge #{table_name}: #{e.message}")
     { success: false, rows_deleted: 0, error: e.message }
