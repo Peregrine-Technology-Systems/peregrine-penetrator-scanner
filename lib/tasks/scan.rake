@@ -16,7 +16,7 @@ namespace :scan do
     target = Target.find_or_create(name: target_name) { |t| t.urls = target_urls }
 
     # Create scan
-    scan = Scan.create(target_id: target.id, profile: profile)
+    scan = Scan.create(target_id: target.id, profile:)
     puts "Scan ID: #{scan.id}"
 
     # Initialize cost tracker and audit logger
@@ -29,7 +29,7 @@ namespace :scan do
     orchestrator.execute
 
     # Enrich with CVE intelligence
-    if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').count > 0
+    if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').count.positive?
       puts "\n--- CVE Intelligence Enrichment ---"
       CveIntelligenceService.new.enrich_scan(scan)
     end

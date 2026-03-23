@@ -17,7 +17,7 @@ class ReportGenerator
   end
 
   def generate(format)
-    report = Report.create(scan_id: @scan.id, format: format, status: 'generating')
+    report = Report.create(scan_id: @scan.id, format:, status: 'generating')
     formatter = build_formatter(format)
 
     content = formatter.generate

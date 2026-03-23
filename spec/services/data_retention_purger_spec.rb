@@ -16,9 +16,8 @@ RSpec.describe DataRetentionPurger do
     let(:query_result) { instance_double(Google::Cloud::Bigquery::Data, total: 42) }
 
     before do
-      allow(mock_bigquery).to receive(:dataset).and_return(mock_dataset)
       allow(mock_dataset).to receive(:table).and_return(mock_table)
-      allow(mock_bigquery).to receive(:query).and_return(query_result)
+      allow(mock_bigquery).to receive_messages(dataset: mock_dataset, query: query_result)
     end
 
     it 'purges all configured tables' do
@@ -86,9 +85,8 @@ RSpec.describe DataRetentionPurger do
     end
 
     before do
-      allow(mock_bigquery).to receive(:dataset).and_return(mock_dataset)
       allow(mock_dataset).to receive(:table).and_return(mock_table)
-      allow(mock_bigquery).to receive(:query).and_return(count_result)
+      allow(mock_bigquery).to receive_messages(dataset: mock_dataset, query: count_result)
     end
 
     it 'returns counts for each table' do

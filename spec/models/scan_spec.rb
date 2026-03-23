@@ -59,7 +59,7 @@ RSpec.describe Scan do
 
   describe '.recent' do
     it 'orders by created_at descending' do
-      old = create(:scan)
+      create(:scan)
       # Ensure different timestamps
       sleep 0.01
       new_scan = create(:scan)

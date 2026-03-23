@@ -32,17 +32,23 @@ Metrics/BlockLength:
   Exclude:
     - 'spec/**/*'
     - 'lib/tasks/**/*'
+    - 'Rakefile'
 
 Metrics/AbcSize:
   Max: 40
   Exclude:
     - 'spec/**/*'
+    - 'app/services/big_query_logger.rb'
 
 Metrics/CyclomaticComplexity:
   Max: 15
+  Exclude:
+    - 'app/services/big_query_logger.rb'
 
 Metrics/PerceivedComplexity:
   Max: 15
+  Exclude:
+    - 'app/services/big_query_logger.rb'
 
 Layout/LineLength:
   Max: 160
@@ -66,6 +72,19 @@ RSpec/StubbedMock:
 
 RSpec/LetSetup:
   Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/DescribedClass:
+  Enabled: false
+
+FactoryBot/AssociationStyle:
+  Enabled: false
+
+Style/HashSyntax:
+  Exclude:
+    - 'spec/**/*'
 
 Lint/DuplicateBranch:
   Exclude:

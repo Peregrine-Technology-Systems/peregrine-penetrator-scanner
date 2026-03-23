@@ -57,9 +57,9 @@ module Penetrator
     end
 
     def load_models
-      Dir[root.join('lib', 'models', '*.rb')].sort.each { |f| require f }
+      Dir[root.join('lib', 'models', '*.rb')].each { |f| require f }
       # Value objects in app/models/ (not Sequel models)
-      Dir[root.join('app', 'models', '*.rb')].sort.each { |f| require f }
+      Dir[root.join('app', 'models', '*.rb')].each { |f| require f }
     end
 
     def load_services
@@ -85,7 +85,7 @@ module Penetrator
       end
 
       # 3. Load all subdirectory files (scanners, parsers, ai, cve_clients, etc.)
-      Dir[services_dir.join('**', '*.rb')].sort.each do |f|
+      Dir[services_dir.join('**', '*.rb')].each do |f|
         next if loaded.include?(File.expand_path(f))
         next if File.dirname(f) == services_dir.to_s
 
@@ -94,7 +94,7 @@ module Penetrator
       end
 
       # 4. Load remaining top-level service files
-      Dir[services_dir.join('*.rb')].sort.each do |f|
+      Dir[services_dir.join('*.rb')].each do |f|
         require f unless loaded.include?(File.expand_path(f))
       end
     end
