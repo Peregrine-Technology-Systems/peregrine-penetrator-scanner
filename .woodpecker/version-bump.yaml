@@ -3,9 +3,6 @@ when:
   - event: push
     branch: main
 
-depends_on:
-  - ci
-
 clone:
   - name: clone
     image: woodpeckerci/plugin-git
