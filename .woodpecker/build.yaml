@@ -5,12 +5,6 @@ when:
     path:
       include:
         - "docker/Dockerfile"
-        - "Gemfile"
-        - "Gemfile.lock"
-      exclude:
-        - "docker/Dockerfile.base"
-        - "docker/base-versions.txt"
-        - "docker/wordlists/**"
 
 depends_on:
   - ci
