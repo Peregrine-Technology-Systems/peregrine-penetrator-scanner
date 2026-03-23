@@ -30,16 +30,9 @@ class ScanCallbackService
       duration_seconds: @scan.duration&.to_i,
       summary: @scan.summary || {},
       gcs_scan_results_path: @gcs_scan_results_path,
-      gcs_report_paths: report_paths,
       cost_data: @cost_logger.cost_data
     }
     payload.compact
-  end
-
-  def report_paths
-    @scan.reports_dataset.where(status: 'completed').map do |report|
-      { format: report.format, gcs_path: report.gcs_path }
-    end
   end
 
   def post_with_retries(payload)
@@ -51,7 +44,7 @@ class ScanCallbackService
       return true if response&.status&.between?(200, 299)
 
       Penetrator.logger.warn("[ScanCallbackService] Attempt #{attempts}/#{MAX_RETRIES} " \
-                        "failed (status: #{response&.status})")
+                             "failed (status: #{response&.status})")
       sleep(RETRY_BASE_DELAY * attempts) if attempts < MAX_RETRIES
     end
 

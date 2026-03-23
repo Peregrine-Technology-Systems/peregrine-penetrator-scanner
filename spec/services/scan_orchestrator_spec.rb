@@ -100,7 +100,7 @@ RSpec.describe ScanOrchestrator do
       }
       allow(mock_scanner).to receive(:run).and_return({ success: true, findings: [finding_attrs] })
 
-      expect { orchestrator.execute }.to change { scan.findings.count }.by(1)
+      expect { orchestrator.execute }.to change { scan.findings_dataset.count }.by(1)
     end
 
     it 'continues when a tool fails (fail-forward)' do

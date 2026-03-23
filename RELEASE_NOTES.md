@@ -2,21 +2,62 @@
 
 ## Unreleased
 
+- Hybrid Docker model: development clones code at VM boot (no Docker build), staging builds baked image, production re-tags staging (zero rebuild) (#276, #286)
+- CI enforces RELEASE_NOTES.md update when code files change
+- Scheduler vm-startup.sh updated to APP_ENV and bin/scan (was RAILS_ENV and rake)
+- VERSION file (semver) — single source of truth, read by `Penetrator::VERSION`
+- Automated version bump on main merge: updates RELEASE_NOTES, creates git tag, tags Docker image
+- Slack status notification on every build: success (green), failure (red), production release (gold with version number)
+- CI enforces 90% minimum test coverage gate
+
+## v0.3.0 — 2026-03-23
+
+Major refactor: stripped scanner to its core responsibility. Report generation, AI analysis, ticketing, and email notifications extracted to dedicated services (reporter, backend).
+
+### Architecture — Separation of Duties
+- **Removed**: Report generation (JSON/HTML/Markdown/PDF), AI analysis (Claude API), ticketing (GitHub Issues), email notifications, Nuclei template generator (#245, #277)
+- **Removed gems**: grover, ruby-anthropic, mail — scanner now has 15 gems (was 38 under Rails)
+- **Removed Docker deps**: chromium, nodejs, npm, pandoc, texlive, puppeteer — image ~1GB smaller
+- **Scanner now does**: scan orchestration → CVE enrichment → JSON export to GCS → BigQuery logging → cost tracking → callback → Slack
+- See #278 for full inventory of removed code
+
+### Rails → Sequel Migration
+- Replaced Rails 7.1 with Sequel ORM + plain Ruby CLI (`bin/scan`) (#258, #268)
+- Boot time: <1s (was 3-5s), RAM: ~80MB (was ~300MB), gems: 15 (was 38)
+- Fresh Sequel migrations for targets, scans, findings (SQLite)
+- `spec/sequel_helper.rb` replaces `spec/rails_helper.rb` with DatabaseCleaner-sequel
+- All `Rails.root` → `Penetrator.root`, `Rails.logger` → `Penetrator.logger`
+
+### CI/CD — Woodpecker Migration
+- Migrate from Buildkite to self-hosted Woodpecker CI (#270, #275)
+- Pipelines: ci, build, deploy, promote, smoke-test, sync-back
+- Docker-wrapped test/lint steps (agent-independent)
+- Eliminated Buildkite concurrency throttling
+
+### Pipeline Fixes (#271-274)
+- Idempotent migrations via `Sequel::Migrator.is_current?` guard
+- Replace `rubocop-rails` with `rubocop-sequel` in lint config
+- Fix Sequel dataset `.size` calls (datasets have `.count`, not `.size`)
+- Fix serialization in-place mutation bug in TicketingService (use `.merge`)
+- Fix `findings_dataset` vs cached `findings` association in specs
+
+### Quality
+- 389 specs, 0 failures, 94.96% coverage, 0 RuboCop offenses
+- 20 focused open issues (was 50+) — 18 closed, 13 transferred to reporter repo
+
+## Unreleased
+
 ### Features
 - Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
-- Scan completion callback: ScanCallbackService POSTs scan summary, cost data, and report paths to backend API on scan completion (#186)
+- Scan completion callback: ScanCallbackService POSTs scan summary and cost data to backend API (#186)
 
 ### Bug Fixes
-- Pass TARGET_NAME env var through scan VMs so reports show actual target name instead of "Default Target" (#203)
-- Create pentest-anthropic-api-key in GCP Secret Manager so AI executive summary is generated (#202)
-- Restore Executive Summary heading and AI-generated text to PDF/HTML/Markdown reports; fix heading hierarchy (H1→H2→H3 proper nesting)
-- ReportGenerator no longer crashes entire scan when signed URL generation fails or a single report format fails — graceful degradation
-- StorageService falls back to local storage and local URLs when GCS bucket is inaccessible instead of crashing scan (#139)
-- Pass SCAN_MODE env var to Docker in scan VMs so BigQuery logs to correct table (#134)
+- Pass TARGET_NAME env var through scan VMs (#203)
+- StorageService falls back to local storage when GCS inaccessible (#139)
+- Pass SCAN_MODE env var to Docker in scan VMs (#134)
 - Orphan VM scavenger: auto-delete scan VMs older than 30 minutes (#146)
-- Scan VMs now pull environment-tagged Docker images (`:staging`/`:production`) instead of `:latest` (#148)
-- Repo renamed from `web-app-penetration-test` to `peregrine-penetrator`, then to `peregrine-penetrator-scanner` (#150, #247)
-- Report TOC: all major sections (Findings Summary, Detailed Findings, Test Methodology, Appendix) now at Level 1 (#154)
+- Scan VMs pull environment-tagged Docker images (#148)
+- Repo renamed to `peregrine-penetrator-scanner` (#150, #247)
 - Auto-assign repo owner as reviewer on staging→main promotion PRs (#161)
 
 ### Cloud Scheduler

@@ -1,0 +1,29 @@
+# Post-deploy smoke test — launch quick scan, validate GCS outputs
+when:
+  - event: push
+    branch: [development, staging, main]
+
+depends_on:
+  - deploy
+
+labels:
+  platform: linux
+  backend: local
+
+steps:
+  - name: smoke-test
+    image: bash
+    environment:
+      GCP_PROJECT_DEV:
+        from_secret: gcp_project_dev
+      GCP_PROJECT_STG:
+        from_secret: gcp_project_stg
+      GCP_PROJECT_PRD:
+        from_secret: gcp_project_prd
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+      NOTIFICATION_EMAIL:
+        from_secret: notification_email
+    commands:
+      - scripts/woodpecker/smoke-test.sh
+    failure: ignore
