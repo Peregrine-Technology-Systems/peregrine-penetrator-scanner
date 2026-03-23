@@ -50,7 +50,10 @@ module Penetrator
     def migrate!
       Sequel.extension :migration
       migrations_dir = root.join('db', 'sequel_migrations')
-      Sequel::Migrator.run(@db, migrations_dir) if migrations_dir.exist?
+      return unless migrations_dir.exist?
+      return if Sequel::Migrator.is_current?(@db, migrations_dir)
+
+      Sequel::Migrator.run(@db, migrations_dir)
     end
 
     def load_models

@@ -12,7 +12,7 @@ class ReportGenerator
 
   def initialize(scan)
     @scan = scan
-    @findings = scan.findings_dataset.non_duplicate.exclude(severity: 'info').by_severity
+    @findings = scan.findings_dataset.non_duplicate.exclude(severity: 'info').by_severity.all
     @target = scan.target
   end
 
