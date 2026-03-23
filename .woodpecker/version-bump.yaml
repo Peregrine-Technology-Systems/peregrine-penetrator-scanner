@@ -3,12 +3,6 @@ when:
   - event: push
     branch: main
 
-clone:
-  - name: clone
-    image: woodpeckerci/plugin-git
-    settings:
-      depth: 0
-
 labels:
   platform: linux
   backend: local
@@ -21,6 +15,8 @@ steps:
         from_secret: gh_token
       DOCKER_REGISTRY:
         from_secret: docker_registry
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
     commands:
       - scripts/woodpecker/version-bump.sh
 
