@@ -2,17 +2,18 @@
 
 ## Unreleased
 
-- Hybrid Docker model: development clones code at VM boot (no Docker build), staging builds baked image, production re-tags staging (zero rebuild) (#276, #286)
-- CI enforces RELEASE_NOTES.md update when code files change
-- Scheduler vm-startup.sh updated to APP_ENV and bin/scan (was RAILS_ENV and rake)
-- VERSION file (semver) — single source of truth, read by `Penetrator::VERSION`
-- Automated version bump on main merge: updates RELEASE_NOTES, creates git tag, tags Docker image
-- Slack status notification on every build: success (green), failure (red), production release (gold with version number)
-- CI enforces 90% minimum test coverage gate
-- Fix: promote.sh uses GitHub Compare API instead of git rev-list (shallow clone fix)
-- Fix: full clone depth for build and version-bump pipelines (Docker build + tags need full repo)
-- Fix: version-bump and deploy run independently on main (no depends_on ci — tests already passed on staging)
-- Slack commit hash links to GitHub commit, environment-specific colors on success
+- Hybrid Docker model: dev clones at boot, staging builds baked image, prod re-tags (#276, #286, #309)
+- CI enforces RELEASE_NOTES.md update when code files change (#309)
+- Scheduler vm-startup.sh updated to APP_ENV and bin/scan (#309)
+- VERSION file (semver) — single source of truth, read by `Penetrator::VERSION` (#290, #309)
+- Automated version bump on main merge: RELEASE_NOTES, git tag, Docker image tag (#290, #309)
+- Slack status notifications: env-specific colors, clickable commits, production header (#309)
+- CI enforces 90% minimum test coverage gate (#295, #309)
+- Fix: promote uses GitHub Compare API instead of git rev-list (#298, #309)
+- Fix: full clone depth for build and version-bump pipelines (#298, #309)
+- Fix: version-bump and deploy run independently on main (#302, #309)
+- Fix: deploy waits for Docker build on staging (#311, #309)
+- Fix: git push auth for version-bump and sync-back (#314, #309)
 
 ## v0.3.0 — 2026-03-23
 
