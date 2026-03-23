@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Post-deploy smoke test: trigger a quick scan and verify JSON + PDF outputs
-# Polls for VM self-termination, then validates GCS artifacts
+# Post-deploy smoke test: trigger a smoke profile scan and verify JSON output in GCS
+# Uses the 'smoke' profile which validates boot, tools, GCS, and secrets without scanning
 
 BRANCH="${CI_COMMIT_BRANCH}"
 
@@ -14,16 +14,16 @@ case "$BRANCH" in
 esac
 
 GCS_BUCKET="${GCP_PROJECT}-pentest-reports"
-POLL_INTERVAL=30
-MAX_WAIT=900  # 15 minutes max for quick profile
+POLL_INTERVAL=15
+MAX_WAIT=180  # 3 minutes max for smoke profile
 
 echo "=== Smoke Test: ${BRANCH} ==="
 
-# Launch a quick scan VM
-scripts/woodpecker/trigger-scan.sh "${BRANCH}" quick "${IMAGE_TAG}"
+# Launch a smoke scan VM
+scripts/woodpecker/trigger-scan.sh "${BRANCH}" smoke "${IMAGE_TAG}"
 
 VM_PREFIX="pentest-scan-${BRANCH}-"
-echo "Waiting for scan VM to complete..."
+echo "Waiting for smoke scan VM to complete..."
 
 elapsed=0
 while [ "$elapsed" -lt "$MAX_WAIT" ]; do
@@ -33,7 +33,7 @@ while [ "$elapsed" -lt "$MAX_WAIT" ]; do
     --format="value(name)" 2>/dev/null || echo "")
 
   if [ -z "$RUNNING_VMS" ]; then
-    echo "Scan VM terminated after ${elapsed}s — checking results..."
+    echo "Smoke VM terminated after ${elapsed}s — checking results..."
     break
   fi
 
@@ -71,44 +71,26 @@ if [ -n "$JSON_FILES" ]; then
     fi
   done
 
+  # Check smoke test results in summary
   python3 -c "
 import json, sys
 d = json.load(open('$TMPFILE'))
 s = d.get('summary', {})
 print(f\"  Schema: v{d.get('schema_version')}\")
-print(f\"  Findings: {s.get('total_findings', 'unknown')}\")
-print(f\"  Severity: {s.get('by_severity', {})}\")
+if s.get('smoke_test'):
+    checks = s.get('checks', {})
+    passed = s.get('passed', False)
+    print(f\"  Smoke test: {'PASSED' if passed else 'FAILED'}\")
+    for check, status in checks.items():
+        print(f\"    {check}: {status}\")
+else:
+    print(f\"  Findings: {s.get('total_findings', 'unknown')}\")
 " 2>/dev/null || echo "  WARN: Could not parse JSON summary"
 
   rm -f "$TMPFILE"
 else
   echo "  FAIL: No JSON results found in ${RESULTS_PREFIX}"
   ERRORS=$((ERRORS + 1))
-fi
-
-# Check for PDF report
-echo "Checking PDF report..."
-PDF_FILES=$(gsutil ls -r "${RESULTS_PREFIX}**/*.pdf" 2>/dev/null | tail -1 || echo "")
-if [ -n "$PDF_FILES" ]; then
-  echo "  PASS: PDF found: ${PDF_FILES}"
-  PDF_SIZE=$(gsutil stat "$PDF_FILES" 2>/dev/null | grep "Content-Length" | awk '{print $2}' || echo "0")
-  if [ "${PDF_SIZE:-0}" -gt 1024 ]; then
-    echo "  PASS: PDF size ${PDF_SIZE} bytes (> 1KB)"
-  else
-    echo "  WARN: PDF size ${PDF_SIZE} bytes — may be empty"
-  fi
-else
-  echo "  FAIL: No PDF report found in ${RESULTS_PREFIX}"
-  ERRORS=$((ERRORS + 1))
-fi
-
-# Check for HTML report
-echo "Checking HTML report..."
-HTML_FILES=$(gsutil ls -r "${RESULTS_PREFIX}**/*.html" 2>/dev/null | tail -1 || echo "")
-if [ -n "$HTML_FILES" ]; then
-  echo "  PASS: HTML found: ${HTML_FILES}"
-else
-  echo "  WARN: No HTML report found (non-blocking)"
 fi
 
 echo ""
