@@ -87,9 +87,12 @@ case "$SCAN_MODE" in
     MACHINE_TYPE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/machine-type" 2>/dev/null | rev | cut -d'/' -f1 | rev || echo "unknown")
     SPOT_INSTANCE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/scheduling/preemptible" 2>/dev/null || echo "false")
 
-    FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
+    BASE_IMAGE="${REGISTRY}/scanner-base:latest"
+    REPO_URL="https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner.git"
+    REPO_BRANCH="${IMAGE_TAG}"  # development, staging, or production (matches branch name)
 
-    echo "Image: ${FULL_IMAGE}"
+    echo "Base image: ${BASE_IMAGE}"
+    echo "Repo branch: ${REPO_BRANCH}"
     echo "Profile: ${SCAN_PROFILE}"
     echo "Target: ${TARGET_URLS}"
 
@@ -104,21 +107,26 @@ case "$SCAN_MODE" in
     SMTP_PASSWORD=$(fetch_secret "pentest-smtp-password")
     SCAN_CALLBACK_SECRET=$(fetch_secret "pentest-scan-callback-secret")
 
-    # Pull image
-    echo "Pulling image..."
-    docker pull "${FULL_IMAGE}"
+    # Pull base image (security tools + runtime)
+    echo "Pulling base image..."
+    docker pull "${BASE_IMAGE}"
+
+    # Clone app code at the right branch
+    APP_DIR="/tmp/scanner-app"
+    echo "Cloning repo (branch: ${REPO_BRANCH})..."
+    git clone --depth 1 --branch "${REPO_BRANCH}" "${REPO_URL}" "${APP_DIR}"
 
     # Create results directory
     RESULTS_DIR="/tmp/scan-results"
     mkdir -p "${RESULTS_DIR}"
 
-    # Run scan
+    # Run scan: mount app code into base image, install gems, then scan
     echo "Running ${SCAN_PROFILE} scan..."
     SCAN_EXIT=0
     docker run --rm \
       -e SCAN_PROFILE="${SCAN_PROFILE}" \
       -e "SCAN_MODE=${SCAN_MODE}" \
-      -e RAILS_ENV=production \
+      -e APP_ENV=production \
       -e "TARGET_NAME=${TARGET_NAME}" \
       -e "TARGET_URLS=${TARGET_URLS}" \
       -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
@@ -137,10 +145,12 @@ case "$SCAN_MODE" in
       -e "SCAN_UUID=${SCAN_UUID}" \
       -e "CALLBACK_URL=${CALLBACK_URL}" \
       -e "SCAN_CALLBACK_SECRET=${SCAN_CALLBACK_SECRET}" \
+      -v "${APP_DIR}:/app" \
       -v "${RESULTS_DIR}:/app/storage/reports" \
       --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
-      "${FULL_IMAGE}" \
-      rake scan:run || SCAN_EXIT=$?
+      "${BASE_IMAGE}" \
+      bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bin/scan" \
+      || SCAN_EXIT=$?
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
       echo "Scan completed successfully"

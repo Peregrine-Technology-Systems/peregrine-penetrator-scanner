@@ -159,19 +159,20 @@ docker run --platform linux/amd64 \
 
 ## Docker Image Architecture
 
-The scanner uses a **two-image split** to avoid rebuilding ~500MB of security tools on every code push:
+The scanner uses a single **base image** containing security tools and the Ruby runtime. Application code and gems are **not** baked into any Docker image — they're cloned from git and installed at scan VM boot time.
 
-| Image | Contents | Rebuild frequency |
-|-------|----------|-------------------|
-| `scanner-base` | Ruby 3.2.2 + ZAP + Nuclei + sqlmap + ffuf + Nikto + system deps | Monthly or on tool version bump |
-| `scanner` | `FROM scanner-base` + gems + app code | Every push to development |
+| Component | Where it lives | Changes when |
+|-----------|---------------|-------------|
+| Security tools (ZAP, Nuclei, sqlmap, ffuf, Nikto) | `scanner-base` Docker image | Tool version bump (monthly) |
+| Ruby runtime + system deps | `scanner-base` Docker image | Rarely |
+| Gems | Installed at VM boot (`bundle install`) | Gemfile changes (no Docker rebuild) |
+| Application code | Cloned from git at VM boot | Every push (no Docker rebuild) |
 
-Tool versions are pinned in `docker/base-versions.txt`. Changing that file or `docker/Dockerfile.base` triggers a base image rebuild. App-only changes rebuild in under 2 minutes.
+Tool versions are pinned in `docker/base-versions.txt`. Only changes to `docker/Dockerfile.base` or `docker/base-versions.txt` trigger a Docker build.
 
 ```
 docker/
-  Dockerfile.base      # Base image — security tools + runtime (rebuilt rarely)
-  Dockerfile           # App image — FROM base, gems + code (rebuilt on push)
+  Dockerfile.base      # Base image — security tools + runtime (only Docker image)
   base-versions.txt    # Pinned tool versions (Nuclei, ffuf, etc.)
 ```
 
@@ -182,9 +183,8 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). P
 | Pipeline | Trigger | Steps |
 |----------|---------|-------|
 | `ci.yaml` | Push (all branches except main) | RSpec + RuboCop |
-| `build-base.yaml` | Push to development (Dockerfile.base or base-versions.txt changes) | Build + push scanner-base image |
-| `build.yaml` | Push to development (Gemfile or Dockerfile changes) | Build + push scanner app image |
-| `deploy.yaml` | Push to dev/staging/main | Tag image, trigger scan |
+| `build-base.yaml` | Push to development (Dockerfile.base or base-versions.txt changes only) | Build + push scanner-base image |
+| `deploy.yaml` | Push to staging/main | Trigger scan VMs |
 | `promote.yaml` | Push to dev/staging | Auto-promote to next branch |
 | `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS |
 

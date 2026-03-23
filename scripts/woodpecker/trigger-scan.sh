@@ -2,31 +2,37 @@
 set -euo pipefail
 
 # Launch an ephemeral scan VM on GCP
-# Usage: trigger-scan.sh <development|staging|production> <profile> <image_tag>
+# Usage: trigger-scan.sh <development|staging|production> <profile>
+#
+# The VM pulls scanner-base (tools image), clones app code at the
+# matching branch, installs gems, and runs the scan.
 
-ENV="${1:?Usage: trigger-scan.sh <development|staging|production> <profile> <image_tag>}"
+ENV="${1:?Usage: trigger-scan.sh <development|staging|production> <profile>}"
 PROFILE="${2:-standard}"
-IMAGE_TAG="${3:-${ENV}}"
 
 GCP_PROJECT="${GCP_PROJECT:-peregrine-pentest-dev}"
 GCP_ZONE="${GCP_ZONE:-us-central1-a}"
 REGISTRY="${DOCKER_REGISTRY:-us-central1-docker.pkg.dev/${GCP_PROJECT}/pentest}"
 VM_NAME="pentest-scan-${ENV}-$(date +%Y%m%d-%H%M%S)"
 
+# Map environment to git branch
 case "$ENV" in
   development)
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
     TARGET_NAME="auxscan-dev"
+    BRANCH="development"
     SPOT_FLAG=""
     ;;
   staging)
     TARGET_URLS='["https://auxscan.stage.data-estate.cloud"]'
     TARGET_NAME="auxscan-staging"
+    BRANCH="staging"
     SPOT_FLAG=""
     ;;
   production)
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
     TARGET_NAME="auxscan-production"
+    BRANCH="main"
     SPOT_FLAG="--provisioning-model=SPOT --instance-termination-action=DELETE"
     ;;
   *)
@@ -40,7 +46,8 @@ SLACK_URL="${SLACK_WEBHOOK_URL:-}"
 EMAIL="${NOTIFICATION_EMAIL:-}"
 
 echo "Launching ${ENV} scan VM: ${VM_NAME}"
-echo "  Image: ${REGISTRY}/scanner:${IMAGE_TAG}"
+echo "  Base image: ${REGISTRY}/scanner-base:latest"
+echo "  App branch: ${BRANCH}"
 echo "  Profile: ${PROFILE}"
 echo "  Target: ${TARGET_URLS}"
 
@@ -57,7 +64,7 @@ gcloud compute instances create "${VM_NAME}" \
   --boot-disk-auto-delete \
   --service-account="pentest-scanner@${GCP_PROJECT}.iam.gserviceaccount.com" \
   --scopes=cloud-platform \
-  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${IMAGE_TAG},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_URL},NOTIFICATION_EMAIL=${EMAIL},VERSION=${IMAGE_TAG}" \
+  --metadata="SCAN_MODE=${ENV},REGISTRY=${REGISTRY},IMAGE_TAG=${BRANCH},SCAN_PROFILE=${PROFILE},TARGET_NAME=${TARGET_NAME},TARGET_URLS=${TARGET_URLS},GCS_BUCKET=${GCP_PROJECT}-pentest-reports,SLACK_WEBHOOK_URL=${SLACK_URL},NOTIFICATION_EMAIL=${EMAIL},VERSION=${BRANCH}" \
   --metadata-from-file=startup-script="${STARTUP_SCRIPT}" \
   --tags=pentest-scan \
   --labels="env=${ENV},project=pentest,scan=true" \
