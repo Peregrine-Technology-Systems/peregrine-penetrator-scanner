@@ -25,13 +25,15 @@ Report generation, AI analysis, ticketing, and email notifications have been ext
 bin/scan (CLI entry point)
   ↓
 ScanOrchestrator
-├── Phase 1 Discovery: FfufScanner + NiktoScanner (parallel)
-├── Phase 2 Active: ZapScanner (full DAST scan)
-└── Phase 3 Targeted: NucleiScanner + SqlmapScanner (parallel)
-     ↓
-FindingNormalizer (SHA256 fingerprint dedup)
-     ↓
-CveIntelligenceService (NVD, CISA KEV, EPSS, OSV enrichment)
+├── [smoke profile] → SmokeChecker (tools, GCS, secrets validation)
+├── [scan profiles] →
+│   ├── Phase 1 Discovery: FfufScanner + NiktoScanner (parallel)
+│   ├── Phase 2 Active: ZapScanner (full DAST scan)
+│   └── Phase 3 Targeted: NucleiScanner + SqlmapScanner (parallel)
+│        ↓
+│   FindingNormalizer (SHA256 fingerprint dedup)
+│        ↓
+│   CveIntelligenceService (NVD, CISA KEV, EPSS, OSV enrichment)
      ↓
 ScanResultsExporter (v1.0 JSON envelope → GCS)
      ↓
@@ -50,7 +52,8 @@ SlackNotifier (webhook)
 - `app/services/scanners/` — Tool-specific scanner classes extending ScannerBase
 - `app/services/result_parsers/` — Normalize each tool's output format
 - `app/services/cve_clients/` — NVD, CISA KEV, EPSS, OSV API clients
-- `config/scan_profiles/` — YAML scan configs (quick, standard, thorough)
+- `app/services/smoke_checker.rb` — CI verification checks (tools, GCS, secrets) for smoke profile
+- `config/scan_profiles/` — YAML scan configs (quick, standard, thorough, smoke)
 - `bin/scan` — CLI entry point (supports ENV vars and flags)
 - `db/sequel_migrations/` — Sequel migrations (targets, scans, findings)
 - `docker/` — Dockerfile and docker-compose files
@@ -73,15 +76,25 @@ CI runs on Woodpecker CI (self-hosted at d3ci42.peregrinetechsys.net). Pipeline 
 
 | Pipeline | Trigger | Steps |
 |----------|---------|-------|
-| `ci.yaml` | Push (all branches except main) | RSpec + RuboCop (parallel) |
-| `build.yaml` | Push to development (Gemfile/Docker changes) | Docker build + push to Artifact Registry |
-| `deploy.yaml` | Push to dev/staging/main | Tag image, trigger scan |
+| `ci.yaml` | Push (all branches except main) | RSpec + RuboCop + check-release-notes (parallel) |
+| `build-base.yaml` | Push to development (Dockerfile.base changes) | Build + push scanner-base image |
+| `build.yaml` | Push to staging | Build baked scanner:staging image |
+| `deploy.yaml` | Push to staging/main | Staging: trigger scan VM. Main: tag staging as production |
 | `promote.yaml` | Push to dev/staging | Auto-promote to next branch |
-| `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS |
+| `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS (smoke profile) |
+| `version-bump.yaml` | Push to main | Bump VERSION, update RELEASE_NOTES, create git tag, tag Docker image |
+| `sync-back.yaml` | Tag v* | Sync RELEASE_NOTES back to development/staging (dedup headings, clear stale Unreleased) |
+
+### Hybrid Docker Model
+- **Development**: Clone code + `bundle install` at VM boot (no Docker build)
+- **Staging**: Build baked `scanner:staging` image (freeze point, immutable)
+- **Production**: Re-tag `scanner:staging` as `scanner:production` (zero rebuild, identical bytes)
+- `VERSION` is a runtime env var, not baked into the image. Read via `Penetrator::VERSION`.
 
 ## Security & Ethics
 
 - All tools in this repo are for **authorized testing only** — explicit written permission required before use against any target.
+- **Authorized test target**: `https://auxscan.app.data-estate.cloud` — approved for development, staging, and production scans and smoke tests.
 - Never hardcode credentials, API keys, or target information in source files.
 - Scope constraints (target allowlists) must be enforced programmatically, not just documented.
 - Environment variables for all secrets (see .env.example).
