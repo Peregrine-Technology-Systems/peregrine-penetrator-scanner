@@ -22,6 +22,7 @@ class ScannerBase
     else
       update_status('failed', result[:error])
       logger.error("[#{tool_name}] Failed: #{result[:error]}")
+      alert_on_failure(result)
     end
 
     result
@@ -69,6 +70,8 @@ class ScannerBase
         heartbeat&.kill
       end
     end
+
+    detect_rate_limiting(stderr)
 
     {
       stdout:,
@@ -121,6 +124,25 @@ class ScannerBase
         end
       end
     end
+  end
+
+  def detect_rate_limiting(stderr)
+    return if stderr.nil? || stderr.empty?
+    return unless stderr.match?(/429|rate.limit|too many requests/i)
+
+    Notifiers::SlackAlert.send_alert(
+      scan:, tool: tool_name, severity: :warning,
+      message: 'Receiving HTTP 429 responses — target rate limit exceeded',
+      action: 'Consider reducing rate_limit in scan profile'
+    )
+  end
+
+  def alert_on_failure(result)
+    Notifiers::SlackAlert.send_alert(
+      scan:, tool: tool_name, severity: :error,
+      message: result[:error] || 'Tool execution failed',
+      action: 'Check tool installation and configuration'
+    )
   end
 
   def update_status(status, error = nil)
