@@ -94,6 +94,7 @@ CI runs on Woodpecker CI (self-hosted at d3ci42.peregrinetechsys.net). Pipeline 
 ## Security & Ethics
 
 - All tools in this repo are for **authorized testing only** — explicit written permission required before use against any target.
+- **Authorized test target**: `https://auxscan.app.data-estate.cloud` — approved for development, staging, and production scans and smoke tests.
 - Never hardcode credentials, API keys, or target information in source files.
 - Scope constraints (target allowlists) must be enforced programmatically, not just documented.
 - Environment variables for all secrets (see .env.example).
