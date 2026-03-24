@@ -6,18 +6,11 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     environment:
-      - RAILS_ENV=production
-      - SCAN_PROFILE=${SCAN_PROFILE:-standard}
-      - TARGET_NAME=${TARGET_NAME:-Default Target}
+      - APP_ENV=production
+      - SCAN_PROFILE=${SCAN_PROFILE:-quick}
+      - TARGET_NAME=${TARGET_NAME:-DVWA E2E Test}
       - TARGET_URLS=${TARGET_URLS:-["http://dvwa:80"]}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-2525}
-      - SMTP_USERNAME=${SMTP_USERNAME:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_FROM=${SMTP_FROM:-pentest@peregrine-tech.com}
-      - NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - NVD_API_KEY=${NVD_API_KEY:-}
       - GCS_BUCKET=${GCS_BUCKET:-}
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-}
