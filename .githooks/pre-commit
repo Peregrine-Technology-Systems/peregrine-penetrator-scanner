@@ -7,7 +7,7 @@ FAILED=0
 # DOCS-ONLY BYPASS: skip tests/coverage if only docs changed
 # ============================================================
 ALL_STAGED=$(git diff --cached --name-only --diff-filter=ACM)
-CODE_FILES=$(echo "$ALL_STAGED" | grep -E '\.(rb|rake|yml|yaml|erb|latex|Gemfile)$' | grep -v 'spec/' || true)
+CODE_FILES=$(echo "$ALL_STAGED" | grep -E '\.(rb|rake|yml|yaml|erb|latex|sh|Gemfile)$' | grep -v 'spec/' || true)
 DOCS_ONLY=false
 if [ -z "$CODE_FILES" ]; then
   DOCS_ONLY=true
