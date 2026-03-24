@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Fix: sync-back deduplicates version headings and clears stale Unreleased entries (#341, #342)
+- Fix: sync-back replaces RELEASE_NOTES from main instead of merging — eliminates duplicate headings and stale entries (#343, #341, #342)
+- Add pre-push hook with full test suite, 90% coverage gate, and RuboCop enforcement (#351)
+- Fix: pre-commit hook treats .sh files as code, not docs-only (#296)
 
 ## v0.3.1 — 2026-03-23
 
