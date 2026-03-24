@@ -42,7 +42,7 @@ for BRANCH in development staging; do
     continue
   fi
 
-  git fetch origin "$BRANCH"
+  git fetch origin "$BRANCH" main
   git checkout -b "$SYNC_BRANCH" "origin/${BRANCH}"
 
   # Replace RELEASE_NOTES.md from main (authoritative source, not merge)
