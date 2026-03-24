@@ -45,25 +45,17 @@ for BRANCH in development staging; do
   git fetch origin "$BRANCH"
   git checkout -b "$SYNC_BRANCH" "origin/${BRANCH}"
 
-  # Copy RELEASE_NOTES.md from the tagged commit (authoritative source)
-  git checkout "${CI_COMMIT_SHA}" -- RELEASE_NOTES.md
+  # Replace RELEASE_NOTES.md from main (authoritative source, not merge)
+  # This avoids merge=union duplicates and stale Unreleased entries entirely
+  git show origin/main:RELEASE_NOTES.md > RELEASE_NOTES.md
 
-  # Re-insert ## Unreleased header (main doesn't have it)
-  perl -i -pe 'print "## Unreleased\n\n" if /^## v/ && !$done++' RELEASE_NOTES.md
+  # Re-insert ## Unreleased header (main doesn't have it after version-bump)
+  perl -i -pe 's/^(# Release Notes)$/$1\n\n## Unreleased/' RELEASE_NOTES.md
 
-  if ! grep -q '^## Unreleased$' RELEASE_NOTES.md; then
-    perl -i -pe 's/^(# Release Notes)$/$1\n\n## Unreleased/' RELEASE_NOTES.md
-  fi
+  # Also sync VERSION file from main
+  git show origin/main:VERSION > VERSION
 
-  # Deduplicate version headings (merge=union can create duplicates)
-  awk '!seen[$0]++ || !/^## v[0-9]/' RELEASE_NOTES.md > RELEASE_NOTES.md.tmp \
-    && mv RELEASE_NOTES.md.tmp RELEASE_NOTES.md
-
-  # Remove any stale entries between ## Unreleased and the first ## v heading
-  # (these are entries that shipped in this release but linger from the branch's old Unreleased)
-  perl -0777 -i -pe 's/(## Unreleased)\n\n(?:- .*\n)*\n(## v)/$1\n\n$2/s' RELEASE_NOTES.md
-
-  git add RELEASE_NOTES.md
+  git add RELEASE_NOTES.md VERSION
 
   if git diff --cached --quiet && git diff --quiet; then
     echo "No changes to sync to ${BRANCH} — skipping"
