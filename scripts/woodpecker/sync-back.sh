@@ -45,17 +45,17 @@ for BRANCH in development staging; do
   git fetch origin "$BRANCH"
   git checkout -b "$SYNC_BRANCH" "origin/${BRANCH}"
 
-  # Copy RELEASE_NOTES.md from the tagged commit
-  git checkout "${CI_COMMIT_SHA}" -- RELEASE_NOTES.md
+  # Replace RELEASE_NOTES.md from main (authoritative source, not merge)
+  # This avoids merge=union duplicates and stale Unreleased entries entirely
+  git show origin/main:RELEASE_NOTES.md > RELEASE_NOTES.md
 
-  # Re-insert ## Unreleased header (main doesn't have it)
-  perl -i -pe 'print "## Unreleased\n\n" if /^## v/ && !$done++' RELEASE_NOTES.md
+  # Re-insert ## Unreleased header (main doesn't have it after version-bump)
+  perl -i -pe 's/^(# Release Notes)$/$1\n\n## Unreleased/' RELEASE_NOTES.md
 
-  if ! grep -q '^## Unreleased$' RELEASE_NOTES.md; then
-    perl -i -pe 's/^(# Release Notes)$/$1\n\n## Unreleased/' RELEASE_NOTES.md
-  fi
+  # Also sync VERSION file from main
+  git show origin/main:VERSION > VERSION
 
-  git add RELEASE_NOTES.md
+  git add RELEASE_NOTES.md VERSION
 
   if git diff --cached --quiet && git diff --quiet; then
     echo "No changes to sync to ${BRANCH} — skipping"
