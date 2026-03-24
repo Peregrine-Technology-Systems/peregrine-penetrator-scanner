@@ -5,6 +5,7 @@
 - Fix: sync-back replaces RELEASE_NOTES from main instead of merging — eliminates duplicate headings and stale entries (#343, #341, #342)
 - Add pre-push hook with full test suite, 90% coverage gate, and RuboCop enforcement (#351)
 - Fix: pre-commit hook treats .sh files as code, not docs-only (#296)
+- Slack error notifications: immediate alerts for rate limiting (429) and tool failures with debounce (#52)
 
 ## v0.3.1 — 2026-03-23
 
