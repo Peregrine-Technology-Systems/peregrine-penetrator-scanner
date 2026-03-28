@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --navy-900: #0f172a;
+  --navy-800: #1e293b;
+  --navy-700: #1a365d;
+  --gold-500: #c5a55a;
+  --gold-100: #faf5e6;
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--slate-700);
+  line-height: 1.7;
+  background: white;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  font-size: 11px;
+}
+
+/* ========== Title Page ========== */
+.title-page {
+  width: calc(100% + 40mm);
+  margin: -20mm -20mm 0 -20mm;
+  height: 279mm;
+  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-800) 40%, var(--navy-700) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  page-break-after: always;
+}
+
+.title-page .logo { width: 100px; margin-bottom: 40px; opacity: 0.9; }
+.title-page h1 { color: #ffffff; font-size: 34px; font-weight: 700; line-height: 1.2; margin-bottom: 12px; max-width: 480px; }
+.title-page .subtitle { color: var(--slate-400); font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 40px; }
+.title-page .meta { color: var(--slate-400); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; }
+.title-page .divider { width: 60px; height: 2px; background: var(--gold-500); margin: 24px auto; }
+.title-page .classification {
+  position: absolute;
+  bottom: 50px;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  border: 2px solid #dc2626;
+  padding: 6px 20px;
+}
+.title-page .footer-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--navy-700), var(--gold-500), var(--navy-700));
+}
+
+/* ========== Watermark (content pages only) ========== */
+.content-wrapper {
+  position: relative;
+}
+
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 64px;
+  font-weight: 700;
+  color: rgba(220, 38, 38, 0.05);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ========== Content ========== */
+.content {
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+/* Typography */
+.content h1 {
+  font-size: 24px; font-weight: 700; color: var(--navy-700);
+  margin: 28px 0 12px; padding-bottom: 6px;
+  border-bottom: 3px solid var(--gold-500); text-align: left;
+}
+.content h1:first-child { margin-top: 0; }
+.content h2 { font-size: 18px; font-weight: 600; color: var(--navy-700); margin: 24px 0 10px; text-align: left; }
+.content h3 { font-size: 14px; font-weight: 600; color: var(--navy-700); margin: 18px 0 8px; text-align: left; }
+.content h4 { font-size: 12px; font-weight: 600; color: var(--navy-700); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.03em; text-align: left; }
+.content p { font-size: 11px; line-height: 1.7; margin-bottom: 8px; text-align: left; }
+.content ul, .content ol { font-size: 11px; padding-left: 20px; margin: 6px 0 10px; text-align: left; }
+.content li { margin-bottom: 3px; line-height: 1.6; text-align: left; }
+.content strong { color: var(--navy-700); }
+.content a { color: var(--gold-500); text-decoration: none; }
+
+/* Blockquotes */
+.content blockquote { border-left: 3px solid var(--gold-500); padding: 8px 16px; margin: 10px 0; background: var(--gold-100); text-align: left; }
+
+/* Tables */
+.content table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10px; text-align: left; }
+.content th { text-align: left; font-size: 8px; font-weight: 600; color: var(--slate-400); letter-spacing: 0.1em; text-transform: uppercase; padding: 6px 8px; border-bottom: 2px solid var(--slate-200); }
+.content td { padding: 6px 8px; border-bottom: 1px solid var(--slate-100); vertical-align: top; line-height: 1.5; text-align: left; }
+.content tr:last-child td { border-bottom: none; }
+
+/* Code */
+.content code { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; background: var(--slate-50); padding: 1px 4px; border-radius: 3px; border: 1px solid var(--slate-200); }
+.content pre { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: 6px; padding: 12px 14px; margin: 8px 0; overflow-x: auto; text-align: left; page-break-inside: avoid; }
+.content pre code { background: none; border: none; padding: 0; font-size: 9px; line-height: 1.5; }
+
+/* Horizontal rules */
+.content hr { border: none; border-top: 1px solid var(--slate-200); margin: 20px 0; }
+
+/* Diagrams (Mermaid/D2 SVG) */
+.content .diagram { text-align: center; margin: 16px 0; page-break-inside: avoid; }
+.content .diagram svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+
+<!-- Title Page (Puppeteer skips header/footer on first page via CSS) -->
+<div class="title-page">
+  <img src="{{LOGO_PATH}}" alt="Peregrine" class="logo">
+  <div class="divider"></div>
+  <h1>{{TITLE}}</h1>
+  <div class="subtitle">{{SUBTITLE}}</div>
+  <div class="meta">{{DATE}}</div>
+  <div class="classification">{{CLASSIFICATION}}</div>
+  <div class="footer-bar"></div>
+</div>
+
+<!-- Content Pages (Puppeteer adds header/footer with page numbers) -->
+<div class="content-wrapper">
+  <div class="watermark">Company Confidential</div>
+  <div class="content">
+{{BODY}}
+  </div>
+</div>
+
+</body>
+</html>
