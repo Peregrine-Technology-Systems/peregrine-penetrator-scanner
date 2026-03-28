@@ -10,6 +10,9 @@
 - Orchestrator checks cancelled? between phases/tools, marks scan cancelled on signal
 - vm-startup.sh: add JOB_ID and REPORTER_BASE_URL env vars, remove stale SMTP/Anthropic vars
 - Smoke-test profile: canned findings for end-to-end control plane verification in <30s (#380)
+- Reliability: scan-level hard timeout via SCAN_TIMEOUT env var, default 3600s (#381)
+- Reliability: callback dead letter — writes callback_pending.json to GCS on retry exhaustion (#383)
+- Reliability: scan_started.json marker written to GCS on scan start (#384)
 
 ## v0.3.1 — 2026-03-23
 
