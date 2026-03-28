@@ -6,9 +6,10 @@
 - Control plane: ControlPlaneLoop background thread combines heartbeat + cancel checks (#376, #378)
 - Control plane: Job ID passthrough in heartbeats and callbacks (#379)
 - Control plane: Callback URL passthrough with job_id in payload (#377)
-- Control plane: ControlFlagReader stub for GCS cancel signals (#378)
+- Control plane: ControlFlagReader checks GCS control.json for cancel signals (#378)
 - Orchestrator checks cancelled? between phases/tools, marks scan cancelled on signal
 - vm-startup.sh: add JOB_ID and REPORTER_BASE_URL env vars, remove stale SMTP/Anthropic vars
+- Smoke-test profile: canned findings for end-to-end control plane verification in <30s (#380)
 
 ## v0.3.1 — 2026-03-23
 
