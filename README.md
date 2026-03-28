@@ -160,6 +160,7 @@ docker run --platform linux/amd64 --network pentest-net \
 | `quick` | ~10 min | -- | ZAP baseline | Nuclei critical/high |
 | `standard` | ~30 min | ffuf + Nikto | ZAP full | Nuclei + sqlmap |
 | `thorough` | ~2 hr | ffuf + Nikto | ZAP full (deep) | All tools |
+| `deep` | ~2 hr | (alias for `thorough`) | Same | Same |
 | `smoke` | <30s | -- | -- | Infra validation (tools, GCS, secrets) |
 | `smoke-test` | <30s | -- | -- | Canned findings for deploy verification |
 

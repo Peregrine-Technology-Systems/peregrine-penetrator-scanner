@@ -42,7 +42,7 @@ flowchart TD
     A[bin/scan CLI] --> B{Profile Type?}
     B -->|smoke-test| C[SmokeTestRunner<br/>Canned findings &lt;30s]
     B -->|smoke| D[SmokeChecker<br/>Validate tools/GCS/secrets]
-    B -->|quick/standard/thorough| E[ScanOrchestrator]
+    B -->|quick/standard/thorough/deep| E[ScanOrchestrator]
 
     E --> F[Phase 1: Discovery<br/>ffuf + Nikto]
     F --> G[Phase 2: Active Scan<br/>OWASP ZAP]
@@ -242,6 +242,7 @@ See [docs/schema_versioning.md](schema_versioning.md) for the full contract spec
 | `quick` | ~10 min | -- | ZAP baseline | Nuclei critical/high |
 | `standard` | ~30 min | ffuf + Nikto | ZAP full | Nuclei + sqlmap |
 | `thorough` | ~2 hr | ffuf + Nikto | ZAP full (deep) | Nuclei + sqlmap + Dawn |
+| `deep` | ~2 hr | (alias for `thorough`) | Same as thorough | Same as thorough |
 | `smoke` | <30s | -- | -- | -- (infra validation only) |
 | `smoke-test` | <30s | -- | -- | -- (canned findings for deploy verification) |
 
@@ -303,6 +304,44 @@ flowchart TD
 | Production | Yes | Verifies `scanner:production` image works |
 
 **Stub mode**: During smoke tests, `HeartbeatSender` and `ScanCallbackService` log their payloads at INFO level but do not make HTTP calls to the reporter. The reporter didn't dispatch the scan, so there's no matching job record. All GCS writes proceed normally — that's the real verification.
+
+## Cloud Function Dispatch
+
+The `trigger_scan` Cloud Function (`cloud/scheduler/main.py`) is the entry point for launching scan VMs. It accepts an optional JSON body from the Reporter and merges with infrastructure defaults:
+
+```mermaid
+sequenceDiagram
+    participant R as Reporter / Cloud Scheduler
+    participant CF as trigger_scan Cloud Function
+    participant GCE as GCP Compute Engine
+    participant VM as Scan VM
+
+    R->>CF: POST /trigger_scan (JSON body)
+    CF->>CF: Merge request params with defaults
+    CF->>GCE: Create spot VM with metadata
+    GCE->>VM: Boot, run vm-startup.sh
+    CF-->>R: {"scan_uuid": "...", "status": "accepted", "instance_name": "..."}
+    VM->>VM: Read metadata, pull image, run scan
+```
+
+### Request Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `scan_uuid` | `scan-{timestamp}` | Reporter-generated UUID for state tracking |
+| `profile` | `standard` | Scan profile (`quick`, `standard`, `thorough`, `deep`, `smoke-test`) |
+| `target_url` | `https://auxscan.app.data-estate.cloud` | Single URL (wrapped into JSON array) |
+| `target_urls` | (from `target_url`) | Pre-formatted JSON array of URLs |
+| `target_name` | `AuxScan Production` | Human-readable target name |
+| `callback_url` | (empty) | Reporter endpoint for scan completion callback |
+| `job_id` | (empty) | Reporter's job identifier for correlation |
+| `reporter_base_url` | (empty) | Base URL for heartbeat POSTs |
+| `scan_mode` | `production` | VM execution mode (`development`, `staging`, `production`) |
+| `image_tag` | `production` | Docker image tag to pull |
+
+**Backward compatible**: Cloud Scheduler sends no body — all values fall back to defaults. Reporter sends scan-specific params; the function supplies infrastructure config (registry, service account, GCS bucket, spot scheduling).
+
+**Security**: `SCAN_CALLBACK_SECRET` is never in the request body or metadata — the scanner fetches it from Secret Manager at boot via `vm-startup.sh`.
 
 ## CI/CD Pipeline
 
