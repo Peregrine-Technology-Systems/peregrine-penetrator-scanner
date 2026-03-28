@@ -62,36 +62,33 @@ fi
 
 # ============================================================
 # 4. PDF generation from Markdown (local only — not committed to public repo)
+#    Uses branded Puppeteer pipeline with Mermaid diagram support
+#    Only on feature branches (not development/staging/main)
 # ============================================================
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-if command -v pandoc &>/dev/null && [[ "$CURRENT_BRANCH" == feature/* || "$CURRENT_BRANCH" == feat/* || "$CURRENT_BRANCH" == fix/* || "$CURRENT_BRANCH" == docs/* ]]; then
+if [ "$CURRENT_BRANCH" != "development" ] && [ "$CURRENT_BRANCH" != "staging" ] && [ "$CURRENT_BRANCH" != "main" ]; then
   CHANGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | grep -v 'CLAUDE.md' | grep -v '.github/' || true)
   if [ -n "$CHANGED_MD" ]; then
-    if [ -x /usr/libexec/path_helper ]; then
-      eval "$(/usr/libexec/path_helper)"
-    fi
-    TEMPLATE="$HOME/.claude/templates/peregrine-docs.latex"
-    if command -v xelatex &>/dev/null; then
+    DOC_SCRIPT="scripts/docs/generate-doc-pdf.sh"
+    if [ -x "$DOC_SCRIPT" ]; then
+      # Branded pipeline: Mermaid → pandoc → HTML → Puppeteer PDF
+      # shellcheck disable=SC2086
+      "$DOC_SCRIPT" $CHANGED_MD 2>/dev/null
+      GENERATED=$(find docs/pdf -name '*.pdf' -newer .git/index 2>/dev/null | wc -l | tr -d ' ')
+      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED branded PDF(s) locally (not committed — public repo)"
+    elif command -v pandoc &>/dev/null && command -v xelatex &>/dev/null; then
+      # Fallback: plain pandoc (no branding, no Mermaid diagrams)
       mkdir -p docs/pdf
       GENERATED=0
-      PANDOC_OPTS="--pdf-engine=xelatex -V fontsize=11pt -V colorlinks=true --highlight-style=tango"
-      if [ -f "$TEMPLATE" ]; then
-        PANDOC_OPTS="$PANDOC_OPTS --template=$TEMPLATE -V mainfont=Helvetica -V monofont=Menlo"
-      else
-        PANDOC_OPTS="$PANDOC_OPTS -V geometry:margin=1in -V mainfont=Helvetica -V monofont=Menlo"
-      fi
       for md_file in $CHANGED_MD; do
-        basename=$(basename "$md_file" .md)
-        dirname=$(dirname "$md_file")
-        if [ "$dirname" != "." ]; then
-          pdf_name="${dirname//\//-}-${basename}.pdf"
-        else
-          pdf_name="${basename}.pdf"
-        fi
-        pdf_path="docs/pdf/${pdf_name}"
-        pandoc "$md_file" -o "$pdf_path" $PANDOC_OPTS 2>/dev/null && GENERATED=$((GENERATED + 1)) || true
+        basename_md=$(basename "$md_file" .md)
+        pdf_path="docs/pdf/${basename_md}.pdf"
+        pandoc "$md_file" -o "$pdf_path" --pdf-engine=xelatex \
+          -V geometry:margin=1in -V mainfont=Helvetica -V monofont=Menlo \
+          -V fontsize=11pt --highlight-style=tango \
+          2>/dev/null && GENERATED=$((GENERATED + 1)) || true
       done
-      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s) locally (not committed — public repo)"
+      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s) locally (plain — branded pipeline unavailable)"
     fi
   fi
 fi

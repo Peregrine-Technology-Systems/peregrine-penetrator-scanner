@@ -248,15 +248,11 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted).
 
 | Document | Description |
 |----------|-------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full architecture with Mermaid diagrams — execution flow, control plane protocol, VM lifecycle, data model, reliability guarantees |
-| [docs/DESIGN.md](docs/DESIGN.md) | Original design decisions and data model |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | GCP deployment, infrastructure, and operations |
-| [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | Security architecture and threat model |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full architecture with Mermaid diagrams — scan flow, control plane, VM lifecycle, data model, reliability |
+| [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | Threat model, secrets management, container/network/control plane security |
 | [docs/schema_versioning.md](docs/schema_versioning.md) | v1.0 JSON envelope contract between scanner and reporter |
-| [docs/data_flow.md](docs/data_flow.md) | Data flow through the scanning pipeline |
-| [docs/data_retention_policy.md](docs/data_retention_policy.md) | 18-month BigQuery retention policy |
-| [docs/audit_logging.md](docs/audit_logging.md) | Audit event logging specification |
-| [docs/separation_of_duties.md](docs/separation_of_duties.md) | Service boundary definitions |
+| [docs/data_retention_policy.md](docs/data_retention_policy.md) | 18-month BigQuery/GCS retention policy |
+| [docs/audit_logging.md](docs/audit_logging.md) | Audit event types, chain of custody, compliance (SOC 2, ISO 27001) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup, testing, environment variables |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md) | Version history |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
