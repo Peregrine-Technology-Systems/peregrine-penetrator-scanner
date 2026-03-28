@@ -13,6 +13,9 @@
 - Reliability: scan-level hard timeout via SCAN_TIMEOUT env var, default 3600s (#381)
 - Reliability: callback dead letter — writes callback_pending.json to GCS on retry exhaustion (#383)
 - Reliability: scan_started.json marker written to GCS on scan start (#384)
+- docs: comprehensive ARCHITECTURE.md with Mermaid diagrams — scan flow, control plane protocol, VM lifecycle, data model, reliability guarantees
+- docs: README overhaul with Mermaid diagrams, full documentation index, updated metrics
+- PDF generation is local-only (not committed to public repo), uses Peregrine branded LaTeX template
 
 ## v0.3.1 — 2026-03-23
 
