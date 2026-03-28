@@ -50,10 +50,22 @@ class ScanCallbackService
     end
 
     Penetrator.logger.error("[ScanCallbackService] Exhausted #{MAX_RETRIES} retries for #{callback_url}")
+    write_dead_letter(payload)
     false
   rescue StandardError => e
     Penetrator.logger.error("[ScanCallbackService] Failed: #{e.message}")
     false
+  end
+
+  def write_dead_letter(payload)
+    scan_uuid = payload[:scan_uuid] || @scan.id
+    dead_letter = payload.merge(failed_at: Time.current.iso8601)
+    path = "control/#{scan_uuid}/callback_pending.json"
+
+    StorageService.new.upload_json(path, dead_letter)
+    Penetrator.logger.warn("[ScanCallbackService] Dead letter written to GCS: #{path}")
+  rescue StandardError => e
+    Penetrator.logger.error("[ScanCallbackService] Dead letter write failed: #{e.message}")
   end
 
   def post_callback(payload)
