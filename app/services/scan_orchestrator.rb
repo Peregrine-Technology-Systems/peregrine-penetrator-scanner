@@ -19,18 +19,27 @@ class ScanOrchestrator
   end
 
   def execute
-    mark_running
-    @control_plane = start_control_plane
-    Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+    scan_timeout = ENV.fetch('SCAN_TIMEOUT', '3600').to_i
 
-    if profile.smoke_test
-      SmokeTestRunner.new(scan).run
-    elsif profile.smoke
-      run_smoke_checks
-    else
-      run_scan_phases
+    Timeout.timeout(scan_timeout) do
+      mark_running
+      write_started_marker
+      @control_plane = start_control_plane
+      Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+
+      if profile.smoke_test
+        SmokeTestRunner.new(scan).run
+      elsif profile.smoke
+        run_smoke_checks
+      else
+        run_scan_phases
+      end
     end
 
+    scan
+  rescue Timeout::Error
+    scan.update(status: 'failed', completed_at: Time.current, error_message: "Scan timed out after #{scan_timeout}s")
+    Penetrator.logger.error("[ScanOrchestrator] Hard timeout after #{scan_timeout}s")
     scan
   rescue StandardError => e
     scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)
@@ -87,6 +96,20 @@ class ScanOrchestrator
 
   def mark_running
     scan.update(status: 'running', started_at: Time.current)
+  end
+
+  def write_started_marker
+    scan_uuid = ENV.fetch('SCAN_UUID', scan.id)
+    marker = {
+      scan_uuid:,
+      job_id: ENV.fetch('JOB_ID', nil),
+      started_at: Time.current.iso8601,
+      vm_name: ENV.fetch('HOSTNAME', `hostname`.strip)
+    }.compact
+
+    StorageService.new.upload_json("control/#{scan_uuid}/scan_started.json", marker)
+  rescue StandardError => e
+    Penetrator.logger.warn("[ScanOrchestrator] Started marker write failed: #{e.message}")
   end
 
   def mark_completed
