@@ -53,7 +53,7 @@ SlackNotifier (webhook)
 - `app/services/result_parsers/` — Normalize each tool's output format
 - `app/services/cve_clients/` — NVD, CISA KEV, EPSS, OSV API clients
 - `app/services/smoke_checker.rb` — CI verification checks (tools, GCS, secrets) for smoke profile
-- `config/scan_profiles/` — YAML scan configs (quick, standard, thorough, smoke)
+- `config/scan_profiles/` — YAML scan configs (quick, standard, thorough, deep, smoke, smoke-test)
 - `bin/scan` — CLI entry point (supports ENV vars and flags)
 - `db/sequel_migrations/` — Sequel migrations (targets, scans, findings)
 - `docker/` — Dockerfile and docker-compose files

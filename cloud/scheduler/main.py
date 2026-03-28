@@ -175,9 +175,39 @@ def scavenge_vms(request):
 
 
 def trigger_scan(request):
-    """HTTP Cloud Function to launch a production scan VM."""
+    """HTTP Cloud Function to launch a scan VM.
+
+    Accepts optional JSON body from Reporter dispatch:
+      - scan_uuid, profile, target_url, target_name, target_urls
+      - callback_url, job_id, reporter_base_url
+      - scan_mode, image_tag
+
+    All fields fall back to defaults when omitted (backward compatible
+    with Cloud Scheduler which sends no body).
+    """
+    data = request.get_json(silent=True) or {}
+
+    scan_uuid = data.get('scan_uuid', f'scan-{int(time.time())}')
+    profile = data.get('profile', 'standard')
+    target_url = data.get('target_url',
+                          'https://auxscan.app.data-estate.cloud')
+    target_name = data.get('target_name', 'AuxScan Production')
+    callback_url = data.get('callback_url', '')
+    job_id = data.get('job_id', '')
+    reporter_base_url = data.get('reporter_base_url', '')
+    scan_mode = data.get('scan_mode', 'production')
+    image_tag = data.get('image_tag', 'production')
+
+    # Wrap single URL into JSON array for TARGET_URLS
+    target_urls = data.get('target_urls')
+    if target_urls is None:
+        if target_url.startswith('['):
+            target_urls = target_url
+        else:
+            target_urls = json.dumps([target_url])
+
     timestamp = int(time.time())
-    instance_name = f'pentest-scan-prod-{timestamp}'
+    instance_name = f'pentest-scan-{scan_uuid[:8]}-{timestamp}'
 
     # Read startup script
     startup_script_path = os.path.join(
@@ -212,12 +242,15 @@ def trigger_scan(request):
             scopes=['https://www.googleapis.com/auth/cloud-platform'],
         )],
         metadata=compute_v1.Metadata(items=[
-            compute_v1.Items(key='SCAN_MODE', value='production'),
-            compute_v1.Items(key='SCAN_PROFILE', value='standard'),
-            compute_v1.Items(key='TARGET_NAME', value='AuxScan Production'),
+            compute_v1.Items(key='SCAN_MODE', value=scan_mode),
+            compute_v1.Items(key='SCAN_PROFILE', value=profile),
+            compute_v1.Items(key='TARGET_NAME', value=target_name),
+            compute_v1.Items(key='TARGET_URLS', value=target_urls),
+            compute_v1.Items(key='SCAN_UUID', value=scan_uuid),
+            compute_v1.Items(key='CALLBACK_URL', value=callback_url),
+            compute_v1.Items(key='JOB_ID', value=job_id),
             compute_v1.Items(
-                key='TARGET_URLS',
-                value='["https://auxscan.app.data-estate.cloud"]',
+                key='REPORTER_BASE_URL', value=reporter_base_url,
             ),
             compute_v1.Items(
                 key='GCS_BUCKET',
@@ -227,14 +260,19 @@ def trigger_scan(request):
                 key='REGISTRY',
                 value=f'us-central1-docker.pkg.dev/{PROJECT}/pentest',
             ),
-            compute_v1.Items(key='IMAGE_TAG', value='production'),
+            compute_v1.Items(key='IMAGE_TAG', value=image_tag),
             compute_v1.Items(key='startup-script', value=startup_script),
         ]),
         scheduling=compute_v1.Scheduling(
             provisioning_model='SPOT',
             instance_termination_action='DELETE',
         ),
-        labels={'env': 'production', 'project': 'pentest', 'scan': 'true'},
+        labels={
+            'env': scan_mode,
+            'project': 'pentest',
+            'scan': 'true',
+            'profile': profile,
+        },
         tags=compute_v1.Tags(items=['pentest-scan']),
     )
 
@@ -243,4 +281,8 @@ def trigger_scan(request):
     )
     operation.result()
 
-    return f'Scan VM {instance_name} launched', 200
+    return json.dumps({
+        'scan_uuid': scan_uuid,
+        'status': 'accepted',
+        'instance_name': instance_name,
+    }), 200, {'Content-Type': 'application/json'}
