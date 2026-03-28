@@ -26,6 +26,7 @@ class ScanCallbackService
   def build_payload
     payload = {
       scan_uuid: ENV.fetch('SCAN_UUID', @scan.id),
+      job_id: ENV.fetch('JOB_ID', nil),
       status: @scan.status,
       duration_seconds: @scan.duration&.to_i,
       summary: @scan.summary || {},
