@@ -164,6 +164,36 @@ RSpec.describe ScanCallbackService do
     end
   end
 
+  describe '.stub_mode?' do
+    it 'returns true when SCAN_PROFILE is smoke-test' do
+      stub_const('ENV', ENV.to_h.merge('CALLBACK_URL' => callback_url, 'SCAN_PROFILE' => 'smoke-test'))
+      expect(described_class.stub_mode?).to be true
+    end
+
+    it 'returns false for normal profiles' do
+      expect(described_class.stub_mode?).to be false
+    end
+  end
+
+  describe 'stub mode behavior' do
+    it 'logs payload without making HTTP call' do
+      stub_const('ENV', ENV.to_h.merge(
+                          'CALLBACK_URL' => callback_url,
+                          'SCAN_CALLBACK_SECRET' => callback_secret,
+                          'SCAN_UUID' => 'abc-123',
+                          'SCAN_PROFILE' => 'smoke-test'
+                        ))
+
+      expect(Penetrator.logger).to receive(:info).with(/STUB/)
+
+      service = described_class.new(scan, cost_logger)
+      result = service.notify
+
+      expect(result).to be true
+      expect(WebMock).not_to have_requested(:post, callback_url)
+    end
+  end
+
   describe '.enabled?' do
     it 'returns true when CALLBACK_URL is set' do
       expect(described_class.enabled?).to be true

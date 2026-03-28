@@ -201,6 +201,11 @@ This project followed **stepwise refinement** — building a working monolith fi
 | `callback_pending.json` dead letter | Recover when callback fails |
 | VM self-terminate trap + scavenger | No orphan VMs |
 | Cancel via GCS `control.json` | Stop stale/runaway scans |
+| Deploy smoke test | Verify baked image works on ephemeral VM |
+
+### Deploy Verification
+
+Every staging and production deployment triggers a smoke test that launches an ephemeral scan VM with the `smoke-test` profile. The VM boots, pulls the baked image, creates canned findings, writes to GCS, and self-terminates. Reporter calls are stubbed (logged but not POSTed) since the reporter didn't dispatch the scan. Development is excluded (uses interactive VM).
 
 ---
 
