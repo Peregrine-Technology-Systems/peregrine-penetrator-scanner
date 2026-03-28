@@ -19,29 +19,59 @@ class ScanOrchestrator
   end
 
   def execute
-    mark_running
-    Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+    scan_timeout = ENV.fetch('SCAN_TIMEOUT', '3600').to_i
 
-    if profile.smoke
-      run_smoke_checks
-    else
-      run_scan_phases
+    Timeout.timeout(scan_timeout) do
+      mark_running
+      write_started_marker
+      @control_plane = start_control_plane
+      Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+
+      if profile.smoke_test
+        SmokeTestRunner.new(scan).run
+      elsif profile.smoke
+        run_smoke_checks
+      else
+        run_scan_phases
+      end
     end
 
+    scan
+  rescue Timeout::Error
+    scan.update(status: 'failed', completed_at: Time.current, error_message: "Scan timed out after #{scan_timeout}s")
+    Penetrator.logger.error("[ScanOrchestrator] Hard timeout after #{scan_timeout}s")
     scan
   rescue StandardError => e
     scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)
     Penetrator.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
     raise
+  ensure
+    @control_plane&.stop
   end
 
   private
 
+  def start_control_plane
+    return nil unless HeartbeatSender.enabled?
+
+    ControlPlaneLoop.new(
+      scan_uuid: ENV.fetch('SCAN_UUID', scan.id),
+      job_id: ENV.fetch('JOB_ID', nil),
+      reporter_base_url: ENV.fetch('REPORTER_BASE_URL', ''),
+      gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
+      callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', '')
+    ).start
+  end
+
   def run_scan_phases
     profile.phases.each do |phase|
+      break mark_cancelled if @control_plane&.cancelled?
+
       Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
       run_phase(phase)
     end
+
+    return if @control_plane&.cancelled?
 
     FindingNormalizer.new(scan).normalize
     mark_completed
@@ -68,11 +98,33 @@ class ScanOrchestrator
     scan.update(status: 'running', started_at: Time.current)
   end
 
+  def write_started_marker
+    scan_uuid = ENV.fetch('SCAN_UUID', scan.id)
+    marker = {
+      scan_uuid:,
+      job_id: ENV.fetch('JOB_ID', nil),
+      started_at: Time.current.iso8601,
+      vm_name: ENV.fetch('HOSTNAME', `hostname`.strip)
+    }.compact
+
+    StorageService.new.upload_json("control/#{scan_uuid}/scan_started.json", marker)
+  rescue StandardError => e
+    Penetrator.logger.warn("[ScanOrchestrator] Started marker write failed: #{e.message}")
+  end
+
   def mark_completed
     scan.status = 'completed'
     scan.completed_at = Time.current
     scan.summary = ScanSummaryBuilder.new(scan).build
     scan.save_changes
+  end
+
+  def mark_cancelled
+    scan.status = 'cancelled'
+    scan.completed_at = Time.current
+    scan.summary = ScanSummaryBuilder.new(scan).build
+    scan.save_changes
+    Penetrator.logger.info('[ScanOrchestrator] Scan cancelled by control plane')
   end
 
   def run_phase(phase)
@@ -84,12 +136,16 @@ class ScanOrchestrator
   end
 
   def run_tool(tool_config)
+    return if @control_plane&.cancelled?
+
     scanner_class = SCANNER_MAP[tool_config.tool]
     return log_unknown_tool(tool_config.tool) unless scanner_class
 
+    @control_plane&.update_progress(current_tool: tool_config.tool, last_tool_started_at: Time.current.iso8601)
     feed_discovered_urls(tool_config)
     result = scanner_class.new(scan, tool_config.config.dup).run
 
+    @control_plane&.update_progress(findings_count: scan.findings_dataset.count)
     @discovered_urls.concat(result[:discovered_urls]) if result[:discovered_urls]
     save_findings(result[:findings]) if result[:findings]&.any?
   rescue StandardError => e

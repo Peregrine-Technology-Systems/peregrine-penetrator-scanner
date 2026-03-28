@@ -82,6 +82,8 @@ case "$SCAN_MODE" in
     VERSION=$(get_metadata "VERSION" "")
     SCAN_UUID=$(get_metadata "SCAN_UUID" "")
     CALLBACK_URL=$(get_metadata "CALLBACK_URL" "")
+    JOB_ID=$(get_metadata "JOB_ID" "")
+    REPORTER_BASE_URL=$(get_metadata "REPORTER_BASE_URL" "")
 
     # Read machine type from instance metadata for cost tracking
     MACHINE_TYPE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/machine-type" 2>/dev/null | rev | cut -d'/' -f1 | rev || echo "unknown")
@@ -108,14 +110,8 @@ case "$SCAN_MODE" in
       -e APP_ENV=production
       -e "TARGET_NAME=${TARGET_NAME}"
       -e "TARGET_URLS=${TARGET_URLS}"
-      -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
       -e "NVD_API_KEY=${NVD_API_KEY}"
       -e "SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}"
-      -e "NOTIFICATION_EMAIL=${NOTIFICATION_EMAIL}"
-      -e "SMTP_HOST=${SMTP_HOST}"
-      -e "SMTP_PORT=${SMTP_PORT}"
-      -e "SMTP_USERNAME=${SMTP_USERNAME}"
-      -e "SMTP_PASSWORD=${SMTP_PASSWORD}"
       -e "GCS_BUCKET=${GCS_BUCKET}"
       -e "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
       -e "VERSION=${VERSION}"
@@ -124,6 +120,8 @@ case "$SCAN_MODE" in
       -e "SCAN_UUID=${SCAN_UUID}"
       -e "CALLBACK_URL=${CALLBACK_URL}"
       -e "SCAN_CALLBACK_SECRET=${SCAN_CALLBACK_SECRET}"
+      -e "JOB_ID=${JOB_ID}"
+      -e "REPORTER_BASE_URL=${REPORTER_BASE_URL}"
     )
 
     RESULTS_DIR="/tmp/scan-results"

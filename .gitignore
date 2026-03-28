@@ -35,6 +35,9 @@
 # Coverage reports
 /coverage/
 
+# Generated PDFs (local only — corporate branded, not for public repo)
+docs/pdf/
+
 # Custom templates generated at runtime
 /custom_templates/
 
