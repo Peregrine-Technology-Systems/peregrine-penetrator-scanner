@@ -19,6 +19,9 @@
 - docs: README overhaul with Mermaid diagrams, full documentation index, updated metrics
 - PDF generation is local-only (not committed to public repo), uses Peregrine branded LaTeX template
 - Deploy smoke test: staging/production only, stubs reporter calls, validates baked image on ephemeral VM (#396)
+- docs: remove stale DEPLOYMENT.md, DESIGN.md, data_flow.md, separation_of_duties.md (superseded by ARCHITECTURE.md)
+- docs: rewrite SECURITY_ARCHITECTURE.md for Sequel, Woodpecker CI, ephemeral VMs, control plane security
+- docs: add control plane audit events to audit_logging.md
 
 ## v0.3.1 — 2026-03-23
 
