@@ -1,0 +1,5 @@
+name: smoke-test
+description: "End-to-end control plane verification with canned findings. Completes in <30s."
+estimated_duration_minutes: 1
+smoke_test: true
+phases: []
