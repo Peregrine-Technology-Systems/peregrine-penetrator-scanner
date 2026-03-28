@@ -61,17 +61,25 @@ if [ "$DOCS_ONLY" = false ]; then
 fi
 
 # ============================================================
-# 4. PDF generation from Markdown (if .md files changed)
+# 4. PDF generation from Markdown (local only — not committed to public repo)
 # ============================================================
-if command -v pandoc &>/dev/null; then
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if command -v pandoc &>/dev/null && [[ "$CURRENT_BRANCH" == feature/* || "$CURRENT_BRANCH" == feat/* || "$CURRENT_BRANCH" == fix/* || "$CURRENT_BRANCH" == docs/* ]]; then
   CHANGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | grep -v 'CLAUDE.md' | grep -v '.github/' || true)
   if [ -n "$CHANGED_MD" ]; then
     if [ -x /usr/libexec/path_helper ]; then
       eval "$(/usr/libexec/path_helper)"
     fi
+    TEMPLATE="$HOME/.claude/templates/peregrine-docs.latex"
     if command -v xelatex &>/dev/null; then
       mkdir -p docs/pdf
       GENERATED=0
+      PANDOC_OPTS="--pdf-engine=xelatex -V fontsize=11pt -V colorlinks=true --highlight-style=tango"
+      if [ -f "$TEMPLATE" ]; then
+        PANDOC_OPTS="$PANDOC_OPTS --template=$TEMPLATE -V mainfont=Helvetica -V monofont=Menlo"
+      else
+        PANDOC_OPTS="$PANDOC_OPTS -V geometry:margin=1in -V mainfont=Helvetica -V monofont=Menlo"
+      fi
       for md_file in $CHANGED_MD; do
         basename=$(basename "$md_file" .md)
         dirname=$(dirname "$md_file")
@@ -81,12 +89,9 @@ if command -v pandoc &>/dev/null; then
           pdf_name="${basename}.pdf"
         fi
         pdf_path="docs/pdf/${pdf_name}"
-        pandoc "$md_file" -o "$pdf_path" --pdf-engine=xelatex \
-          -V geometry:margin=1in -V mainfont=Helvetica -V monofont=Menlo \
-          -V fontsize=11pt -V colorlinks=true --highlight-style=tango \
-          2>/dev/null && git add "$pdf_path" && GENERATED=$((GENERATED + 1)) || true
+        pandoc "$md_file" -o "$pdf_path" $PANDOC_OPTS 2>/dev/null && GENERATED=$((GENERATED + 1)) || true
       done
-      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s)"
+      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s) locally (not committed — public repo)"
     fi
   fi
 fi
