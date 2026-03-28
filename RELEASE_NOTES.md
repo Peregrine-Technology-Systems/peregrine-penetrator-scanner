@@ -2,9 +2,12 @@
 
 ## v0.3.1 — 2026-03-23
 
+## v0.3.1 — 2026-03-23
+
 - feat: trigger_scan Cloud Function accepts request params for Reporter dispatch (#374)
 - feat: add `deep` scan profile as alias for `thorough` (Reporter API compatibility)
 - fix: sync scheduler vm-startup.sh with authoritative cloud/lib/vm-startup.sh (control plane env vars)
+- feat: smoke test script for trigger_scan Cloud Function deployment verification (#413)
 
 ## v0.3.1 — 2026-03-23
 
