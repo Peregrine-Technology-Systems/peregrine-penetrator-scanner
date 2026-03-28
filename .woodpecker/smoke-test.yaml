@@ -1,7 +1,8 @@
-# Post-deploy smoke test — launch quick scan, validate GCS outputs
+# Post-deploy smoke test — staging and production only (dev uses interactive VM)
+# Triggers smoke-test profile: canned findings, stubbed reporter calls, validates GCS
 when:
   - event: push
-    branch: [development, staging, main]
+    branch: [staging, main]
 
 depends_on:
   - deploy
