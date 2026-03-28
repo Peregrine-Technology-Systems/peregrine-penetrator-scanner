@@ -143,6 +143,17 @@ The secret is stored in GCP Secret Manager and injected at VM boot.
 
 Cancel signals are written to GCS (`control/{scan_uuid}/control.json`) by the reporter. The scanner reads but never writes cancel signals. GCS IAM controls who can write to the control path.
 
+### Cloud Function Dispatch Security
+
+The `trigger_scan` Cloud Function accepts request parameters from the reporter but enforces infrastructure boundaries:
+
+| Concern | How it's handled |
+|---------|-----------------|
+| `SCAN_CALLBACK_SECRET` | Never in request body or VM metadata — fetched from Secret Manager at boot |
+| Infrastructure config | Registry, service account, GCS bucket always from function env (not request) |
+| Backward compatibility | Empty request body triggers default scan (Cloud Scheduler) |
+| VM naming | Includes `scan_uuid[:8]` for traceability |
+
 ### Risks
 
 | Risk | Mitigation |
@@ -151,6 +162,7 @@ Cancel signals are written to GCS (`control/{scan_uuid}/control.json`) by the re
 | Forged cancel signals | GCS IAM restricts write access to reporter SA |
 | Dead letter data exposure | GCS bucket IAM, no public access |
 | Replay attacks on callback | Callback URL includes job_id, reporter validates once-only |
+| Unauthorized scan dispatch | Cloud Function requires IAM authentication (Cloud Functions Invoker role) |
 
 ---
 
