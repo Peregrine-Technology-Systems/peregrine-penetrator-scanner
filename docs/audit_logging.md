@@ -32,6 +32,9 @@ This document defines the structured audit logging strategy for the Peregrine Pe
 | `report_generated` | Reporter | Report artifacts written to GCS |
 | `report_failed` | Reporter | Report generation failed |
 | `data_purged` | Backend | Retention policy deleted expired records |
+| `scan_cancelled` | Scanner | Scan stopped via GCS control.json cancel signal |
+| `heartbeat_sent` | Scanner | Liveness heartbeat POSTed to reporter (every 30s) |
+| `callback_failed` | Scanner | Completion callback failed after 3 retries — dead letter written |
 | `legal_hold_set` | Backend | Scan placed under legal hold |
 | `legal_hold_released` | Backend | Legal hold removed from scan |
 
