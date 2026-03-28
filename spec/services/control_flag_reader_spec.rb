@@ -1,3 +1,4 @@
+# rubocop:disable RSpec/VerifiedDoubles — GCS classes can't be loaded (conflicts with storage_service_spec mocks)
 require 'sequel_helper'
 
 RSpec.describe ControlFlagReader do
@@ -61,3 +62,4 @@ RSpec.describe ControlFlagReader do
     end
   end
 end
+# rubocop:enable RSpec/VerifiedDoubles

@@ -23,7 +23,9 @@ class ScanOrchestrator
     @control_plane = start_control_plane
     Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
 
-    if profile.smoke
+    if profile.smoke_test
+      SmokeTestRunner.new(scan).run
+    elsif profile.smoke
       run_smoke_checks
     else
       run_scan_phases
