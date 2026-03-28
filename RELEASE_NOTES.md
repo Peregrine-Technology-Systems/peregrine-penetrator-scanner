@@ -15,7 +15,7 @@
 - Reliability: scan_started.json marker written to GCS on scan start (#384)
 - docs: comprehensive ARCHITECTURE.md with Mermaid diagrams — scan flow, control plane protocol, VM lifecycle, data model, reliability guarantees
 - docs: README overhaul with Mermaid diagrams, full documentation index, updated metrics
-- PDF generation is local-only (not committed to public repo), uses Peregrine branded LaTeX template
+- PDF pipeline: branded Puppeteer pipeline with Mermaid diagram rendering (local-only, not committed to public repo)
 - Deploy smoke test: staging/production only, stubs reporter calls, validates baked image on ephemeral VM (#396)
 
 ## v0.3.1 — 2026-03-23
