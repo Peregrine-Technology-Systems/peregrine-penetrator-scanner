@@ -174,29 +174,56 @@ def scavenge_vms(request):
     return summary, 200
 
 
+def trigger_development(request):
+    """Launch a scan VM in development mode (clone at boot)."""
+    return _trigger_scan(request, default_mode='development',
+                         default_tag='development')
+
+
+def trigger_staging(request):
+    """Launch a scan VM in staging mode (baked image)."""
+    return _trigger_scan(request, default_mode='staging',
+                         default_tag='staging')
+
+
+def trigger_production(request):
+    """Launch a scan VM in production mode (baked image, spot pricing)."""
+    return _trigger_scan(request, default_mode='production',
+                         default_tag='production')
+
+
 def trigger_scan(request):
-    """HTTP Cloud Function to launch a scan VM.
+    """Backward-compatible entry point (Cloud Scheduler, legacy callers).
+
+    Defaults to production mode when scan_mode is not specified.
+    """
+    return _trigger_scan(request, default_mode='production',
+                         default_tag='production')
+
+
+def _trigger_scan(request, default_mode, default_tag):
+    """Internal: launch a scan VM.
 
     Accepts optional JSON body from Reporter dispatch:
       - scan_uuid, profile, target_url, target_name, target_urls
       - callback_url, job_id, reporter_base_url
-      - scan_mode, image_tag
+      - scan_mode, image_tag (override defaults from the environment function)
 
-    All fields fall back to defaults when omitted (backward compatible
-    with Cloud Scheduler which sends no body).
+    The per-environment function sets sensible defaults; the caller can
+    override scan_mode/image_tag if needed (e.g., to control scan depth).
     """
     data = request.get_json(silent=True) or {}
 
     scan_uuid = data.get('scan_uuid', f'scan-{int(time.time())}')
     profile = data.get('profile', 'standard')
+    scan_mode = data.get('scan_mode', default_mode)
+    image_tag = data.get('image_tag', default_tag)
     target_url = data.get('target_url',
                           'https://auxscan.app.data-estate.cloud')
     target_name = data.get('target_name', 'AuxScan Production')
     callback_url = data.get('callback_url', '')
     job_id = data.get('job_id', '')
     reporter_base_url = data.get('reporter_base_url', '')
-    scan_mode = data.get('scan_mode', 'production')
-    image_tag = data.get('image_tag', 'production')
 
     # Wrap single URL into JSON array for TARGET_URLS
     target_urls = data.get('target_urls')
@@ -217,6 +244,15 @@ def trigger_scan(request):
         startup_script = f.read()
 
     client = compute_v1.InstancesClient()
+
+    # Production uses spot pricing for ~60% cost savings
+    if scan_mode == 'production':
+        scheduling = compute_v1.Scheduling(
+            provisioning_model='SPOT',
+            instance_termination_action='DELETE',
+        )
+    else:
+        scheduling = compute_v1.Scheduling()
 
     instance = compute_v1.Instance(
         name=instance_name,
@@ -263,10 +299,7 @@ def trigger_scan(request):
             compute_v1.Items(key='IMAGE_TAG', value=image_tag),
             compute_v1.Items(key='startup-script', value=startup_script),
         ]),
-        scheduling=compute_v1.Scheduling(
-            provisioning_model='SPOT',
-            instance_termination_action='DELETE',
-        ),
+        scheduling=scheduling,
         labels={
             'env': scan_mode,
             'project': 'pentest',
