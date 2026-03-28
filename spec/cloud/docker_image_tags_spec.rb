@@ -30,7 +30,7 @@ RSpec.describe 'Docker image environment tagging' do # rubocop:disable RSpec/Des
     let(:script) { File.read(File.join(project_root, 'cloud/scheduler/main.py')) }
 
     it 'defaults image tag to production' do
-      expect(script).to include("'image_tag', 'production'")
+      expect(script).to include("default_tag='production'")
     end
   end
 end
