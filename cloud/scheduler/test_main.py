@@ -212,5 +212,144 @@ class TestScavengeVms(unittest.TestCase):
         mock_slack.assert_not_called()
 
 
+class TestTriggerScan(unittest.TestCase):
+    def _make_request(self, body=None):
+        request = MagicMock()
+        request.get_json.return_value = body
+        return request
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_defaults_when_no_body(self, mock_client_cls):
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        op = MagicMock()
+        client.insert.return_value = op
+
+        body, code, headers = main.trigger_scan(self._make_request(None))
+        result = json.loads(body)
+
+        self.assertEqual(code, 200)
+        self.assertEqual(result['status'], 'accepted')
+        self.assertIn('scan-', result['scan_uuid'])
+        self.assertIn('pentest-scan-', result['instance_name'])
+
+        # Verify default metadata values
+        instance = client.insert.call_args[1]['instance_resource']
+        metadata_dict = {
+            item.key: item.value for item in instance.metadata.items
+        }
+        self.assertEqual(metadata_dict['SCAN_PROFILE'], 'standard')
+        self.assertEqual(metadata_dict['TARGET_NAME'], 'AuxScan Production')
+        self.assertEqual(metadata_dict['SCAN_MODE'], 'production')
+        self.assertEqual(metadata_dict['IMAGE_TAG'], 'production')
+        self.assertIn('auxscan.app.data-estate.cloud',
+                       metadata_dict['TARGET_URLS'])
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_accepts_reporter_dispatch_params(self, mock_client_cls):
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        op = MagicMock()
+        client.insert.return_value = op
+
+        request = self._make_request({
+            'scan_uuid': 'abc-12345-def',
+            'profile': 'quick',
+            'target_url': 'https://example.com',
+            'target_name': 'Example App',
+            'callback_url': 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
+            'job_id': 'j1',
+            'reporter_base_url': 'https://reporter.example.com',
+        })
+
+        body, code, headers = main.trigger_scan(request)
+        result = json.loads(body)
+
+        self.assertEqual(result['scan_uuid'], 'abc-12345-def')
+        self.assertIn('pentest-scan-abc-1234', result['instance_name'])
+
+        instance = client.insert.call_args[1]['instance_resource']
+        metadata_dict = {
+            item.key: item.value for item in instance.metadata.items
+        }
+        self.assertEqual(metadata_dict['SCAN_PROFILE'], 'quick')
+        self.assertEqual(metadata_dict['TARGET_NAME'], 'Example App')
+        self.assertEqual(metadata_dict['TARGET_URLS'],
+                         json.dumps(['https://example.com']))
+        self.assertEqual(metadata_dict['SCAN_UUID'], 'abc-12345-def')
+        self.assertEqual(metadata_dict['JOB_ID'], 'j1')
+        self.assertEqual(
+            metadata_dict['CALLBACK_URL'],
+            'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
+        )
+        self.assertEqual(metadata_dict['REPORTER_BASE_URL'],
+                         'https://reporter.example.com')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_wraps_single_url_in_json_array(self, mock_client_cls):
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        request = self._make_request({
+            'target_url': 'https://single.example.com',
+        })
+        main.trigger_scan(request)
+
+        instance = client.insert.call_args[1]['instance_resource']
+        metadata_dict = {
+            item.key: item.value for item in instance.metadata.items
+        }
+        self.assertEqual(metadata_dict['TARGET_URLS'],
+                         '["https://single.example.com"]')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_passes_through_json_array_target_urls(self, mock_client_cls):
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        urls = '["https://a.com", "https://b.com"]'
+        request = self._make_request({'target_urls': urls})
+        main.trigger_scan(request)
+
+        instance = client.insert.call_args[1]['instance_resource']
+        metadata_dict = {
+            item.key: item.value for item in instance.metadata.items
+        }
+        self.assertEqual(metadata_dict['TARGET_URLS'], urls)
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_returns_json_content_type(self, mock_client_cls):
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        _, _, headers = main.trigger_scan(self._make_request(None))
+        self.assertEqual(headers['Content-Type'], 'application/json')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_labels_include_profile_and_env(self, mock_client_cls):
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        request = self._make_request({
+            'profile': 'deep',
+            'scan_mode': 'staging',
+        })
+        main.trigger_scan(request)
+
+        instance = client.insert.call_args[1]['instance_resource']
+        self.assertEqual(instance.labels['env'], 'staging')
+        self.assertEqual(instance.labels['profile'], 'deep')
+
+
 if __name__ == '__main__':
     unittest.main()
