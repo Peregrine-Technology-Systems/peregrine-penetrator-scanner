@@ -71,6 +71,32 @@ RSpec.describe HeartbeatSender do
     end
   end
 
+  describe '.stub_mode?' do
+    it 'returns true when SCAN_PROFILE is smoke-test' do
+      stub_const('ENV', ENV.to_h.merge('SCAN_PROFILE' => 'smoke-test'))
+      expect(described_class.stub_mode?).to be true
+    end
+
+    it 'returns false for normal profiles' do
+      stub_const('ENV', ENV.to_h.merge('SCAN_PROFILE' => 'standard'))
+      expect(described_class.stub_mode?).to be false
+    end
+  end
+
+  describe 'stub mode behavior' do
+    before do
+      stub_const('ENV', ENV.to_h.merge('SCAN_PROFILE' => 'smoke-test'))
+    end
+
+    it 'logs payload without making HTTP call' do
+      expect(Penetrator.logger).to receive(:info).with(/STUB/)
+
+      sender.send_heartbeat(status: 'running')
+
+      expect(WebMock).not_to have_requested(:post, heartbeat_url)
+    end
+  end
+
   describe '.enabled?' do
     it 'returns true when REPORTER_BASE_URL is set' do
       stub_const('ENV', ENV.to_h.merge('REPORTER_BASE_URL' => 'https://reporter.example.com'))
