@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.1 — 2026-03-23
+
 - Control plane: HeartbeatSender POSTs liveness to reporter every 30s with progress (#376)
 - Control plane: ControlPlaneLoop background thread combines heartbeat + cancel checks (#376, #378)
 - Control plane: Job ID passthrough in heartbeats and callbacks (#379)
@@ -15,7 +17,7 @@
 - Reliability: scan_started.json marker written to GCS on scan start (#384)
 - docs: comprehensive ARCHITECTURE.md with Mermaid diagrams — scan flow, control plane protocol, VM lifecycle, data model, reliability guarantees
 - docs: README overhaul with Mermaid diagrams, full documentation index, updated metrics
-- PDF pipeline: branded Puppeteer pipeline with Mermaid diagram rendering (local-only, not committed to public repo)
+- PDF generation is local-only (not committed to public repo), uses Peregrine branded LaTeX template
 - Deploy smoke test: staging/production only, stubs reporter calls, validates baked image on ephemeral VM (#396)
 
 ## v0.3.1 — 2026-03-23
