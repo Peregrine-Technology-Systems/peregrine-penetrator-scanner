@@ -100,4 +100,9 @@ if [ "$FAILED" -ne 0 ]; then
   exit 1
 fi
 
+# Record tested SHA so pre-push can skip re-running tests
+if [ "$DOCS_ONLY" = false ]; then
+  git rev-parse HEAD > .git/last-tested-sha 2>/dev/null || true
+fi
+
 echo "✅ All pre-commit checks passed"

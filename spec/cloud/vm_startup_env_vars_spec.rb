@@ -11,17 +11,16 @@ RSpec.describe 'vm-startup.sh environment variables' do # rubocop:disable RSpec/
       APP_ENV
       TARGET_NAME
       TARGET_URLS
-      ANTHROPIC_API_KEY
       NVD_API_KEY
       SLACK_WEBHOOK_URL
-      NOTIFICATION_EMAIL
-      SMTP_HOST
-      SMTP_PORT
-      SMTP_USERNAME
-      SMTP_PASSWORD
       GCS_BUCKET
       GOOGLE_CLOUD_PROJECT
       VERSION
+      SCAN_UUID
+      CALLBACK_URL
+      SCAN_CALLBACK_SECRET
+      JOB_ID
+      REPORTER_BASE_URL
     ]
   end
 
@@ -45,9 +44,5 @@ RSpec.describe 'vm-startup.sh environment variables' do # rubocop:disable RSpec/
 
   describe 'cloud/lib/vm-startup.sh' do
     include_examples 'passes all required env vars', 'cloud/lib/vm-startup.sh'
-  end
-
-  describe 'cloud/scheduler/vm-startup.sh' do
-    include_examples 'passes all required env vars', 'cloud/scheduler/vm-startup.sh'
   end
 end
