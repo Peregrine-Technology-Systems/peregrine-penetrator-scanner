@@ -11,6 +11,15 @@ class StorageService
     end
   end
 
+  def upload_json(remote_path, data)
+    tmpfile = Tempfile.new(['json', '.json'])
+    tmpfile.write(data.to_json)
+    tmpfile.close
+    upload(tmpfile.path, remote_path, content_type: 'application/json')
+  ensure
+    tmpfile&.unlink
+  end
+
   def signed_url(remote_path, expires_in: 7.days)
     if gcs_configured?
       gcs_signed_url(remote_path, expires_in)
