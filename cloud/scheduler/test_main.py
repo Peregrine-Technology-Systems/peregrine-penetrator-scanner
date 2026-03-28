@@ -351,5 +351,112 @@ class TestTriggerScan(unittest.TestCase):
         self.assertEqual(instance.labels['profile'], 'deep')
 
 
+class TestPerEnvironmentFunctions(unittest.TestCase):
+    """Per-environment wrappers insulate callers from VM internals."""
+
+    def _make_request(self, body=None):
+        request = MagicMock()
+        request.get_json.return_value = body
+        return request
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_trigger_development_sets_development_mode(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_development(self._make_request({'profile': 'quick'}))
+
+        instance = client.insert.call_args[1]['instance_resource']
+        md = {i.key: i.value for i in instance.metadata.items}
+        self.assertEqual(md['SCAN_MODE'], 'development')
+        self.assertEqual(md['IMAGE_TAG'], 'development')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_trigger_staging_sets_staging_mode(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_staging(self._make_request({'profile': 'standard'}))
+
+        instance = client.insert.call_args[1]['instance_resource']
+        md = {i.key: i.value for i in instance.metadata.items}
+        self.assertEqual(md['SCAN_MODE'], 'staging')
+        self.assertEqual(md['IMAGE_TAG'], 'staging')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_trigger_production_sets_production_mode(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_production(self._make_request(None))
+
+        instance = client.insert.call_args[1]['instance_resource']
+        md = {i.key: i.value for i in instance.metadata.items}
+        self.assertEqual(md['SCAN_MODE'], 'production')
+        self.assertEqual(md['IMAGE_TAG'], 'production')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_production_uses_spot_pricing(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_production(self._make_request(None))
+
+        instance = client.insert.call_args[1]['instance_resource']
+        self.assertEqual(instance.scheduling.provisioning_model, 'SPOT')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_staging_does_not_use_spot_pricing(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_staging(self._make_request(None))
+
+        instance = client.insert.call_args[1]['instance_resource']
+        self.assertNotEqual(
+            getattr(instance.scheduling, 'provisioning_model', None),
+            'SPOT',
+        )
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_caller_can_override_scan_mode(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        # Caller overrides scan_mode on a production endpoint
+        request = self._make_request({'scan_mode': 'staging'})
+        main.trigger_production(request)
+
+        instance = client.insert.call_args[1]['instance_resource']
+        md = {i.key: i.value for i in instance.metadata.items}
+        self.assertEqual(md['SCAN_MODE'], 'staging')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_profile_passed_through_to_vm(self, mock_cls):
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        request = self._make_request({'profile': 'deep'})
+        main.trigger_production(request)
+
+        instance = client.insert.call_args[1]['instance_resource']
+        md = {i.key: i.value for i in instance.metadata.items}
+        self.assertEqual(md['SCAN_PROFILE'], 'deep')
+
+
 if __name__ == '__main__':
     unittest.main()
