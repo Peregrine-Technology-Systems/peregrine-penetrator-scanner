@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.1 — 2026-03-23
+
 - Control plane: HeartbeatSender POSTs liveness to reporter every 30s with progress (#376)
 - Control plane: ControlPlaneLoop background thread combines heartbeat + cancel checks (#376, #378)
 - Control plane: Job ID passthrough in heartbeats and callbacks (#379)
