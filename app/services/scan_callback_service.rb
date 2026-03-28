@@ -14,7 +14,17 @@ class ScanCallbackService
     return false unless self.class.enabled?
 
     payload = build_payload
+
+    if self.class.stub_mode?
+      Penetrator.logger.info("[ScanCallbackService] STUB: #{payload.to_json}")
+      return true
+    end
+
     post_with_retries(payload)
+  end
+
+  def self.stub_mode?
+    ENV.fetch('SCAN_PROFILE', '') == 'smoke-test'
   end
 
   def self.enabled?
