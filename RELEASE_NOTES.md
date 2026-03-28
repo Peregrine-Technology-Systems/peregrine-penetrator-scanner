@@ -12,6 +12,7 @@
 - feat: add `deep` scan profile as alias for `thorough` (Reporter API compatibility)
 - fix: sync scheduler vm-startup.sh with authoritative cloud/lib/vm-startup.sh (control plane env vars)
 - feat: smoke test script for trigger_scan Cloud Function deployment verification (#413)
+- feat: per-environment Cloud Functions — trigger_development, trigger_staging, trigger_production (#427)
 
 ## v0.3.1 — 2026-03-23
 
