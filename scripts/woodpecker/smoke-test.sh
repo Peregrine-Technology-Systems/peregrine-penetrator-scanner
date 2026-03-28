@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Post-deploy smoke test: trigger a smoke profile scan and verify JSON output in GCS
-# Uses the 'smoke' profile which validates boot, tools, GCS, and secrets without scanning
+# Post-deploy smoke test: trigger smoke-test profile scan and verify GCS outputs
+# Uses 'smoke-test' profile: canned findings, stubbed reporter calls, validates full pipeline
+# Runs on staging and production only (development uses interactive VM)
 
 BRANCH="${CI_COMMIT_BRANCH}"
 
 case "$BRANCH" in
-  development) GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="latest" ;;
   staging)     GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="staging" ;;
   main)        GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="production" ;;
-  *)           echo "No smoke test for branch: $BRANCH"; exit 0 ;;
+  *)           echo "No smoke test for branch: $BRANCH (staging/main only)"; exit 0 ;;
 esac
 
 GCS_BUCKET="${GCP_PROJECT}-pentest-reports"
 POLL_INTERVAL=15
-MAX_WAIT=180  # 3 minutes max for smoke profile
+MAX_WAIT=180  # 3 minutes max for smoke-test profile
 
 echo "=== Smoke Test: ${BRANCH} ==="
 
-# Launch a smoke scan VM
-scripts/woodpecker/trigger-scan.sh "${BRANCH}" smoke "${IMAGE_TAG}"
+# Launch a smoke-test scan VM (canned findings + stubbed reporter calls)
+scripts/woodpecker/trigger-scan.sh "${BRANCH}" smoke-test "${IMAGE_TAG}"
 
 VM_PREFIX="pentest-scan-${BRANCH}-"
 echo "Waiting for smoke scan VM to complete..."

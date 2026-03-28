@@ -19,6 +19,11 @@ class HeartbeatSender
       timestamp: Time.current.iso8601
     }.compact
 
+    if self.class.stub_mode?
+      Penetrator.logger.info("[HeartbeatSender] STUB: #{payload.to_json}")
+      return
+    end
+
     @connection.post(@url) do |req|
       req.headers['Content-Type'] = 'application/json'
       req.headers['Authorization'] = "Bearer #{@secret}"
@@ -26,6 +31,10 @@ class HeartbeatSender
     end
   rescue StandardError => e
     Penetrator.logger.warn("[HeartbeatSender] Failed: #{e.message}")
+  end
+
+  def self.stub_mode?
+    ENV.fetch('SCAN_PROFILE', '') == 'smoke-test'
   end
 
   def self.enabled?

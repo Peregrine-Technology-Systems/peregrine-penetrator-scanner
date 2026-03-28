@@ -272,6 +272,34 @@ See [docs/schema_versioning.md](schema_versioning.md) for the full contract spec
 | **scanner-base** | Ubuntu + ZAP + Nuclei + sqlmap + ffuf + Nikto + Python deps | Monthly |
 | **scanner** (app) | Ruby 3.2.2 + bundle install + app code | Every staging build |
 
+## Deploy Verification (Smoke Test)
+
+Every deployment to staging and production triggers a smoke test that launches an ephemeral scan VM to verify the baked image works end-to-end:
+
+```mermaid
+flowchart TD
+    M[Merge to staging/main] --> B[build.yaml<br/>Bake image]
+    B --> D[deploy.yaml<br/>Tag image]
+    D --> ST[smoke-test.yaml<br/>Trigger scan VM]
+    ST --> VM[Ephemeral VM boots]
+    VM --> Pull[Pull baked image]
+    Pull --> Run["bin/scan --profile smoke-test"]
+    Run --> Findings[Create 3 canned findings]
+    Findings --> GCS[Write scan_results.json to GCS]
+    GCS --> Stub[Stub reporter calls<br/>Log but do not POST]
+    Stub --> Validate[smoke-test.sh validates GCS artifacts]
+    Validate --> Pass[Report pass/fail]
+    VM --> Term[VM self-terminates]
+```
+
+| Environment | Smoke test? | Why |
+|-------------|-------------|-----|
+| Development | No | Uses interactive VM (clone-at-boot), not a baked image |
+| Staging | Yes | Verifies `scanner:staging` image works |
+| Production | Yes | Verifies `scanner:production` image works |
+
+**Stub mode**: During smoke tests, `HeartbeatSender` and `ScanCallbackService` log their payloads at INFO level but do not make HTTP calls to the reporter. The reporter didn't dispatch the scan, so there's no matching job record. All GCS writes proceed normally — that's the real verification.
+
 ## CI/CD Pipeline
 
 ```mermaid
