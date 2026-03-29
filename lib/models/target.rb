@@ -9,7 +9,11 @@ class Target < Sequel::Model
 
   def before_create
     self.id ||= SecureRandom.uuid
-    self.auth_type ||= 'none'
+    super
+  end
+
+  def before_validation
+    self.auth_type ||= 'none' if new?
     super
   end
 
