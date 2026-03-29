@@ -37,7 +37,7 @@
 - feat: per-environment Cloud Functions — trigger_development, trigger_staging, trigger_production (#427)
 - fix: use `bundle exec bin/scan` in Dockerfile CMD and vm-startup.sh — gems in vendor/bundle require bundler (#443)
 - chore: remove legacy trigger-production-scan Cloud Function (#434)
-- fix: Target model defaults auth_type to 'none' on create — prevents ValidationFailed on Cloud Function dispatch (#442)
+- fix: Target model defaults auth_type in before_validation, not before_create — Sequel validates before hooks (#442)
 - feat: skip-CI guard for promotion and sync-back merges with identical code trees (#457)
 - fix: version-bump.sh guards for sync-back commits and empty Unreleased — prevents infinite bump loop (#474)
 - fix: Docker image promotion uses digest instead of tag — prevents stale production images (#482)
