@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.1 — 2026-03-23
+
 - feat: populate CVSS scores, vectors, and EPSS data per finding (#521)
 - feat: extract CVSS score, vector, and EPSS from Nuclei template metadata (#523)
 - feat: add CVSS vector extraction to NVD client (#524)
