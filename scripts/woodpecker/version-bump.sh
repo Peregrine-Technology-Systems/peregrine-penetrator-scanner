@@ -21,10 +21,18 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
-# Guard: skip if this pipeline was triggered by a version-bump commit (prevents infinite loop)
+# Guard: skip version bump for automated commits (prevents infinite loop)
 COMMIT_MSG="${CI_COMMIT_MESSAGE:-}"
 if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
-  echo "Skipping — this commit is a version-bump commit (prevents loop)"
+  echo "Skipping — version-bump commit (prevents loop)"
+  exit 0
+fi
+if echo "$COMMIT_MSG" | grep -qiE '^Sync:|sync/version-|version files to'; then
+  echo "Skipping — sync-back commit"
+  exit 0
+fi
+if echo "$COMMIT_MSG" | grep -qE '^docs:|^docs\('; then
+  echo "Skipping — documentation-only commit"
   exit 0
 fi
 
@@ -46,6 +54,17 @@ if [ -n "$LAST_TAG" ]; then
   COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || echo "")
 else
   COMMITS=$(git log --pretty=format:"%s" 2>/dev/null || echo "")
+fi
+
+# Guard: skip if Unreleased section is empty (no content to release)
+UNRELEASED_CONTENT=$(sed -n '/^## Unreleased$/,/^## /{/^## /d; /^$/d; p}' RELEASE_NOTES.md 2>/dev/null || echo "")
+if [ -z "$UNRELEASED_CONTENT" ]; then
+  # Double-check: are there untagged content commits?
+  CONTENT_COMMITS=$(echo "$COMMITS" | grep -cvE '^release:|^Sync:|^Merge|^docs:|^chore:' || true)
+  if [ "$CONTENT_COMMITS" = "0" ]; then
+    echo "Skipping — no unreleased content and no untagged content commits"
+    exit 0
+  fi
 fi
 
 BUMP_TYPE="patch"
