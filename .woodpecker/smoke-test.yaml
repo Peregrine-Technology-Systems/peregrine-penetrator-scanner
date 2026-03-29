@@ -24,3 +24,14 @@ steps:
     commands:
       - scripts/woodpecker/smoke-test.sh
     failure: ignore
+
+  - name: cleanup-smoke-vms
+    image: bash
+    environment:
+      GCP_PROJECT_DEV:
+        from_secret: gcp_project_dev
+    commands:
+      - scripts/woodpecker/cleanup-smoke-vms.sh
+    when:
+      - status: [success, failure]
+    depends_on: [smoke-test]
