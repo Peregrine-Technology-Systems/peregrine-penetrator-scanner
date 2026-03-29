@@ -57,7 +57,7 @@ class ScanOrchestrator
     ControlPlaneLoop.new(
       scan_uuid: ENV.fetch('SCAN_UUID', scan.id),
       job_id: ENV.fetch('JOB_ID', nil),
-      reporter_base_url: ENV.fetch('REPORTER_BASE_URL', ''),
+      callback_url: ENV.fetch('CALLBACK_URL', ''),
       gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
       callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', '')
     ).start
