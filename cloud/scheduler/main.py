@@ -192,15 +192,6 @@ def trigger_production(request):
                          default_tag='production')
 
 
-def trigger_scan(request):
-    """Backward-compatible entry point (Cloud Scheduler, legacy callers).
-
-    Defaults to production mode when scan_mode is not specified.
-    """
-    return _trigger_scan(request, default_mode='production',
-                         default_tag='production')
-
-
 def _trigger_scan(request, default_mode, default_tag):
     """Internal: launch a scan VM.
 
