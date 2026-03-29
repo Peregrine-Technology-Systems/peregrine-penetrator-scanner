@@ -126,19 +126,37 @@ git tag -a "${TAG}" -m "Release ${TAG}"
 git push origin "${TAG}"
 echo "Created and pushed tag: ${TAG}"
 
-# Tag Docker image: scanner:staging → scanner:vX.Y.Z + scanner:production
+# Tag Docker image by DIGEST: scanner:staging → scanner:vX.Y.Z + scanner:production
+# Using digest ensures the exact bytes that passed staging CI get promoted,
+# even if the staging tag was re-pointed by a concurrent build.
 if [ -n "${DOCKER_REGISTRY:-}" ]; then
   gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-  echo "Tagging scanner:staging as scanner:${TAG}"
-  gcloud artifacts docker tags add \
+  STAGING_DIGEST=$(gcloud artifacts docker images describe \
     "${DOCKER_REGISTRY}/scanner:staging" \
-    "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
+    --format='value(image_summary.digest)' 2>/dev/null || echo "")
 
-  echo "Tagging scanner:staging as scanner:production"
-  gcloud artifacts docker tags add \
-    "${DOCKER_REGISTRY}/scanner:staging" \
-    "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
+  if [ -n "$STAGING_DIGEST" ]; then
+    echo "Staging digest: ${STAGING_DIGEST}"
+
+    echo "Tagging scanner@${STAGING_DIGEST} as scanner:${TAG}"
+    gcloud artifacts docker tags add \
+      "${DOCKER_REGISTRY}/scanner@${STAGING_DIGEST}" \
+      "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
+
+    echo "Tagging scanner@${STAGING_DIGEST} as scanner:production"
+    gcloud artifacts docker tags add \
+      "${DOCKER_REGISTRY}/scanner@${STAGING_DIGEST}" \
+      "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
+  else
+    echo "WARNING: Could not resolve staging digest — falling back to tag-based promotion"
+    gcloud artifacts docker tags add \
+      "${DOCKER_REGISTRY}/scanner:staging" \
+      "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
+    gcloud artifacts docker tags add \
+      "${DOCKER_REGISTRY}/scanner:staging" \
+      "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
+  fi
 fi
 
 # Send the production release Slack notification directly (notify-status would
