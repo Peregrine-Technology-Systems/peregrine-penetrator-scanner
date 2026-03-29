@@ -35,6 +35,7 @@
 - feat: skip-CI guard for promotion and sync-back merges with identical code trees (#457)
 - fix: version-bump.sh guards for sync-back commits and empty Unreleased — prevents infinite bump loop (#474)
 - fix: Docker image promotion uses digest instead of tag — prevents stale production images (#482)
+- fix: CI pipeline guarantees production image contains main branch code — build verification, digest pinning, SHA tagging (#484)
 
 ## v0.3.1 — 2026-03-23
 
