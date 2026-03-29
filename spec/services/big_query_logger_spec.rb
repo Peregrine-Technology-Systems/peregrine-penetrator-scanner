@@ -195,7 +195,7 @@ RSpec.describe BigQueryLogger do
         row = rows.first
         expect(row[:fingerprint]).to eq(finding.fingerprint)
         expect(row[:severity]).to eq('high')
-        expect(row[:schema_version]).to eq('1.0')
+        expect(row[:schema_version]).to eq('1.1')
         expect(row[:cve_id]).to eq('CVE-2024-5678')
         expect(row[:cvss_score]).to eq(7.5)
         expect(row[:parameter]).to eq('q')
