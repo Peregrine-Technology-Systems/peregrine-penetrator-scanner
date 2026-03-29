@@ -13,6 +13,11 @@ class Scan < Sequel::Model
     super
   end
 
+  def before_validation
+    self.status ||= 'pending' if new?
+    super
+  end
+
   def validate
     super
     validates_includes %w[quick standard thorough deep smoke smoke-test], :profile
