@@ -26,6 +26,7 @@
 - fix: use `bundle exec bin/scan` in Dockerfile CMD and vm-startup.sh — gems in vendor/bundle require bundler (#443)
 - chore: remove legacy trigger-production-scan Cloud Function (#434)
 - fix: Target model defaults auth_type to 'none' on create — prevents ValidationFailed on Cloud Function dispatch (#442)
+- feat: skip-CI guard for promotion and sync-back merges with identical code trees (#457)
 
 ## v0.3.1 — 2026-03-23
 
