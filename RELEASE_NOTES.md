@@ -27,6 +27,7 @@
 - chore: remove legacy trigger-production-scan Cloud Function (#434)
 - fix: Target model defaults auth_type to 'none' on create — prevents ValidationFailed on Cloud Function dispatch (#442)
 - feat: skip-CI guard for promotion and sync-back merges with identical code trees (#457)
+- fix: version-bump.sh guards for sync-back commits and empty Unreleased — prevents infinite bump loop (#474)
 
 ## v0.3.1 — 2026-03-23
 
