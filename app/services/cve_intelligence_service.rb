@@ -55,7 +55,7 @@ class CveIntelligenceService
   end
 
   def enrich_non_cve_findings(scan)
-    findings = scan.findings_dataset.where(cve_id: [nil, '']).where(cvss_score: nil)
+    findings = scan.findings_dataset.where(Sequel.|({ cve_id: nil }, { cve_id: '' })).where(cvss_score: nil)
     Penetrator.logger.info("[CveIntelligence] Mapping CVSS for #{findings.count} non-CVE findings")
 
     findings.each { |f| SeverityCvssMapper.enrich(f) }
