@@ -12,7 +12,7 @@ RSpec.describe CveIntelligenceService do
             'descriptions' => [{ 'lang' => 'en', 'value' => 'Log4j RCE vulnerability' }],
             'metrics' => {
               'cvssMetricV31' => [{
-                'cvssData' => { 'baseScore' => 10.0 }
+                'cvssData' => { 'baseScore' => 10.0, 'vectorString' => 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H' }
               }]
             },
             'references' => [
@@ -67,6 +67,12 @@ RSpec.describe CveIntelligenceService do
       expect(finding.cvss_score).to eq(10.0)
     end
 
+    it 'enriches the finding with CVSS vector' do
+      service.enrich_finding(finding)
+      finding.reload
+      expect(finding.cvss_vector).to eq('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H')
+    end
+
     it 'enriches the finding with EPSS score' do
       service.enrich_finding(finding)
       finding.reload
@@ -115,6 +121,30 @@ RSpec.describe CveIntelligenceService do
       stub_request(:get, /api.first.org/).to_return(status: 500)
 
       expect { service.enrich_finding(finding) }.not_to raise_error
+    end
+
+    it 'skips NVD API when finding already has cvss_score and cvss_vector' do
+      finding.update(cvss_score: 10.0, cvss_vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H')
+
+      service.enrich_finding(finding)
+
+      expect(WebMock).not_to have_requested(:get, /services.nvd.nist.gov/)
+    end
+
+    it 'skips EPSS API when finding already has epss_score' do
+      finding.update(epss_score: 0.975)
+
+      service.enrich_finding(finding)
+
+      expect(WebMock).not_to have_requested(:get, /api.first.org/)
+    end
+
+    it 'still checks KEV even when CVSS and EPSS are present' do
+      finding.update(cvss_score: 10.0, cvss_vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H', epss_score: 0.975)
+
+      service.enrich_finding(finding)
+      finding.reload
+      expect(finding.kev_known_exploited).to be true
     end
 
     it 'falls back to CVSS v3.0 when v3.1 is not available' do
