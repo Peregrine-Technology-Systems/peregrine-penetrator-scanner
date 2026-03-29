@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
+
 ## v0.3.1 — 2026-03-23
 
 - feat: populate CVSS scores, vectors, and EPSS data per finding (#521)
