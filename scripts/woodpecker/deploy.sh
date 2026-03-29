@@ -15,12 +15,24 @@ case "$BRANCH" in
     scripts/woodpecker/trigger-scan.sh staging standard
     ;;
   main)
-    echo "=== Promoting scanner:staging → scanner:production ==="
+    echo "=== Promoting scanner:staging → scanner:production (by digest) ==="
     gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-    gcloud artifacts docker tags add \
+
+    # Resolve staging digest — ensures exact bytes get promoted
+    STAGING_DIGEST=$(gcloud artifacts docker images describe \
       "${REGISTRY}/scanner:staging" \
+      --format='value(image_summary.digest)' 2>/dev/null || echo "")
+
+    if [ -z "$STAGING_DIGEST" ]; then
+      echo "ERROR: Could not resolve scanner:staging digest — aborting promotion"
+      exit 1
+    fi
+
+    echo "Staging digest: ${STAGING_DIGEST}"
+    gcloud artifacts docker tags add \
+      "${REGISTRY}/scanner@${STAGING_DIGEST}" \
       "${REGISTRY}/scanner:production"
-    echo "scanner:production now points to the same image as scanner:staging"
+    echo "scanner:production → ${STAGING_DIGEST}"
     ;;
   *)
     echo "No deployment for branch: $BRANCH"
