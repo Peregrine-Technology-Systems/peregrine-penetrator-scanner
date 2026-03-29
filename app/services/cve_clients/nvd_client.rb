@@ -28,6 +28,14 @@ module CveClients
       v31 || v30 || v2
     end
 
+    def extract_cvss_vector(cve_data)
+      metrics = cve_data['metrics'] || {}
+      v31 = metrics['cvssMetricV31']&.first&.dig('cvssData', 'vectorString')
+      v30 = metrics['cvssMetricV30']&.first&.dig('cvssData', 'vectorString')
+      v2 = metrics['cvssMetricV2']&.first&.dig('cvssData', 'vectorString')
+      v31 || v30 || v2
+    end
+
     def extract_description(cve_data)
       descriptions = cve_data['descriptions'] || []
       en_desc = descriptions.find { |d| d['lang'] == 'en' }

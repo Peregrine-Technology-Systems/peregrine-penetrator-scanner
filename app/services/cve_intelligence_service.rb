@@ -20,24 +20,22 @@ class CveIntelligenceService
     return if finding.cve_id.blank?
 
     enrichments = {}
-    enrich_from_nvd(finding, enrichments)
-    enrich_from_epss(finding, enrichments)
+    needs_nvd = finding.cvss_score.nil? || finding.cvss_vector.nil?
+    enrich_from_nvd(finding, enrichments) if needs_nvd
+    enrich_from_epss(finding, enrichments) if finding.epss_score.nil?
     enrichments[:kev_known_exploited] = @kev.exploited?(finding.cve_id)
 
-    finding.update(enrichments.compact)
+    finding.update(enrichments.compact) if enrichments.any?
     log_enrichment(finding.cve_id, enrichments)
+    needs_nvd || finding.epss_score.nil?
   rescue StandardError => e
     Penetrator.logger.error("[CveIntelligence] Failed to enrich #{finding.cve_id}: #{e.message}")
+    false
   end
 
   def enrich_scan(scan)
-    findings_with_cve = scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '')
-    Penetrator.logger.info("[CveIntelligence] Enriching #{findings_with_cve.count} findings with CVE data")
-
-    findings_with_cve.each do |finding|
-      enrich_finding(finding)
-      sleep(0.7)
-    end
+    enrich_cve_findings(scan)
+    enrich_non_cve_findings(scan)
   end
 
   def query_osv(package_name, ecosystem: 'RubyGems', version: nil)
@@ -46,11 +44,29 @@ class CveIntelligenceService
 
   private
 
+  def enrich_cve_findings(scan)
+    findings = scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '')
+    Penetrator.logger.info("[CveIntelligence] Enriching #{findings.count} findings with CVE data")
+
+    findings.each do |finding|
+      called_api = enrich_finding(finding)
+      sleep(0.7) if called_api
+    end
+  end
+
+  def enrich_non_cve_findings(scan)
+    findings = scan.findings_dataset.where(cve_id: [nil, '']).where(cvss_score: nil)
+    Penetrator.logger.info("[CveIntelligence] Mapping CVSS for #{findings.count} non-CVE findings")
+
+    findings.each { |f| SeverityCvssMapper.enrich(f) }
+  end
+
   def enrich_from_nvd(finding, enrichments)
     nvd_data = @nvd.fetch(finding.cve_id)
     return unless nvd_data
 
     enrichments[:cvss_score] = @nvd.extract_cvss(nvd_data)
+    enrichments[:cvss_vector] = @nvd.extract_cvss_vector(nvd_data)
     enrichments[:evidence] = (finding.evidence || {}).merge(
       'nvd_description' => @nvd.extract_description(nvd_data),
       'nvd_references' => @nvd.extract_references(nvd_data),

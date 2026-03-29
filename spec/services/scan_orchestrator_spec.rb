@@ -142,6 +142,22 @@ RSpec.describe ScanOrchestrator do
       expect { orchestrator.execute }.not_to raise_error
     end
 
+    it 'calls CveIntelligenceService.enrich_scan after normalization' do
+      enrichment_service = instance_double(CveIntelligenceService)
+      allow(CveIntelligenceService).to receive(:new).and_return(enrichment_service)
+      expect(enrichment_service).to receive(:enrich_scan).with(scan)
+
+      orchestrator.execute
+    end
+
+    it 'completes scan even when enrichment fails' do
+      allow(CveIntelligenceService).to receive(:new).and_raise(StandardError, 'API down')
+
+      orchestrator.execute
+      scan.refresh
+      expect(scan.status).to eq('completed')
+    end
+
     it 'marks scan as failed on unrecoverable error' do
       orchestrator_instance = orchestrator
       allow(orchestrator_instance).to receive(:run_phase).and_raise(StandardError, 'Something broke')
