@@ -2,10 +2,10 @@ class ControlPlaneLoop
   INTERVAL = 30
   TICK_TIMEOUT = 10
 
-  def initialize(scan_uuid:, job_id:, reporter_base_url:, gcs_bucket:, callback_secret:)
+  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:)
     @scan_uuid = scan_uuid
     @heartbeat = HeartbeatSender.new(
-      reporter_base_url:, scan_uuid:, job_id:, callback_secret:
+      callback_url:, scan_uuid:, job_id:, callback_secret:
     )
     @gcs_bucket = gcs_bucket
     @mutex = Mutex.new

@@ -3,7 +3,7 @@ require 'sequel_helper'
 RSpec.describe HeartbeatSender do
   let(:sender) do
     described_class.new(
-      reporter_base_url: 'https://reporter.example.com',
+      callback_url: 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
       scan_uuid: 'scan-123',
       job_id: 'job-456',
       callback_secret: 'secret-token'
@@ -98,13 +98,13 @@ RSpec.describe HeartbeatSender do
   end
 
   describe '.enabled?' do
-    it 'returns true when REPORTER_BASE_URL is set' do
-      stub_const('ENV', ENV.to_h.merge('REPORTER_BASE_URL' => 'https://reporter.example.com'))
+    it 'returns true when CALLBACK_URL is set' do
+      stub_const('ENV', ENV.to_h.merge('CALLBACK_URL' => 'https://reporter.example.com/callbacks/scan_complete'))
       expect(described_class.enabled?).to be true
     end
 
-    it 'returns false when REPORTER_BASE_URL is not set' do
-      stub_const('ENV', ENV.to_h.except('REPORTER_BASE_URL'))
+    it 'returns false when CALLBACK_URL is not set' do
+      stub_const('ENV', ENV.to_h.except('CALLBACK_URL'))
       expect(described_class.enabled?).to be false
     end
   end
