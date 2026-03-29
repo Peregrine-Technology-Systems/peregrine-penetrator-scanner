@@ -69,6 +69,39 @@ RSpec.describe ResultParsers::NucleiParser do
       expect(log4j[:evidence][:curl_command]).to be_present
     end
 
+    it 'extracts CVSS score from classification' do
+      results = parser.parse
+
+      log4j = results.find { |f| f[:title] =~ /Log4j/ }
+      expect(log4j[:cvss_score]).to eq(10.0)
+
+      confluence = results.find { |f| f[:title] =~ /Confluence/ }
+      expect(confluence[:cvss_score]).to eq(9.8)
+    end
+
+    it 'extracts CVSS vector from classification' do
+      results = parser.parse
+
+      log4j = results.find { |f| f[:title] =~ /Log4j/ }
+      expect(log4j[:cvss_vector]).to eq('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H')
+    end
+
+    it 'extracts EPSS score from classification' do
+      results = parser.parse
+
+      log4j = results.find { |f| f[:title] =~ /Log4j/ }
+      expect(log4j[:epss_score]).to eq(0.97565)
+    end
+
+    it 'returns nil CVSS/EPSS when classification lacks them' do
+      results = parser.parse
+
+      tech_detect = results.find { |f| f[:title] == 'Technology Detection' }
+      expect(tech_detect[:cvss_score]).to be_nil
+      expect(tech_detect[:cvss_vector]).to be_nil
+      expect(tech_detect[:epss_score]).to be_nil
+    end
+
     it 'handles nil CVE and CWE gracefully' do
       results = parser.parse
 

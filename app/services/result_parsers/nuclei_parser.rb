@@ -28,6 +28,9 @@ module ResultParsers
           parameter: data['matched-param'],
           cwe_id: extract_cwe(data),
           cve_id: extract_cve(data),
+          cvss_score: extract_float(data, 'cvss-score'),
+          cvss_vector: data.dig('info', 'classification', 'cvss-metrics'),
+          epss_score: extract_float(data, 'epss-score'),
           evidence: {
             template_id: data['template-id'],
             template_url: data['template-url'],
@@ -49,6 +52,11 @@ module ResultParsers
       return nil unless cwe
 
       cwe.is_a?(Array) ? cwe.first : cwe.to_s
+    end
+
+    def extract_float(data, key)
+      val = data.dig('info', 'classification', key)
+      val&.to_f
     end
 
     def extract_cve(data)

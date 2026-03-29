@@ -29,6 +29,7 @@ RSpec.describe ScanResultsExporter do
            cwe_id: 'CWE-89',
            cve_id: 'CVE-2024-1234',
            cvss_score: 9.8,
+           cvss_vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
            epss_score: 0.95,
            kev_known_exploited: true,
            evidence: { 'description' => 'Injection in login form' },
@@ -68,7 +69,7 @@ RSpec.describe ScanResultsExporter do
     let(:envelope) { exporter.build_envelope }
 
     it 'includes schema_version' do
-      expect(envelope[:schema_version]).to eq('1.0')
+      expect(envelope[:schema_version]).to eq('1.1')
     end
 
     describe 'metadata' do
@@ -121,7 +122,7 @@ RSpec.describe ScanResultsExporter do
         expect(titles).not_to include('Duplicate Finding')
       end
 
-      it 'includes all enrichment fields' do
+      it 'includes core finding fields' do
         sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
 
         expect(sql_finding[:source_tool]).to eq('zap')
@@ -129,7 +130,13 @@ RSpec.describe ScanResultsExporter do
         expect(sql_finding[:parameter]).to eq('username')
         expect(sql_finding[:cwe_id]).to eq('CWE-89')
         expect(sql_finding[:cve_id]).to eq('CVE-2024-1234')
+      end
+
+      it 'includes CVSS/EPSS/KEV enrichment fields' do
+        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
+
         expect(sql_finding[:cvss_score]).to eq(9.8)
+        expect(sql_finding[:cvss_vector]).to eq('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')
         expect(sql_finding[:epss_score]).to eq(0.95)
         expect(sql_finding[:kev_known_exploited]).to be(true)
       end
@@ -164,7 +171,7 @@ RSpec.describe ScanResultsExporter do
       allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
         content = File.read(local_path)
         parsed = JSON.parse(content)
-        expect(parsed['schema_version']).to eq('1.0')
+        expect(parsed['schema_version']).to eq('1.1')
         expect(parsed['findings'].size).to eq(2)
         true
       end
