@@ -18,4 +18,4 @@ COPY . .
 
 RUN mkdir -p tmp/scans tmp/reports storage/reports log custom_templates/nuclei
 
-CMD ["bin/scan"]
+CMD ["bundle", "exec", "bin/scan"]

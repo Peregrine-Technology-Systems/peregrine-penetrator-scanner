@@ -15,6 +15,7 @@
 - fix: sync scheduler vm-startup.sh with authoritative cloud/lib/vm-startup.sh (control plane env vars)
 - feat: smoke test script for trigger_scan Cloud Function deployment verification (#413)
 - feat: per-environment Cloud Functions — trigger_development, trigger_staging, trigger_production (#427)
+- fix: use `bundle exec bin/scan` in Dockerfile CMD and vm-startup.sh — gems in vendor/bundle require bundler
 
 ## v0.3.1 — 2026-03-23
 
