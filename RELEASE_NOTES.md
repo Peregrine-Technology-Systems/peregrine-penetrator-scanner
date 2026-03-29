@@ -16,6 +16,7 @@
 - feat: smoke test script for trigger_scan Cloud Function deployment verification (#413)
 - feat: per-environment Cloud Functions — trigger_development, trigger_staging, trigger_production (#427)
 - fix: use `bundle exec bin/scan` in Dockerfile CMD and vm-startup.sh — gems in vendor/bundle require bundler
+- chore: remove legacy trigger-production-scan Cloud Function (#434)
 
 ## v0.3.1 — 2026-03-23
 

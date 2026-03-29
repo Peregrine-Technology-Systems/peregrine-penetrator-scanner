@@ -212,7 +212,7 @@ class TestScavengeVms(unittest.TestCase):
         mock_slack.assert_not_called()
 
 
-class TestTriggerScan(unittest.TestCase):
+class TestTriggerProduction(unittest.TestCase):
     def _make_request(self, body=None):
         request = MagicMock()
         request.get_json.return_value = body
@@ -226,7 +226,7 @@ class TestTriggerScan(unittest.TestCase):
         op = MagicMock()
         client.insert.return_value = op
 
-        body, code, headers = main.trigger_scan(self._make_request(None))
+        body, code, headers = main.trigger_production(self._make_request(None))
         result = json.loads(body)
 
         self.assertEqual(code, 200)
@@ -264,7 +264,7 @@ class TestTriggerScan(unittest.TestCase):
             'reporter_base_url': 'https://reporter.example.com',
         })
 
-        body, code, headers = main.trigger_scan(request)
+        body, code, headers = main.trigger_production(request)
         result = json.loads(body)
 
         self.assertEqual(result['scan_uuid'], 'abc-12345-def')
@@ -297,7 +297,7 @@ class TestTriggerScan(unittest.TestCase):
         request = self._make_request({
             'target_url': 'https://single.example.com',
         })
-        main.trigger_scan(request)
+        main.trigger_production(request)
 
         instance = client.insert.call_args[1]['instance_resource']
         metadata_dict = {
@@ -315,7 +315,7 @@ class TestTriggerScan(unittest.TestCase):
 
         urls = '["https://a.com", "https://b.com"]'
         request = self._make_request({'target_urls': urls})
-        main.trigger_scan(request)
+        main.trigger_production(request)
 
         instance = client.insert.call_args[1]['instance_resource']
         metadata_dict = {
@@ -330,7 +330,7 @@ class TestTriggerScan(unittest.TestCase):
         mock_client_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        _, _, headers = main.trigger_scan(self._make_request(None))
+        _, _, headers = main.trigger_production(self._make_request(None))
         self.assertEqual(headers['Content-Type'], 'application/json')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
@@ -344,7 +344,7 @@ class TestTriggerScan(unittest.TestCase):
             'profile': 'deep',
             'scan_mode': 'staging',
         })
-        main.trigger_scan(request)
+        main.trigger_production(request)
 
         instance = client.insert.call_args[1]['instance_resource']
         self.assertEqual(instance.labels['env'], 'staging')
