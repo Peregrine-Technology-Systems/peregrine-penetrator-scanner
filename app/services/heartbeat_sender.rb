@@ -1,6 +1,6 @@
 class HeartbeatSender
-  def initialize(reporter_base_url:, scan_uuid:, job_id:, callback_secret:)
-    @url = "#{reporter_base_url}/callbacks/heartbeat"
+  def initialize(callback_url:, scan_uuid:, job_id:, callback_secret:)
+    @url = derive_heartbeat_url(callback_url)
     @scan_uuid = scan_uuid
     @job_id = job_id
     @secret = callback_secret
@@ -38,10 +38,17 @@ class HeartbeatSender
   end
 
   def self.enabled?
-    ENV.fetch('REPORTER_BASE_URL', nil).present?
+    ENV.fetch('CALLBACK_URL', nil).present?
   end
 
   private
+
+  def derive_heartbeat_url(callback_url)
+    uri = URI.parse(callback_url)
+    "#{uri.scheme}://#{uri.host}#{":#{uri.port}" unless [80, 443].include?(uri.port)}/callbacks/heartbeat"
+  rescue URI::InvalidURIError
+    ''
+  end
 
   def build_connection
     Faraday.new do |f|
