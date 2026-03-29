@@ -153,7 +153,7 @@ case "$SCAN_MODE" in
         -v "${RESULTS_DIR}:/app/storage/reports" \
         --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
         "${BASE_IMAGE}" \
-        bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bin/scan" \
+        bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bundle exec bin/scan" \
         || SCAN_EXIT=$?
     else
       # --- Image mode: pull baked image (staging or production) ---
@@ -170,7 +170,7 @@ case "$SCAN_MODE" in
         -v "${RESULTS_DIR}:/app/storage/reports" \
         --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
         "${FULL_IMAGE}" \
-        bin/scan \
+        bundle exec bin/scan \
         || SCAN_EXIT=$?
     fi
 
