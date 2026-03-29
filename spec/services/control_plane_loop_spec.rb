@@ -5,7 +5,7 @@ RSpec.describe ControlPlaneLoop do
     described_class.new(
       scan_uuid: 'scan-123',
       job_id: 'job-456',
-      reporter_base_url: 'https://reporter.example.com',
+      callback_url: 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
       gcs_bucket: 'test-bucket',
       callback_secret: 'secret'
     )
