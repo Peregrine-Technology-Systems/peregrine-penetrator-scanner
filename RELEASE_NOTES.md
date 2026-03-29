@@ -24,6 +24,8 @@
 
 ## v0.3.1 — 2026-03-23
 
+## v0.3.1 — 2026-03-23
+
 - feat: trigger_scan Cloud Function accepts request params for Reporter dispatch (#374)
 - feat: add `deep` scan profile as alias for `thorough` (Reporter API compatibility)
 - fix: sync scheduler vm-startup.sh with authoritative cloud/lib/vm-startup.sh (control plane env vars)
@@ -33,6 +35,7 @@
 - chore: remove legacy trigger-production-scan Cloud Function (#434)
 - fix: Target model defaults auth_type to 'none' on create — prevents ValidationFailed on Cloud Function dispatch (#442)
 - feat: skip-CI guard for promotion and sync-back merges with identical code trees (#457)
+- fix: version-bump.sh guards for sync-back commits and empty Unreleased — prevents infinite bump loop (#474)
 
 ## v0.3.1 — 2026-03-23
 
