@@ -2,39 +2,16 @@
 
 ## Unreleased
 
-## v0.3.1 — 2026-03-23
+- feat: populate CVSS scores, vectors, and EPSS data per finding (#521)
+- feat: extract CVSS score, vector, and EPSS from Nuclei template metadata (#523)
+- feat: add CVSS vector extraction to NVD client (#524)
+- feat: wire CveIntelligenceService into ScanOrchestrator — enriches findings after normalization (#525)
+- feat: severity-to-CVSS mapper for findings without CVE IDs (#526)
+- feat: add cvss_vector to scan results JSON export and BigQuery schema (#527)
+- feat: add cvss_vector column to findings table (#522)
+- chore: bump scan results schema version from 1.0 to 1.1
 
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
-
-## v0.3.1 — 2026-03-23
+## v0.10.7 — 2026-03-29
 
 - feat: trigger_scan Cloud Function accepts request params for Reporter dispatch (#374)
 - feat: add `deep` scan profile as alias for `thorough` (Reporter API compatibility)
@@ -50,8 +27,6 @@
 - fix: Docker image promotion uses digest instead of tag — prevents stale production images (#482)
 - fix: CI pipeline guarantees production image contains main branch code — build verification, digest pinning, SHA tagging (#484)
 - fix: derive heartbeat URL from callback_url — reporter_base_url no longer needed (#512)
-
-## v0.3.1 — 2026-03-23
 
 ## v0.3.1 — 2026-03-23
 

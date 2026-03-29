@@ -32,6 +32,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
 
     # Mock storage (no GCS in tests)
     allow_any_instance_of(StorageService).to receive(:upload) # rubocop:disable RSpec/AnyInstance
+
+    # Stub CVE enrichment APIs (no external calls in tests)
+    stub_request(:get, /services.nvd.nist.gov/).to_return(status: 200, body: '{"vulnerabilities":[]}',
+                                                          headers: { 'Content-Type' => 'application/json' })
+    stub_request(:get, /api.first.org/).to_return(status: 200, body: '{"data":[]}',
+                                                  headers: { 'Content-Type' => 'application/json' })
+    stub_request(:get, /www.cisa.gov/).to_return(status: 200, body: '{"vulnerabilities":[]}',
+                                                 headers: { 'Content-Type' => 'application/json' })
   end
 
   describe 'full pipeline: scan → normalize → export' do
@@ -65,14 +73,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
       expect(summary['by_severity']).to be_a(Hash)
     end
 
-    it 'exports a v1.0 JSON envelope' do
+    it 'exports a v1.1 JSON envelope' do
       orchestrator = ScanOrchestrator.new(scan)
       orchestrator.execute
 
       exporter = ScanResultsExporter.new(scan)
       envelope = exporter.build_envelope
 
-      expect(envelope[:schema_version]).to eq('1.0')
+      expect(envelope[:schema_version]).to eq('1.1')
       expect(envelope[:metadata][:scan_id]).to eq(scan.id)
       expect(envelope[:metadata][:target_name]).to eq('DVWA E2E Test')
       expect(envelope[:findings]).to be_an(Array)
