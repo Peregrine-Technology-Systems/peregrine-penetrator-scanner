@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Sync RELEASE_NOTES.md from tagged release back to development and staging
+# Sync RELEASE_NOTES.md + VERSION from tagged release back to development and staging
 # Triggered by: tag event (v*)
 
 REPO="Peregrine-Technology-Systems/peregrine-penetrator-scanner"
@@ -42,18 +42,27 @@ for BRANCH in development staging; do
     continue
   fi
 
-  git fetch origin "$BRANCH" main
+  git fetch origin "$BRANCH"
   git checkout -b "$SYNC_BRANCH" "origin/${BRANCH}"
 
-  # Replace RELEASE_NOTES.md from main (authoritative source, not merge)
-  # This avoids merge=union duplicates and stale Unreleased entries entirely
-  git show origin/main:RELEASE_NOTES.md > RELEASE_NOTES.md
+  # Replace RELEASE_NOTES.md from tagged commit (not merge — prevents duplicate headings)
+  git checkout "${CI_COMMIT_SHA}" -- RELEASE_NOTES.md
 
-  # Re-insert ## Unreleased header (main doesn't have it after version-bump)
-  perl -i -pe 's/^(# Release Notes)$/$1\n\n## Unreleased/' RELEASE_NOTES.md
+  # Ensure exactly one ## Unreleased header exists (main may or may not have it)
+  if ! grep -q '^## Unreleased$' RELEASE_NOTES.md; then
+    perl -i -pe 'print "## Unreleased\n\n" if /^## v/ && !$done++' RELEASE_NOTES.md
+  fi
 
-  # Also sync VERSION file from main
-  git show origin/main:VERSION > VERSION
+  # Fallback: if still no Unreleased header, add after title
+  if ! grep -q '^## Unreleased$' RELEASE_NOTES.md; then
+    perl -i -pe 's/^(# Release Notes)$/$1\n\n## Unreleased/' RELEASE_NOTES.md
+  fi
+
+  # Dedup any duplicate headers (safety net)
+  awk '!seen[$0]++ || !/^## /' RELEASE_NOTES.md > RELEASE_NOTES.tmp && mv RELEASE_NOTES.tmp RELEASE_NOTES.md
+
+  # Sync VERSION file from tagged commit
+  git checkout "${CI_COMMIT_SHA}" -- VERSION
 
   git add RELEASE_NOTES.md VERSION
 
