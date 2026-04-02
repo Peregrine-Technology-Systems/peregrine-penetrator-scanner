@@ -4,6 +4,12 @@
 
 ## v0.13.0 — 2026-04-02
 
+## v0.13.0 — 2026-04-02
+
+## v0.3.1 — 2026-03-23
+
+## v0.13.0 — 2026-04-02
+
 ## v0.3.1 — 2026-03-23
 
 - fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
