@@ -46,6 +46,18 @@ audit.scan_started(scan)
 orchestrator = ScanOrchestrator.new(scan)
 orchestrator.execute
 
+# Smoke-test profile: export results to GCS (for CI verification) then exit fast
+if %w[smoke smoke-test].include?(profile)
+  puts "\n--- Smoke Test Export ---"
+  gcs_path = ScanResultsExporter.new(scan).export
+  puts "  Exported to #{gcs_path}"
+  audit.scan_completed(scan, gcs_path: gcs_path)
+  scan.refresh
+  status = scan.status == 'completed' ? 'PASSED' : 'FAILED'
+  puts "\n=== Smoke Test #{status} ==="
+  exit(scan.status == 'completed' ? 0 : 1)
+end
+
 # Enrich with CVE intelligence
 if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').count > 0
   puts "\n--- CVE Intelligence Enrichment ---"
