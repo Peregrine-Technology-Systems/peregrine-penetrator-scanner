@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- chore: promotion pipeline uses local merge branch — eliminates RELEASE_NOTES conflicts and cascading version bumps (#578)
+
 ## v0.13.2 — 2026-04-02
 
 ## v0.13.0 — 2026-04-02
