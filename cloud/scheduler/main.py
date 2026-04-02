@@ -122,17 +122,23 @@ def _scavenge_vms_inner():
     for zone_suffix in ['a', 'b', 'c', 'f']:
         zone_name = f'{REGION}-{zone_suffix}'
         try:
-            instances = client.list(
+            all_instances = client.list(
                 request={
                     'project': PROJECT,
                     'zone': zone_name,
-                    'filter': 'name:pentest-scan-* AND status=RUNNING',
                 }
             )
         except Exception as e:
             print(f'ERROR listing VMs in {zone_name}: {e}')
             errors.append(f'{zone_name}: {e}')
             continue
+
+        instances = [
+            i for i in all_instances
+            if i.name.startswith('pentest-scan-') and i.status == 'RUNNING'
+        ]
+        if instances:
+            print(f'{zone_name}: found {len(instances)} scan VM(s)')
 
         for instance in instances:
             created_dt = datetime.fromisoformat(instance.creation_timestamp)
