@@ -117,15 +117,21 @@ def _scavenge_vms_inner():
     now = datetime.now(timezone.utc)
     deleted = []
     skipped = []
+    errors = []
 
     for zone_suffix in ['a', 'b', 'c', 'f']:
         zone_name = f'{REGION}-{zone_suffix}'
         try:
             instances = client.list(
-                project=PROJECT, zone=zone_name,
-                filter='name:pentest-scan-* AND status=RUNNING'
+                request={
+                    'project': PROJECT,
+                    'zone': zone_name,
+                    'filter': 'name:pentest-scan-* AND status=RUNNING',
+                }
             )
-        except Exception:
+        except Exception as e:
+            print(f'ERROR listing VMs in {zone_name}: {e}')
+            errors.append(f'{zone_name}: {e}')
             continue
 
         for instance in instances:
@@ -166,8 +172,11 @@ def _scavenge_vms_inner():
 
             try:
                 operation = client.delete(
-                    project=PROJECT, zone=zone_name,
-                    instance=instance.name
+                    request={
+                        'project': PROJECT,
+                        'zone': zone_name,
+                        'instance': instance.name,
+                    }
                 )
                 operation.result()
                 deleted.append(detail)
@@ -178,6 +187,12 @@ def _scavenge_vms_inner():
                 )
 
     parts = []
+    if errors:
+        err_list = '\n'.join(f'• {e}' for e in errors)
+        parts.append(
+            f':warning: *Scavenger zone errors* — some zones could '
+            f'not be checked:\n{err_list}'
+        )
     if deleted:
         vm_list = '\n'.join(f'• {vm}' for vm in deleted)
         parts.append(
@@ -192,7 +207,10 @@ def _scavenge_vms_inner():
     if parts:
         _slack_notify('\n\n'.join(parts))
 
-    return f'Deleted: {len(deleted)}, Skipped: {len(skipped)}'
+    summary = (f'Deleted: {len(deleted)}, Skipped: {len(skipped)}, '
+               f'Errors: {len(errors)}')
+    print(summary)
+    return summary
 
 
 def trigger_development(request):
@@ -326,7 +344,11 @@ def _trigger_scan(request, default_mode, default_tag):
     )
 
     operation = client.insert(
-        project=PROJECT, zone=ZONE, instance_resource=instance
+        request={
+            'project': PROJECT,
+            'zone': ZONE,
+            'instance_resource': instance,
+        }
     )
     operation.result()
 
