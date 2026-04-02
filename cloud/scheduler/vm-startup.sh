@@ -127,6 +127,9 @@ case "$SCAN_MODE" in
     RESULTS_DIR="/tmp/scan-results"
     mkdir -p "${RESULTS_DIR}"
 
+    # Max scan duration — prevents hung scans from blocking self-termination
+    SCAN_TIMEOUT="${SCAN_TIMEOUT:-3600}"  # 1 hour default
+
     SCAN_EXIT=0
 
     # Dual-mode execution:
@@ -146,15 +149,16 @@ case "$SCAN_MODE" in
       echo "Cloning repo (branch: development)..."
       git clone --depth 1 --branch development "${REPO_URL}" "${APP_DIR}"
 
-      echo "Running ${SCAN_PROFILE} scan..."
-      docker run --rm \
-        "${SCAN_ENV[@]}" \
-        -v "${APP_DIR}:/app" \
-        -v "${RESULTS_DIR}:/app/storage/reports" \
-        --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
-        "${BASE_IMAGE}" \
-        bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bundle exec bin/scan" \
-        || SCAN_EXIT=$?
+      echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
+      timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
+        docker run --rm \
+          "${SCAN_ENV[@]}" \
+          -v "${APP_DIR}:/app" \
+          -v "${RESULTS_DIR}:/app/storage/reports" \
+          --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
+          "${BASE_IMAGE}" \
+          bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bundle exec bin/scan" \
+          || SCAN_EXIT=$?
     else
       # --- Image mode: pull baked image (staging or production) ---
       FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
@@ -164,18 +168,21 @@ case "$SCAN_MODE" in
 
       docker pull "${FULL_IMAGE}"
 
-      echo "Running ${SCAN_PROFILE} scan..."
-      docker run --rm \
-        "${SCAN_ENV[@]}" \
-        -v "${RESULTS_DIR}:/app/storage/reports" \
-        --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
-        "${FULL_IMAGE}" \
-        bundle exec bin/scan \
-        || SCAN_EXIT=$?
+      echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
+      timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
+        docker run --rm \
+          "${SCAN_ENV[@]}" \
+          -v "${RESULTS_DIR}:/app/storage/reports" \
+          --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
+          "${FULL_IMAGE}" \
+          bundle exec bin/scan \
+          || SCAN_EXIT=$?
     fi
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
       echo "Scan completed successfully"
+    elif [ "$SCAN_EXIT" -eq 124 ]; then
+      echo "ERROR: Scan timed out after ${SCAN_TIMEOUT}s — docker run killed"
     else
       echo "Scan failed with exit code ${SCAN_EXIT}"
     fi
