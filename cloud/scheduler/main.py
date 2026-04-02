@@ -83,6 +83,10 @@ def _check_vm_status(instance_name, zone_name):
 def scavenge_vms(request):
     """HTTP Cloud Function to delete orphaned scan VMs.
 
+    Routes:
+    - GET/POST /health → 200 OK (no auth required, liveness check)
+    - POST / → run scavenger logic (requires OIDC auth via Cloud Scheduler)
+
     Logic:
     - VMs younger than MAX_AGE_MINUTES: skip
     - VMs older than MAX_AGE_MINUTES but younger than HARD_MAX: SSH check
@@ -90,6 +94,10 @@ def scavenge_vms(request):
       - If no container or SSH fails: delete (hung/idle)
     - VMs older than HARD_MAX_MINUTES: delete unconditionally
     """
+    if request.path == '/health':
+        return json.dumps({'status': 'ok'}), 200, {
+            'Content-Type': 'application/json'}
+
     try:
         summary = _scavenge_vms_inner()
         return summary, 200
@@ -216,6 +224,10 @@ def _trigger_scan(request, default_mode, default_tag):
     The per-environment function sets sensible defaults; the caller can
     override scan_mode/image_tag if needed (e.g., to control scan depth).
     """
+    if request.path == '/health':
+        return json.dumps({'status': 'ok'}), 200, {
+            'Content-Type': 'application/json'}
+
     data = request.get_json(silent=True) or {}
 
     scan_uuid = data.get('scan_uuid', f'scan-{int(time.time())}')
