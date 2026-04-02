@@ -1,5 +1,7 @@
 # Release Notes
 
+## Unreleased
+
 ## v0.3.1 — 2026-03-23
 
 - fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
