@@ -1,4 +1,4 @@
-# Branch promotion — development→staging (auto), staging→main (manual)
+# Branch promotion — development→staging (auto-merge), staging→main (manual review PR)
 when:
   - event: push
     branch: [development, staging]
@@ -9,6 +9,12 @@ depends_on:
 labels:
   platform: linux
   backend: local
+
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      depth: 0
 
 steps:
   - name: promote
@@ -27,5 +33,5 @@ steps:
     commands:
       - scripts/woodpecker/notify-status.sh
     when:
-      - status: [success, failure]
+      - status: [failure]
     depends_on: [promote]
