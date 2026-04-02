@@ -74,6 +74,27 @@ class TestCheckVmStatus(unittest.TestCase):
         self.assertTrue(status['ssh_failed'])
 
 
+class TestHealthEndpoints(unittest.TestCase):
+    def _make_request(self, path='/health'):
+        request = MagicMock()
+        request.path = path
+        return request
+
+    def test_scavenger_health_returns_ok(self):
+        body, code, headers = main.scavenge_vms(self._make_request('/health'))
+        result = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(headers['Content-Type'], 'application/json')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_health_returns_ok(self):
+        body, code, headers = main.trigger_production(self._make_request('/health'))
+        result = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual(result['status'], 'ok')
+
+
 class TestScavengeVms(unittest.TestCase):
     def _make_instance(self, name, age_minutes):
         created = datetime.now(timezone.utc) - timedelta(minutes=age_minutes)
@@ -81,6 +102,11 @@ class TestScavengeVms(unittest.TestCase):
         inst.name = name
         inst.creation_timestamp = created.isoformat()
         return inst
+
+    def _make_request(self):
+        request = MagicMock()
+        request.path = '/'
+        return request
 
     @patch.object(main, '_slack_notify')
     @patch.object(main, '_check_vm_status')
@@ -91,7 +117,7 @@ class TestScavengeVms(unittest.TestCase):
         young_vm = self._make_instance('pentest-scan-young', 10)
         client.list.return_value = [young_vm]
 
-        body, code = main.scavenge_vms(None)
+        body, code = main.scavenge_vms(self._make_request())
         self.assertEqual(code, 200)
         client.delete.assert_not_called()
         mock_check.assert_not_called()
@@ -110,7 +136,7 @@ class TestScavengeVms(unittest.TestCase):
             'docker_ps': '', 'ssh_failed': False
         }
 
-        body, code = main.scavenge_vms(None)
+        body, code = main.scavenge_vms(self._make_request())
         self.assertIn('Skipped: 1', body)
         client.delete.assert_not_called()
 
@@ -130,7 +156,7 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        body, code = main.scavenge_vms(None)
+        body, code = main.scavenge_vms(self._make_request())
         self.assertIn('Deleted: 1', body)
         client.delete.assert_called_once()
 
@@ -150,7 +176,7 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        body, code = main.scavenge_vms(None)
+        body, code = main.scavenge_vms(self._make_request())
         self.assertIn('Deleted: 1', body)
         client.delete.assert_called_once()
 
@@ -170,7 +196,7 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        body, code = main.scavenge_vms(None)
+        body, code = main.scavenge_vms(self._make_request())
         self.assertIn('Deleted: 1', body)
         # Slack notification includes SSH unreachable reason
         slack_msg = mock_slack.call_args[0][0]
@@ -194,7 +220,7 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        main.scavenge_vms(None)
+        main.scavenge_vms(self._make_request())
         slack_msg = mock_slack.call_args[0][0]
         self.assertIn('Killed containers', slack_msg)
         self.assertIn('pentest-scan-20260320', slack_msg)
@@ -206,7 +232,7 @@ class TestScavengeVms(unittest.TestCase):
         mock_client_cls.return_value = client
         client.list.return_value = []
 
-        body, code = main.scavenge_vms(None)
+        body, code = main.scavenge_vms(self._make_request())
         self.assertEqual(code, 200)
         self.assertIn('Deleted: 0', body)
         mock_slack.assert_not_called()
@@ -216,6 +242,7 @@ class TestTriggerProduction(unittest.TestCase):
     def _make_request(self, body=None):
         request = MagicMock()
         request.get_json.return_value = body
+        request.path = '/'
         return request
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
@@ -357,6 +384,7 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
     def _make_request(self, body=None):
         request = MagicMock()
         request.get_json.return_value = body
+        request.path = '/'
         return request
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))

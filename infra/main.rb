@@ -166,6 +166,14 @@ Gcp::CloudRunV2::ServiceIamMember.new("scavenger-invoker",
   member: scanner_sa.email.apply { |e| "serviceAccount:#{e}" }
 )
 
+# Allow unauthenticated /health checks (function routes health internally)
+Gcp::CloudRunV2::ServiceIamMember.new("scavenger-health-public",
+  name: scavenger_function.service_config.apply { |sc| sc.service },
+  location: region,
+  role: "roles/run.invoker",
+  member: "allUsers"
+)
+
 # Cloud Scheduler — VM scavenger every 10 minutes
 scavenger_schedule = Gcp::CloudScheduler::Job.new("vm-scavenger-schedule",
   name: "vm-scavenger-schedule",
