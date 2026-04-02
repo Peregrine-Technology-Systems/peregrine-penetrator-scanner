@@ -6,6 +6,8 @@
 - fix: add 1-hour timeout to docker run preventing hung scans from orphaning VMs (#547)
 - fix: scavenger Cloud Function OIDC auth — add run.invoker role and explicit audience (#547)
 - fix: scavenger alerts Slack on failure instead of silently swallowing errors (#547)
+- fix: smoke-test VMs exit immediately after GCS export — skip BQ, callback, notifications (#547)
+- feat: add /health endpoint to vm-scavenger and trigger Cloud Functions (#550)
 
 ## v0.3.1 — 2026-03-23
 
