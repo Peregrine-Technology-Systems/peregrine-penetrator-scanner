@@ -10,11 +10,11 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
     end
 
     it 'filters only pentest-scan VMs' do
-      expect(script).to include('pentest-scan-*')
+      expect(script).to include("startswith('pentest-scan-')")
     end
 
     it 'filters only RUNNING VMs' do
-      expect(script).to include('status=RUNNING')
+      expect(script).to include("i.status == 'RUNNING'")
     end
 
     it 'checks multiple zones' do
