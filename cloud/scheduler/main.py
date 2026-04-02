@@ -90,6 +90,20 @@ def scavenge_vms(request):
       - If no container or SSH fails: delete (hung/idle)
     - VMs older than HARD_MAX_MINUTES: delete unconditionally
     """
+    try:
+        summary = _scavenge_vms_inner()
+        return summary, 200
+    except Exception as e:
+        _slack_notify(
+            f':rotating_light: *VM scavenger failed* — orphaned VMs '
+            f'will NOT be cleaned up until this is fixed.\n'
+            f'Error: `{e}`'
+        )
+        return f'ERROR: {e}', 500
+
+
+def _scavenge_vms_inner():
+    """Core scavenger logic, separated for error handling."""
     hard_max_minutes = int(os.environ.get('HARD_MAX_MINUTES', '240'))
     client = compute_v1.InstancesClient()
     now = datetime.now(timezone.utc)
@@ -170,8 +184,7 @@ def scavenge_vms(request):
     if parts:
         _slack_notify('\n\n'.join(parts))
 
-    summary = f'Deleted: {len(deleted)}, Skipped: {len(skipped)}'
-    return summary, 200
+    return f'Deleted: {len(deleted)}, Skipped: {len(skipped)}'
 
 
 def trigger_development(request):

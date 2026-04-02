@@ -158,6 +158,14 @@ scavenger_function = Gcp::CloudFunctionsV2::Function.new("vm-scavenger",
   }
 )
 
+# Grant Cloud Run invoker so scheduler can call the scavenger function
+Gcp::CloudRunV2::ServiceIamMember.new("scavenger-invoker",
+  name: scavenger_function.service_config.apply { |sc| sc.service },
+  location: region,
+  role: "roles/run.invoker",
+  member: scanner_sa.email.apply { |e| "serviceAccount:#{e}" }
+)
+
 # Cloud Scheduler — VM scavenger every 10 minutes
 scavenger_schedule = Gcp::CloudScheduler::Job.new("vm-scavenger-schedule",
   name: "vm-scavenger-schedule",
@@ -168,7 +176,8 @@ scavenger_schedule = Gcp::CloudScheduler::Job.new("vm-scavenger-schedule",
     uri: scavenger_function.service_config.apply { |sc| sc.uri },
     http_method: "POST",
     oidc_token: {
-      service_account_email: scanner_sa.email
+      service_account_email: scanner_sa.email,
+      audience: scavenger_function.service_config.apply { |sc| sc.uri }
     }
   }
 )

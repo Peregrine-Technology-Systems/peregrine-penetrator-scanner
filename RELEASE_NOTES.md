@@ -2,6 +2,11 @@
 
 ## v0.3.1 — 2026-03-23
 
+- fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
+- fix: add 1-hour timeout to docker run preventing hung scans from orphaning VMs (#547)
+- fix: scavenger Cloud Function OIDC auth — add run.invoker role and explicit audience (#547)
+- fix: scavenger alerts Slack on failure instead of silently swallowing errors (#547)
+
 ## v0.3.1 — 2026-03-23
 
 - feat: populate CVSS scores, vectors, and EPSS data per finding (#521)
@@ -12,6 +17,8 @@
 - feat: add cvss_vector to scan results JSON export and BigQuery schema (#527)
 - feat: add cvss_vector column to findings table (#522)
 - chore: bump scan results schema version from 1.0 to 1.1
+- feat: smoke test suite exercising all sub-library integrations (#529)
+- fix: SQL NULL handling in non-CVE finding query — `WHERE IN (NULL)` doesn't match NULL (#529)
 
 ## v0.10.7 — 2026-03-29
 
