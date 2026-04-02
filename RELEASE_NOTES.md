@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.13.0 — 2026-04-02
+
+## v0.3.1 — 2026-03-23
+
 - fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
 - fix: add 1-hour timeout to docker run preventing hung scans from orphaning VMs (#547)
 - fix: scavenger Cloud Function OIDC auth — add run.invoker role and explicit audience (#547)
