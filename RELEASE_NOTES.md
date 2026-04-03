@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: staging scans target correct URL (auxscan.app, not auxscan.stage) — fixes ZAP 600s timeout (#595)
+
 ## v0.13.4 — 2026-04-03
 
 - fix: Cloud Function health endpoints use HTTP method guard — GET always returns health, POST triggers scan (#575)
