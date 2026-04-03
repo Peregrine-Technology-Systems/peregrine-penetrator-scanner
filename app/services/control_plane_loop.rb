@@ -55,12 +55,27 @@ class ControlPlaneLoop
     Timeout.timeout(TICK_TIMEOUT) do
       progress = @mutex.synchronize { @progress.dup }
       @heartbeat.send_heartbeat(status: 'running', **progress)
+      write_gcs_heartbeat(progress)
       check_cancel
     end
   rescue Timeout::Error
     Penetrator.logger.warn("[ControlPlaneLoop] Tick timed out after #{TICK_TIMEOUT}s — skipping")
   rescue StandardError => e
     Penetrator.logger.warn("[ControlPlaneLoop] Tick error: #{e.message}")
+  end
+
+  def write_gcs_heartbeat(progress)
+    return if @gcs_bucket.to_s.empty?
+
+    payload = {
+      scan_uuid: @scan_uuid,
+      status: 'running',
+      timestamp: Time.current.iso8601,
+      **progress
+    }
+    StorageService.new.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
+  rescue StandardError => e
+    Penetrator.logger.warn("[ControlPlaneLoop] GCS heartbeat failed: #{e.message}")
   end
 
   def check_cancel

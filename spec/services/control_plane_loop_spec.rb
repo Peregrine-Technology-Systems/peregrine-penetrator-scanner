@@ -12,8 +12,9 @@ RSpec.describe ControlPlaneLoop do
   end
 
   before do
-    # Prevent actual HTTP calls
+    # Prevent actual HTTP calls and GCS writes
     allow_any_instance_of(HeartbeatSender).to receive(:send_heartbeat) # rubocop:disable RSpec/AnyInstance
+    allow_any_instance_of(StorageService).to receive(:upload_json) # rubocop:disable RSpec/AnyInstance
   end
 
   describe '#start / #stop' do
@@ -57,6 +58,43 @@ RSpec.describe ControlPlaneLoop do
       sender = instance_double(HeartbeatSender)
       allow(HeartbeatSender).to receive(:new).and_return(sender)
       expect(sender).to receive(:send_heartbeat).with(hash_including(status: 'running'))
+
+      loop_instance.send(:tick)
+    end
+
+    it 'writes GCS heartbeat on tick' do
+      storage = instance_double(StorageService)
+      allow(StorageService).to receive(:new).and_return(storage)
+      expect(storage).to receive(:upload_json).with(
+        'control/scan-123/heartbeat.json',
+        hash_including(scan_uuid: 'scan-123', status: 'running', timestamp: anything)
+      )
+
+      loop_instance.send(:tick)
+    end
+
+    it 'skips GCS heartbeat when no bucket configured' do
+      no_bucket_loop = described_class.new(
+        scan_uuid: 'scan-123',
+        job_id: 'job-456',
+        callback_url: 'https://reporter.example.com/callbacks/scan_complete',
+        gcs_bucket: '',
+        callback_secret: 'secret'
+      )
+
+      expect_any_instance_of(StorageService).not_to receive(:upload_json) # rubocop:disable RSpec/AnyInstance
+      no_bucket_loop.send(:tick)
+    end
+
+    it 'includes progress data in GCS heartbeat' do
+      loop_instance.update_progress(current_tool: 'zap', findings_count: 5)
+
+      storage = instance_double(StorageService)
+      allow(StorageService).to receive(:new).and_return(storage)
+      expect(storage).to receive(:upload_json).with(
+        anything,
+        hash_including(current_tool: 'zap', findings_count: 5)
+      )
 
       loop_instance.send(:tick)
     end
