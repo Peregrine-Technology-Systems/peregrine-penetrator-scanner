@@ -1,4 +1,4 @@
-# Sync RELEASE_NOTES.md from main back to development/staging after tag
+# Sync RELEASE_NOTES.md + VERSION from main back to development/staging after tag
 when:
   - event: tag
     ref: refs/tags/v*
@@ -6,6 +6,12 @@ when:
 labels:
   platform: linux
   backend: local
+
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      depth: 0
 
 steps:
   - name: sync-back
