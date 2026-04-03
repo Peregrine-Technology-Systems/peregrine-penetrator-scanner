@@ -84,7 +84,8 @@ def scavenge_vms(request):
     """HTTP Cloud Function to delete orphaned scan VMs.
 
     Routes:
-    - GET/POST /health → 200 OK (no auth required, liveness check)
+    - GET any path → 200 OK health check (pollers use GET)
+    - POST /health → 200 OK health check (belt-and-suspenders)
     - POST / → run scavenger logic (requires OIDC auth via Cloud Scheduler)
 
     Logic:
@@ -94,8 +95,10 @@ def scavenge_vms(request):
       - If no container or SSH fails: delete (hung/idle)
     - VMs older than HARD_MAX_MINUTES: delete unconditionally
     """
-    if request.path == '/health':
-        return json.dumps({'status': 'ok'}), 200, {
+    print(f'[vm-scavenger] method={request.method} path={request.path}')
+
+    if request.method == 'GET' or request.path == '/health':
+        return json.dumps({'status': 'ok', 'service': 'vm-scavenger'}), 200, {
             'Content-Type': 'application/json'}
 
     try:
@@ -248,9 +251,13 @@ def _trigger_scan(request, default_mode, default_tag):
     The per-environment function sets sensible defaults; the caller can
     override scan_mode/image_tag if needed (e.g., to control scan depth).
     """
-    if request.path == '/health':
-        return json.dumps({'status': 'ok'}), 200, {
-            'Content-Type': 'application/json'}
+    print(f'[trigger-scan-{default_mode}] method={request.method} path={request.path}')
+
+    if request.method == 'GET' or request.path == '/health':
+        return json.dumps({
+            'status': 'ok',
+            'service': f'trigger-scan-{default_mode}',
+        }), 200, {'Content-Type': 'application/json'}
 
     data = request.get_json(silent=True) or {}
 
