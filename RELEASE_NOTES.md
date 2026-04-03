@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.13.4 — 2026-04-03
+
 - fix: Cloud Function health endpoints use HTTP method guard — GET always returns health, POST triggers scan (#575)
 - fix: Cloud Function Python tests use Flask test client instead of MagicMock, fix broken assertions (#575)
 - feat: add Cloud Function Python tests to CI pipeline (#576)
