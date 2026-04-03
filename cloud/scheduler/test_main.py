@@ -1,11 +1,13 @@
-"""Tests for Cloud Function VM scavenger."""
+"""Tests for Cloud Function VM scavenger and trigger functions."""
 
 import json
 import os
 import subprocess
 import unittest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
+
+import flask
 
 os.environ['GCP_PROJECT'] = 'test-project'
 os.environ['GCP_REGION'] = 'us-central1'
@@ -13,6 +15,13 @@ os.environ['MAX_AGE_MINUTES'] = '30'
 os.environ['HARD_MAX_MINUTES'] = '240'
 
 import main  # noqa: E402
+
+
+def _build_request(method='GET', path='/health', json_body=None):
+    """Build a real Flask request object for testing."""
+    app = flask.Flask(__name__)
+    with app.test_request_context(path, method=method, json=json_body):
+        return flask.request._get_current_object()
 
 
 class TestSlackNotify(unittest.TestCase):
@@ -75,38 +84,123 @@ class TestCheckVmStatus(unittest.TestCase):
 
 
 class TestHealthEndpoints(unittest.TestCase):
-    def _make_request(self, path='/health'):
-        request = MagicMock()
-        request.path = path
-        return request
+    """Health endpoint tests using real Flask request objects.
 
-    def test_scavenger_health_returns_ok(self):
-        body, code, headers = main.scavenge_vms(self._make_request('/health'))
+    Primary guard: GET any path returns health (HTTP semantics — GET is safe).
+    Secondary guard: POST /health returns health (belt-and-suspenders).
+    """
+
+    # --- Scavenger ---
+
+    def test_scavenger_get_health(self):
+        body, code, headers = main.scavenge_vms(
+            _build_request('GET', '/health'))
         result = json.loads(body)
         self.assertEqual(code, 200)
         self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['service'], 'vm-scavenger')
         self.assertEqual(headers['Content-Type'], 'application/json')
 
-    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
-    def test_trigger_health_returns_ok(self):
-        body, code, headers = main.trigger_production(self._make_request('/health'))
+    def test_scavenger_get_root_returns_health(self):
+        """GET / must NOT trigger scavenger — primary method guard."""
+        body, code, _ = main.scavenge_vms(
+            _build_request('GET', '/'))
         result = json.loads(body)
         self.assertEqual(code, 200)
         self.assertEqual(result['status'], 'ok')
+
+    def test_scavenger_get_any_path_returns_health(self):
+        """GET /anything must return health — method guard is unconditional."""
+        body, code, _ = main.scavenge_vms(
+            _build_request('GET', '/random'))
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)['status'], 'ok')
+
+    def test_scavenger_post_health_returns_health(self):
+        """POST /health returns health — secondary path guard."""
+        body, code, _ = main.scavenge_vms(
+            _build_request('POST', '/health'))
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)['status'], 'ok')
+
+    # --- Trigger ---
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_get_health(self):
+        body, code, headers = main.trigger_production(
+            _build_request('GET', '/health'))
+        result = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['service'], 'trigger-scan-production')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_get_root_returns_health(self):
+        """GET / must NOT trigger a scan — primary method guard."""
+        body, code, _ = main.trigger_production(
+            _build_request('GET', '/'))
+        result = json.loads(body)
+        self.assertEqual(code, 200)
+        self.assertEqual(result['status'], 'ok')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_get_any_path_returns_health(self):
+        """GET /random must return health — method guard is unconditional."""
+        body, code, _ = main.trigger_production(
+            _build_request('GET', '/whatever'))
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)['status'], 'ok')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_post_health_returns_health(self):
+        """POST /health returns health — secondary path guard."""
+        body, code, _ = main.trigger_production(
+            _build_request('POST', '/health'))
+        self.assertEqual(code, 200)
+        self.assertEqual(json.loads(body)['status'], 'ok')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_trigger_post_root_creates_vm(self, mock_cls):
+        """POST / triggers scan — verify method guard doesn't block."""
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        body, code, _ = main.trigger_production(
+            _build_request('POST', '/', json_body={}))
+        result = json.loads(body)
+        self.assertEqual(result['status'], 'accepted')
+        client.insert.assert_called_once()
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_development_health_includes_service_name(self):
+        body, code, _ = main.trigger_development(
+            _build_request('GET', '/health'))
+        result = json.loads(body)
+        self.assertEqual(result['service'], 'trigger-scan-development')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    def test_trigger_staging_health_includes_service_name(self):
+        body, code, _ = main.trigger_staging(
+            _build_request('GET', '/health'))
+        result = json.loads(body)
+        self.assertEqual(result['service'], 'trigger-scan-staging')
 
 
 class TestScavengeVms(unittest.TestCase):
-    def _make_instance(self, name, age_minutes):
+    def _make_instance(self, name, age_minutes, status='RUNNING'):
         created = datetime.now(timezone.utc) - timedelta(minutes=age_minutes)
         inst = MagicMock()
         inst.name = name
+        inst.status = status
         inst.creation_timestamp = created.isoformat()
         return inst
 
-    def _make_request(self):
-        request = MagicMock()
-        request.path = '/'
-        return request
+    @staticmethod
+    def _single_zone_list(*instances):
+        """Return instances for first zone only (4 zones: a, b, c, f)."""
+        return [list(instances), [], [], []]
 
     @patch.object(main, '_slack_notify')
     @patch.object(main, '_check_vm_status')
@@ -115,9 +209,10 @@ class TestScavengeVms(unittest.TestCase):
         client = MagicMock()
         mock_client_cls.return_value = client
         young_vm = self._make_instance('pentest-scan-young', 10)
-        client.list.return_value = [young_vm]
+        client.list.side_effect = self._single_zone_list(young_vm)
 
-        body, code = main.scavenge_vms(self._make_request())
+        body, code = main.scavenge_vms(
+            _build_request('POST', '/'))
         self.assertEqual(code, 200)
         client.delete.assert_not_called()
         mock_check.assert_not_called()
@@ -130,13 +225,14 @@ class TestScavengeVms(unittest.TestCase):
         client = MagicMock()
         mock_client_cls.return_value = client
         active_vm = self._make_instance('pentest-scan-active', 60)
-        client.list.return_value = [active_vm]
+        client.list.side_effect = self._single_zone_list(active_vm)
         mock_check.return_value = {
             'alive': True, 'containers': ['pentest-scan-1'],
             'docker_ps': '', 'ssh_failed': False
         }
 
-        body, code = main.scavenge_vms(self._make_request())
+        body, code = main.scavenge_vms(
+            _build_request('POST', '/'))
         self.assertIn('Skipped: 1', body)
         client.delete.assert_not_called()
 
@@ -148,7 +244,7 @@ class TestScavengeVms(unittest.TestCase):
         client = MagicMock()
         mock_client_cls.return_value = client
         idle_vm = self._make_instance('pentest-scan-idle', 45)
-        client.list.return_value = [idle_vm]
+        client.list.side_effect = self._single_zone_list(idle_vm)
         mock_check.return_value = {
             'alive': False, 'containers': [], 'docker_ps': '',
             'ssh_failed': False
@@ -156,7 +252,8 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        body, code = main.scavenge_vms(self._make_request())
+        body, code = main.scavenge_vms(
+            _build_request('POST', '/'))
         self.assertIn('Deleted: 1', body)
         client.delete.assert_called_once()
 
@@ -168,7 +265,7 @@ class TestScavengeVms(unittest.TestCase):
         client = MagicMock()
         mock_client_cls.return_value = client
         old_vm = self._make_instance('pentest-scan-old', 300)
-        client.list.return_value = [old_vm]
+        client.list.side_effect = self._single_zone_list(old_vm)
         mock_check.return_value = {
             'alive': True, 'containers': ['pentest-scan-1'],
             'docker_ps': '', 'ssh_failed': False
@@ -176,7 +273,8 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        body, code = main.scavenge_vms(self._make_request())
+        body, code = main.scavenge_vms(
+            _build_request('POST', '/'))
         self.assertIn('Deleted: 1', body)
         client.delete.assert_called_once()
 
@@ -188,7 +286,7 @@ class TestScavengeVms(unittest.TestCase):
         client = MagicMock()
         mock_client_cls.return_value = client
         hung_vm = self._make_instance('pentest-scan-hung', 45)
-        client.list.return_value = [hung_vm]
+        client.list.side_effect = self._single_zone_list(hung_vm)
         mock_check.return_value = {
             'alive': False, 'containers': [], 'docker_ps': '',
             'ssh_failed': True
@@ -196,9 +294,9 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        body, code = main.scavenge_vms(self._make_request())
+        body, code = main.scavenge_vms(
+            _build_request('POST', '/'))
         self.assertIn('Deleted: 1', body)
-        # Slack notification includes SSH unreachable reason
         slack_msg = mock_slack.call_args[0][0]
         self.assertIn('SSH unreachable', slack_msg)
 
@@ -210,7 +308,7 @@ class TestScavengeVms(unittest.TestCase):
         client = MagicMock()
         mock_client_cls.return_value = client
         vm = self._make_instance('pentest-scan-busy', 300)
-        client.list.return_value = [vm]
+        client.list.side_effect = self._single_zone_list(vm)
         mock_check.return_value = {
             'alive': True,
             'containers': ['pentest-scan-20260320 | Up 5 hours | 5h ago'],
@@ -220,7 +318,7 @@ class TestScavengeVms(unittest.TestCase):
         op = MagicMock()
         client.delete.return_value = op
 
-        main.scavenge_vms(self._make_request())
+        main.scavenge_vms(_build_request('POST', '/'))
         slack_msg = mock_slack.call_args[0][0]
         self.assertIn('Killed containers', slack_msg)
         self.assertIn('pentest-scan-20260320', slack_msg)
@@ -230,21 +328,16 @@ class TestScavengeVms(unittest.TestCase):
     def test_no_orphans_found(self, mock_client_cls, mock_slack):
         client = MagicMock()
         mock_client_cls.return_value = client
-        client.list.return_value = []
+        client.list.side_effect = [[], [], [], []]
 
-        body, code = main.scavenge_vms(self._make_request())
+        body, code = main.scavenge_vms(
+            _build_request('POST', '/'))
         self.assertEqual(code, 200)
         self.assertIn('Deleted: 0', body)
         mock_slack.assert_not_called()
 
 
 class TestTriggerProduction(unittest.TestCase):
-    def _make_request(self, body=None):
-        request = MagicMock()
-        request.get_json.return_value = body
-        request.path = '/'
-        return request
-
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
     @patch('main.compute_v1.InstancesClient')
     def test_defaults_when_no_body(self, mock_client_cls):
@@ -253,7 +346,8 @@ class TestTriggerProduction(unittest.TestCase):
         op = MagicMock()
         client.insert.return_value = op
 
-        body, code, headers = main.trigger_production(self._make_request(None))
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body=None))
         result = json.loads(body)
 
         self.assertEqual(code, 200)
@@ -261,8 +355,7 @@ class TestTriggerProduction(unittest.TestCase):
         self.assertIn('scan-', result['scan_uuid'])
         self.assertIn('pentest-scan-', result['instance_name'])
 
-        # Verify default metadata values
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         metadata_dict = {
             item.key: item.value for item in instance.metadata.items
         }
@@ -281,23 +374,22 @@ class TestTriggerProduction(unittest.TestCase):
         op = MagicMock()
         client.insert.return_value = op
 
-        request = self._make_request({
-            'scan_uuid': 'abc-12345-def',
-            'profile': 'quick',
-            'target_url': 'https://example.com',
-            'target_name': 'Example App',
-            'callback_url': 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
-            'job_id': 'j1',
-            'reporter_base_url': 'https://reporter.example.com',
-        })
-
-        body, code, headers = main.trigger_production(request)
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'scan_uuid': 'abc-12345-def',
+                'profile': 'quick',
+                'target_url': 'https://example.com',
+                'target_name': 'Example App',
+                'callback_url': 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
+                'job_id': 'j1',
+                'reporter_base_url': 'https://reporter.example.com',
+            }))
         result = json.loads(body)
 
         self.assertEqual(result['scan_uuid'], 'abc-12345-def')
         self.assertIn('pentest-scan-abc-1234', result['instance_name'])
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         metadata_dict = {
             item.key: item.value for item in instance.metadata.items
         }
@@ -321,12 +413,12 @@ class TestTriggerProduction(unittest.TestCase):
         mock_client_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        request = self._make_request({
-            'target_url': 'https://single.example.com',
-        })
-        main.trigger_production(request)
+        main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'target_url': 'https://single.example.com',
+            }))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         metadata_dict = {
             item.key: item.value for item in instance.metadata.items
         }
@@ -341,10 +433,10 @@ class TestTriggerProduction(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         urls = '["https://a.com", "https://b.com"]'
-        request = self._make_request({'target_urls': urls})
-        main.trigger_production(request)
+        main.trigger_production(
+            _build_request('POST', '/', json_body={'target_urls': urls}))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         metadata_dict = {
             item.key: item.value for item in instance.metadata.items
         }
@@ -357,7 +449,8 @@ class TestTriggerProduction(unittest.TestCase):
         mock_client_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        _, _, headers = main.trigger_production(self._make_request(None))
+        _, _, headers = main.trigger_production(
+            _build_request('POST', '/', json_body=None))
         self.assertEqual(headers['Content-Type'], 'application/json')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
@@ -367,25 +460,19 @@ class TestTriggerProduction(unittest.TestCase):
         mock_client_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        request = self._make_request({
-            'profile': 'deep',
-            'scan_mode': 'staging',
-        })
-        main.trigger_production(request)
+        main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'profile': 'deep',
+                'scan_mode': 'staging',
+            }))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         self.assertEqual(instance.labels['env'], 'staging')
         self.assertEqual(instance.labels['profile'], 'deep')
 
 
 class TestPerEnvironmentFunctions(unittest.TestCase):
     """Per-environment wrappers insulate callers from VM internals."""
-
-    def _make_request(self, body=None):
-        request = MagicMock()
-        request.get_json.return_value = body
-        request.path = '/'
-        return request
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
@@ -394,9 +481,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        main.trigger_development(self._make_request({'profile': 'quick'}))
+        main.trigger_development(
+            _build_request('POST', '/', json_body={'profile': 'quick'}))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'development')
         self.assertEqual(md['IMAGE_TAG'], 'development')
@@ -408,9 +496,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        main.trigger_staging(self._make_request({'profile': 'standard'}))
+        main.trigger_staging(
+            _build_request('POST', '/', json_body={'profile': 'standard'}))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'staging')
         self.assertEqual(md['IMAGE_TAG'], 'staging')
@@ -422,9 +511,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        main.trigger_production(self._make_request(None))
+        main.trigger_production(
+            _build_request('POST', '/', json_body=None))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'production')
         self.assertEqual(md['IMAGE_TAG'], 'production')
@@ -436,9 +526,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        main.trigger_production(self._make_request(None))
+        main.trigger_production(
+            _build_request('POST', '/', json_body=None))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         self.assertEqual(instance.scheduling.provisioning_model, 'SPOT')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
@@ -448,9 +539,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        main.trigger_staging(self._make_request(None))
+        main.trigger_staging(
+            _build_request('POST', '/', json_body=None))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         self.assertNotEqual(
             getattr(instance.scheduling, 'provisioning_model', None),
             'SPOT',
@@ -463,11 +555,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        # Caller overrides scan_mode on a production endpoint
-        request = self._make_request({'scan_mode': 'staging'})
-        main.trigger_production(request)
+        main.trigger_production(
+            _build_request('POST', '/', json_body={'scan_mode': 'staging'}))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'staging')
 
@@ -478,10 +569,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
-        request = self._make_request({'profile': 'deep'})
-        main.trigger_production(request)
+        main.trigger_production(
+            _build_request('POST', '/', json_body={'profile': 'deep'}))
 
-        instance = client.insert.call_args[1]['instance_resource']
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_PROFILE'], 'deep')
 
