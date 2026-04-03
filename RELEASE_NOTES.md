@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- docs: update README and CLAUDE.md for v0.13.5 VM safety system (#620)
+
 ## v0.13.5 — 2026-04-03
 
 - fix: staging scans target correct URL (auxscan.app, not auxscan.stage) — fixes ZAP 600s timeout (#595)
