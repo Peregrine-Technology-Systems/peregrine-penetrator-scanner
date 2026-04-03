@@ -3,6 +3,7 @@
 ## v0.13.2 — 2026-04-02
 
 - chore: promotion pipeline uses local merge branch — eliminates RELEASE_NOTES conflicts and cascading version bumps (#578)
+- fix: sync-back.sh uses local merge branch — same pattern as promote.sh (#582)
 
 ## v0.13.2 — 2026-04-02
 
