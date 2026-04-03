@@ -38,6 +38,23 @@ if [ -z "$FUNCTION_URL" ]; then
 fi
 echo "Function URL: ${FUNCTION_URL}"
 
+# 1.5 Verify GET /health does NOT trigger a scan
+echo "Testing health endpoint (GET must not create VM)..."
+HEALTH_BODY=$(curl -sf -X GET "${FUNCTION_URL}/health" 2>&1) || {
+  echo "  FAIL: GET /health returned error"
+  ERRORS=$((ERRORS + 1))
+}
+if [ -n "${HEALTH_BODY:-}" ]; then
+  HEALTH_STATUS=$(echo "$HEALTH_BODY" | python3 -c \
+    "import json,sys; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+  if [ "$HEALTH_STATUS" = "ok" ]; then
+    echo "  PASS: GET /health returned status=ok (no VM created)"
+  else
+    echo "  FAIL: expected status=ok, got: ${HEALTH_STATUS}"
+    ERRORS=$((ERRORS + 1))
+  fi
+fi
+
 # 2. POST with smoke-test params
 echo "Triggering smoke-test scan via Cloud Function..."
 IDENTITY_TOKEN=$(gcloud auth print-identity-token --audiences="${FUNCTION_URL}" 2>/dev/null || echo "")
