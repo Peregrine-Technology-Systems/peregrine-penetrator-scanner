@@ -104,24 +104,70 @@ RSpec.describe ScanOrchestrator do
       expect { orchestrator.execute }.to change { scan.findings_dataset.count }.by(1)
     end
 
-    it 'continues when a tool fails (fail-forward)' do
+    it 'continues when a non-critical tool fails (fail-forward)' do
+      passing_tool = instance_double(ScanProfile::ToolConfig, tool: 'ffuf', config: {})
+      phase1 = instance_double(ScanProfile::Phase, name: 'discovery', parallel: false)
+      allow(phase1).to receive(:tools).and_return([passing_tool])
+
       failing_tool = instance_double(ScanProfile::ToolConfig, tool: 'zap', config: { mode: 'baseline' })
       working_tool = instance_double(ScanProfile::ToolConfig, tool: 'nuclei', config: {})
-      phase = instance_double(ScanProfile::Phase, name: 'test', parallel: false)
-      allow(phase).to receive(:tools).and_return([failing_tool, working_tool])
+      phase2 = instance_double(ScanProfile::Phase, name: 'active', parallel: false)
+      allow(phase2).to receive(:tools).and_return([failing_tool, working_tool])
 
-      profile = instance_double(ScanProfile, name: 'standard', smoke: false, smoke_test: false, phases: [phase])
+      profile = instance_double(ScanProfile, name: 'standard', smoke: false, smoke_test: false, phases: [phase1, phase2])
       allow(ScanProfile).to receive(:load).and_return(profile)
 
+      passing_scanner = instance_double(Scanners::FfufScanner)
       failing_scanner = instance_double(Scanners::ZapScanner)
       working_scanner = instance_double(Scanners::NucleiScanner)
+      allow(Scanners::FfufScanner).to receive(:new).and_return(passing_scanner)
       allow(Scanners::ZapScanner).to receive(:new).and_return(failing_scanner)
       allow(Scanners::NucleiScanner).to receive(:new).and_return(working_scanner)
+      allow(passing_scanner).to receive(:run).and_return({ success: true, findings: [] })
       allow(failing_scanner).to receive(:run).and_raise(StandardError, 'ZAP crashed')
       allow(working_scanner).to receive(:run).and_return({ success: true, findings: [] })
 
       orchestrator.execute
       expect(working_scanner).to have_received(:run)
+    end
+
+    it 'aborts scan when first tool in first phase fails (critical failure)' do
+      failing_tool = instance_double(ScanProfile::ToolConfig, tool: 'ffuf', config: {})
+      phase = instance_double(ScanProfile::Phase, name: 'discovery', parallel: false)
+      allow(phase).to receive(:tools).and_return([failing_tool])
+
+      profile = instance_double(ScanProfile, name: 'standard', smoke: false, smoke_test: false, phases: [phase])
+      allow(ScanProfile).to receive(:load).and_return(profile)
+
+      failing_scanner = instance_double(Scanners::FfufScanner)
+      allow(Scanners::FfufScanner).to receive(:new).and_return(failing_scanner)
+      allow(failing_scanner).to receive(:run).and_raise(StandardError, 'ffuf connection error')
+
+      expect { orchestrator.execute }.to raise_error(/Critical tool failure/)
+      scan.refresh
+      expect(scan.status).to eq('failed')
+    end
+
+    it 'aborts scan on connection-related errors in any phase' do
+      passing_tool = instance_double(ScanProfile::ToolConfig, tool: 'ffuf', config: {})
+      phase1 = instance_double(ScanProfile::Phase, name: 'discovery', parallel: false)
+      allow(phase1).to receive(:tools).and_return([passing_tool])
+
+      conn_fail_tool = instance_double(ScanProfile::ToolConfig, tool: 'zap', config: { mode: 'baseline' })
+      phase2 = instance_double(ScanProfile::Phase, name: 'active', parallel: false)
+      allow(phase2).to receive(:tools).and_return([conn_fail_tool])
+
+      profile = instance_double(ScanProfile, name: 'standard', smoke: false, smoke_test: false, phases: [phase1, phase2])
+      allow(ScanProfile).to receive(:load).and_return(profile)
+
+      passing_scanner = instance_double(Scanners::FfufScanner)
+      conn_fail_scanner = instance_double(Scanners::ZapScanner)
+      allow(Scanners::FfufScanner).to receive(:new).and_return(passing_scanner)
+      allow(Scanners::ZapScanner).to receive(:new).and_return(conn_fail_scanner)
+      allow(passing_scanner).to receive(:run).and_return({ success: true, findings: [] })
+      allow(conn_fail_scanner).to receive(:run).and_raise(StandardError, 'Connection refused - ECONNREFUSED')
+
+      expect { orchestrator.execute }.to raise_error(/Critical tool failure/)
     end
 
     it 'feeds discovered URLs from ffuf to subsequent tools' do
