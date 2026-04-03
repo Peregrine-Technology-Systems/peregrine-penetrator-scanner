@@ -181,7 +181,8 @@ RSpec.describe ScanOrchestrator do
     it 'skips preflight check for smoke test profiles' do
       smoke_profile = instance_double(ScanProfile, name: 'smoke-test', smoke: false, smoke_test: true, phases: [])
       allow(ScanProfile).to receive(:load).and_return(smoke_profile)
-      allow(SmokeTestRunner).to receive_message_chain(:new, :run)
+      runner = instance_double(SmokeTestRunner, run: nil)
+      allow(SmokeTestRunner).to receive(:new).and_return(runner)
 
       orchestrator.execute
       expect(WebMock).not_to have_requested(:head, 'https://example.com/')
