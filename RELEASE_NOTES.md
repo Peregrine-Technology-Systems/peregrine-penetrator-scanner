@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: smoke tests verify scan completion status and smoke-test checks, not just GCS artifact existence (#506)
+
 ## v0.13.2 — 2026-04-02
 
 - chore: promotion pipeline uses local merge branch — eliminates RELEASE_NOTES conflicts and cascading version bumps (#578)
