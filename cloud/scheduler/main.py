@@ -17,7 +17,9 @@ MACHINE_TYPE = f'zones/{ZONE}/machineTypes/e2-standard-4'
 SERVICE_ACCOUNT = f'pentest-scanner@{PROJECT}.iam.gserviceaccount.com'
 IMAGE_FAMILY = 'ubuntu-2204-lts'
 IMAGE_PROJECT = 'ubuntu-os-cloud'
-MAX_AGE_MINUTES = int(os.environ.get('MAX_AGE_MINUTES', '30'))
+MAX_AGE_MINUTES = int(os.environ.get('MAX_AGE_MINUTES', '10'))
+HEARTBEAT_STALE_MINUTES = int(os.environ.get('HEARTBEAT_STALE_MINUTES', '5'))
+GCS_BUCKET = os.environ.get('GCS_BUCKET', f'{PROJECT}-pentest-reports')
 
 
 def _slack_notify(message):
@@ -78,6 +80,48 @@ def _check_vm_status(instance_name, zone_name):
     except Exception:
         return {'alive': False, 'containers': [], 'docker_ps': '',
                 'ssh_failed': True}
+
+
+def _check_heartbeat(scan_uuid):
+    """Check GCS for recent heartbeat from a scan VM.
+
+    Returns dict with:
+      - has_heartbeat: True if heartbeat.json exists
+      - stale_minutes: minutes since last heartbeat (None if no heartbeat)
+      - current_tool: tool name from heartbeat (None if unavailable)
+    """
+    if not scan_uuid:
+        return {'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None}
+
+    from google.cloud import storage as gcs
+    try:
+        client = gcs.Client(project=PROJECT)
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(f'control/{scan_uuid}/heartbeat.json')
+        if not blob.exists():
+            return {'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None}
+
+        data = json.loads(blob.download_as_text())
+        ts = datetime.fromisoformat(data['timestamp'])
+        now = datetime.now(timezone.utc)
+        stale_minutes = (now - ts).total_seconds() / 60
+        return {
+            'has_heartbeat': True,
+            'stale_minutes': round(stale_minutes, 1),
+            'current_tool': data.get('current_tool'),
+        }
+    except Exception as e:
+        print(f'[vm-scavenger] Heartbeat check failed for {scan_uuid}: {e}')
+        return {'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None}
+
+
+def _get_scan_uuid(instance):
+    """Extract SCAN_UUID from instance metadata."""
+    if instance.metadata and instance.metadata.items:
+        for item in instance.metadata.items:
+            if item.key == 'SCAN_UUID':
+                return item.value
+    return None
 
 
 def scavenge_vms(request):
@@ -151,15 +195,32 @@ def _scavenge_vms_inner():
                 continue
 
             status = _check_vm_status(instance.name, zone_name)
+            scan_uuid = _get_scan_uuid(instance)
+            heartbeat = _check_heartbeat(scan_uuid)
 
             if age_minutes <= hard_max_minutes and status['alive']:
-                skipped.append(
-                    f'{instance.name} ({int(age_minutes)}m, active)'
-                )
-                continue
+                # Container running — check heartbeat for actual progress
+                if heartbeat['has_heartbeat'] and heartbeat['stale_minutes'] is not None:
+                    if heartbeat['stale_minutes'] <= HEARTBEAT_STALE_MINUTES:
+                        skipped.append(
+                            f'{instance.name} ({int(age_minutes)}m, active, '
+                            f'heartbeat {heartbeat["stale_minutes"]}m ago, '
+                            f'tool: {heartbeat["current_tool"]})'
+                        )
+                        continue
+                    # Heartbeat stale — scan is stuck despite container running
+                else:
+                    # No heartbeat — legacy scan or pre-heartbeat code
+                    skipped.append(
+                        f'{instance.name} ({int(age_minutes)}m, active, no heartbeat)'
+                    )
+                    continue
 
             if age_minutes > hard_max_minutes:
                 reason = 'hard max exceeded (4h)'
+            elif heartbeat.get('has_heartbeat') and heartbeat.get('stale_minutes', 0) > HEARTBEAT_STALE_MINUTES:
+                reason = (f'heartbeat stale ({heartbeat["stale_minutes"]}m, '
+                          f'last tool: {heartbeat.get("current_tool", "unknown")})')
             elif status['ssh_failed']:
                 reason = 'SSH unreachable'
             else:
