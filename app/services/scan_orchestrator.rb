@@ -1,3 +1,4 @@
+require 'net/http'
 require 'open3'
 
 class ScanOrchestrator
@@ -32,6 +33,7 @@ class ScanOrchestrator
       elsif profile.smoke
         run_smoke_checks
       else
+        preflight_check
         run_scan_phases
       end
     end
@@ -61,6 +63,18 @@ class ScanOrchestrator
       gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
       callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', '')
     ).start
+  end
+
+  def preflight_check
+    scan.target.url_list.each do |url|
+      uri = URI.parse(url)
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 10, read_timeout: 10) do |http|
+        http.head(uri.path.empty? ? '/' : uri.path)
+      end
+      Penetrator.logger.info("[Preflight] Reachable: #{url}")
+    rescue StandardError => e
+      raise "Target unreachable: #{url} — #{e.message}"
+    end
   end
 
   def run_scan_phases

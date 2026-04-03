@@ -16,6 +16,7 @@ RSpec.describe ScanOrchestrator do
     mock_profile = instance_double(ScanProfile, name: 'standard', smoke: false, smoke_test: false, phases: [mock_phase])
     allow(ScanProfile).to receive(:load).and_return(mock_profile)
     allow(FindingNormalizer).to receive(:new).and_return(instance_double(FindingNormalizer, normalize: nil))
+    stub_request(:head, 'https://example.com/').to_return(status: 200)
   end
 
   describe '#execute' do
@@ -156,6 +157,35 @@ RSpec.describe ScanOrchestrator do
       orchestrator.execute
       scan.refresh
       expect(scan.status).to eq('completed')
+    end
+
+    it 'runs preflight reachability check before scan phases' do
+      stub_request(:head, 'https://example.com/').to_return(status: 200)
+
+      orchestrator.execute
+      scan.refresh
+      expect(scan.status).to eq('completed')
+      expect(WebMock).to have_requested(:head, 'https://example.com/')
+    end
+
+    it 'fails scan immediately when target is unreachable' do
+      stub_request(:head, 'https://example.com/').to_raise(Errno::ECONNREFUSED.new('Connection refused'))
+
+      expect { orchestrator.execute }.to raise_error(/Target unreachable/)
+
+      scan.refresh
+      expect(scan.status).to eq('failed')
+      expect(scan.error_message).to include('Target unreachable')
+    end
+
+    it 'skips preflight check for smoke test profiles' do
+      smoke_profile = instance_double(ScanProfile, name: 'smoke-test', smoke: false, smoke_test: true, phases: [])
+      allow(ScanProfile).to receive(:load).and_return(smoke_profile)
+      runner = instance_double(SmokeTestRunner, run: nil)
+      allow(SmokeTestRunner).to receive(:new).and_return(runner)
+
+      orchestrator.execute
+      expect(WebMock).not_to have_requested(:head, 'https://example.com/')
     end
 
     it 'marks scan as failed on unrecoverable error' do
