@@ -9,6 +9,18 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
       expect(script).to include('def scavenge_vms(request):')
     end
 
+    it 'uses HTTP method as primary health check guard' do
+      expect(script).to include("request.method == 'GET'")
+    end
+
+    it 'retains path-based health check as secondary guard' do
+      expect(script).to include("request.path == '/health'")
+    end
+
+    it 'logs method and path on every invocation' do
+      expect(script).to include('[vm-scavenger] method=')
+    end
+
     it 'filters only pentest-scan VMs' do
       expect(script).to include("startswith('pentest-scan-')")
     end
@@ -107,6 +119,24 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
 
     it 'reports delete failures' do
       expect(script).to include('Failed to delete orphaned VM')
+    end
+  end
+
+  describe 'trigger function health guard' do
+    it 'uses HTTP method as primary health check guard' do
+      expect(script).to include("request.method == 'GET'")
+    end
+
+    it 'retains path-based health check as secondary guard' do
+      expect(script).to include("request.path == '/health'")
+    end
+
+    it 'logs method and path on every trigger invocation' do
+      expect(script).to include('[trigger-scan-')
+    end
+
+    it 'returns service name in health response' do
+      expect(script).to include("'service'")
     end
   end
 end
