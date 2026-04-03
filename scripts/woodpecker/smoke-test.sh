@@ -71,6 +71,25 @@ if [ -n "$JSON_FILES" ]; then
     fi
   done
 
+  # Verify scan completed successfully (not failed/crashed)
+  SCAN_STATUS=$(python3 -c "
+import json, sys
+d = json.load(open('$TMPFILE'))
+s = d.get('summary', {})
+# Check both top-level status and summary.status
+status = d.get('status') or s.get('status', '')
+print(status)
+" 2>/dev/null || echo "")
+
+  if [ "$SCAN_STATUS" = "completed" ]; then
+    echo "  PASS: scan status=completed"
+  elif [ -n "$SCAN_STATUS" ]; then
+    echo "  FAIL: scan status=${SCAN_STATUS} (expected completed)"
+    ERRORS=$((ERRORS + 1))
+  else
+    echo "  WARN: no status field found in results"
+  fi
+
   # Check smoke test results in summary
   python3 -c "
 import json, sys
@@ -83,9 +102,15 @@ if s.get('smoke_test'):
     print(f\"  Smoke test: {'PASSED' if passed else 'FAILED'}\")
     for check, status in checks.items():
         print(f\"    {check}: {status}\")
+    if not passed:
+        sys.exit(1)
 else:
     print(f\"  Findings: {s.get('total_findings', 'unknown')}\")
-" 2>/dev/null || echo "  WARN: Could not parse JSON summary"
+" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    echo "  FAIL: smoke test checks did not pass"
+    ERRORS=$((ERRORS + 1))
+  fi
 
   rm -f "$TMPFILE"
 else
