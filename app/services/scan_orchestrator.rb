@@ -23,20 +23,8 @@ class ScanOrchestrator
     scan_timeout = ENV.fetch('SCAN_TIMEOUT', '3600').to_i
 
     Timeout.timeout(scan_timeout) do
-      mark_running
-      write_started_marker
-      Notifiers::SlackNotifier.send_started(scan)
-      @control_plane = start_control_plane
-      Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
-
-      if profile.smoke_test
-        SmokeTestRunner.new(scan).run
-      elsif profile.smoke
-        run_smoke_checks
-      else
-        preflight_check
-        run_scan_phases
-      end
+      prepare_scan
+      route_scan
     end
 
     scan
@@ -53,6 +41,25 @@ class ScanOrchestrator
   end
 
   private
+
+  def prepare_scan
+    mark_running
+    write_started_marker
+    Notifiers::SlackNotifier.send_started(scan)
+    @control_plane = start_control_plane
+    Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+  end
+
+  def route_scan
+    if profile.smoke_test
+      SmokeTestRunner.new(scan).run
+    elsif profile.smoke
+      run_smoke_checks
+    else
+      preflight_check
+      run_scan_phases
+    end
+  end
 
   def start_control_plane
     ControlPlaneLoop.new(
