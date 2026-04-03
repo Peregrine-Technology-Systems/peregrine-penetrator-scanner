@@ -3,6 +3,7 @@
 ## Unreleased
 
 - fix: staging scans target correct URL (auxscan.app, not auxscan.stage) — fixes ZAP 600s timeout (#595)
+- fix: preflight reachability check aborts scan on unreachable target — 10s fail vs 600s per tool (#600)
 
 ## v0.13.4 — 2026-04-03
 

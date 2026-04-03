@@ -33,6 +33,9 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
     # Mock storage (no GCS in tests)
     allow_any_instance_of(StorageService).to receive(:upload) # rubocop:disable RSpec/AnyInstance
 
+    # Stub preflight reachability check
+    stub_request(:head, 'http://dvwa/').to_return(status: 200)
+
     # Stub CVE enrichment APIs (no external calls in tests)
     stub_request(:get, /services.nvd.nist.gov/).to_return(status: 200, body: '{"vulnerabilities":[]}',
                                                           headers: { 'Content-Type' => 'application/json' })
