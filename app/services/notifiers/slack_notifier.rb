@@ -20,6 +20,42 @@ module Notifiers
       ENV['SLACK_WEBHOOK_URL'].present?
     end
 
+    def self.send_started(scan)
+      return unless configured?
+
+      target_name = begin
+        scan.target.name
+      rescue StandardError
+        'unknown'
+      end
+
+      payload = {
+        text: ":rocket: Scan started: #{target_name} (#{scan.profile})",
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: [
+                ":rocket: *Scan Started*",
+                "*Target:* #{target_name}",
+                "*Profile:* #{scan.profile}",
+                "*Scan ID:* `#{scan.id[0..7]}`"
+              ].join("\n")
+            }
+          }
+        ]
+      }
+
+      url = ENV.fetch('SLACK_WEBHOOK_URL', nil)
+      Faraday.post(url) do |req|
+        req.headers['Content-Type'] = 'application/json'
+        req.body = payload.to_json
+      end
+    rescue StandardError => e
+      Penetrator.logger.error("[SlackNotifier] Failed to send start notification: #{e.message}")
+    end
+
     private
 
     def build_payload
