@@ -25,11 +25,15 @@ Report generation, AI analysis, ticketing, and email notifications have been ext
 bin/scan (CLI entry point)
   ↓
 ScanOrchestrator
+├── mark_running → SlackNotifier.send_started (":rocket: Scan Started")
+├── preflight_check (HTTP HEAD each target URL, 10s timeout — fail fast on bad URLs)
+├── ControlPlaneLoop (30s heartbeat → GCS control/{uuid}/heartbeat.json + callback POST)
 ├── [smoke profile] → SmokeChecker (tools, GCS, secrets validation)
 ├── [scan profiles] →
 │   ├── Phase 1 Discovery: FfufScanner + NiktoScanner (parallel)
 │   ├── Phase 2 Active: ZapScanner (full DAST scan)
 │   └── Phase 3 Targeted: NucleiScanner + SqlmapScanner (parallel)
+│   (critical tool failure in phase 1 or connection errors → abort entire scan)
 │        ↓
 │   FindingNormalizer (SHA256 fingerprint dedup)
 │        ↓
@@ -76,7 +80,7 @@ CI runs on Woodpecker CI (self-hosted at d3ci42.peregrinetechsys.net). Pipeline 
 
 | Pipeline | Trigger | Steps |
 |----------|---------|-------|
-| `ci.yaml` | Push (all branches except main) | RSpec + RuboCop + check-release-notes (parallel) |
+| `ci.yaml` | Push (all branches except main) | RSpec + RuboCop + check-release-notes + test-cloud-functions (parallel) |
 | `build-base.yaml` | Push to development (Dockerfile.base changes) | Build + push scanner-base image |
 | `build.yaml` | Push to staging | Build baked scanner:staging image |
 | `deploy.yaml` | Push to staging/main | Staging: trigger scan VM. Main: tag staging as production |
@@ -90,6 +94,44 @@ CI runs on Woodpecker CI (self-hosted at d3ci42.peregrinetechsys.net). Pipeline 
 - **Staging**: Build baked `scanner:staging` image (freeze point, immutable)
 - **Production**: Re-tag `scanner:staging` as `scanner:production` (zero rebuild, identical bytes)
 - `VERSION` is a runtime env var, not baked into the image. Read via `Penetrator::VERSION`.
+
+## VM Safety System
+
+Scan VMs have 5 layers of protection against hung/orphaned instances:
+
+| Layer | Mechanism | Timeout | What it catches |
+|-------|-----------|---------|-----------------|
+| **Preflight** | HTTP HEAD target URLs | 10s | Bad URLs, DNS failures, unreachable hosts |
+| **Critical failure** | First tool or connection errors abort scan | Immediate | Target goes down mid-scan |
+| **GCS heartbeat** | `control/{uuid}/heartbeat.json` every 30s | 5m stale = stuck | Hung scans with live containers |
+| **Ruby timeout** | `Timeout.timeout(SCAN_TIMEOUT)` | 3600s | Scan exceeds global limit |
+| **Shell timeout** | `timeout --signal=TERM --kill-after=60` | 3600s | Ruby process hangs |
+| **Scavenger** | SSH + heartbeat check | 10m soft / 240m hard | All orphans |
+
+### Scavenger Decision Matrix
+- VM age <= 10m: skip (too young)
+- Container running + fresh heartbeat (<5m): skip (actively working)
+- Container running + stale heartbeat (>5m): delete (stuck)
+- Container running + no heartbeat: skip (legacy)
+- No container: delete
+- Age > 240m: delete unconditionally
+
+### Cloud Functions
+
+4 Cloud Functions in `cloud/scheduler/`:
+
+| Function | Entry point | Purpose |
+|----------|-------------|---------|
+| `vm-scavenger` | `scavenge_vms` | Delete orphaned scan VMs (Cloud Scheduler, every 5m) |
+| `trigger-scan-development` | `trigger_development` | Launch dev scan VM |
+| `trigger-scan-staging` | `trigger_staging` | Launch staging scan VM |
+| `trigger-scan-production` | `trigger_production` | Launch production scan VM (SPOT pricing) |
+
+**Health guard:** `request.method == 'GET'` returns health (primary). `request.path == '/health'` as secondary. GET requests never trigger scans.
+
+**Deploy:** `scripts/deploy-cloud-functions.sh` — deploys all 4 functions + verifies health endpoints return 200. Must be run manually after code changes.
+
+**Python tests:** `cd cloud/scheduler && python3 -m pytest test_main.py -v` (uses Flask test_request_context, not MagicMock). Run in CI via `test-cloud-functions` step in Docker.
 
 ## Security & Ethics
 
