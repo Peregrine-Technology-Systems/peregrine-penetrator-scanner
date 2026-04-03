@@ -18,8 +18,8 @@ RSpec.describe Notifiers::SlackNotifier do
       described_class.send_started(scan)
 
       expect(stub).to have_been_requested
-      expect(WebMock).to have_requested(:post, 'https://hooks.slack.com/test')
-        .with { |req| req.body.include?('Scan Started') }
+      expect(WebMock).to(have_requested(:post, 'https://hooks.slack.com/test')
+        .with { |req| req.body.include?('Scan Started') })
     end
 
     it 'includes target name and profile' do
@@ -28,8 +28,8 @@ RSpec.describe Notifiers::SlackNotifier do
 
       described_class.send_started(scan)
 
-      expect(WebMock).to have_requested(:post, 'https://hooks.slack.com/test')
-        .with { |req| req.body.include?(scan.target.name) && req.body.include?(scan.profile) }
+      expect(WebMock).to(have_requested(:post, 'https://hooks.slack.com/test')
+        .with { |req| req.body.include?(scan.target.name) && req.body.include?(scan.profile) })
     end
 
     it 'does nothing when SLACK_WEBHOOK_URL is not set' do
