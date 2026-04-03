@@ -20,19 +20,19 @@ VM_NAME="pentest-scan-${ENV}-$(date +%Y%m%d-%H%M%S)"
 case "$ENV" in
   development)
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
-    TARGET_NAME="auxscan-dev"
+    TARGET_NAME="AuxScan Production"
     IMAGE_TAG="development"
     SPOT_FLAG=""
     ;;
   staging)
-    TARGET_URLS='["https://auxscan.stage.data-estate.cloud"]'
-    TARGET_NAME="auxscan-staging"
+    TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
+    TARGET_NAME="AuxScan Production"
     IMAGE_TAG="staging"
     SPOT_FLAG=""
     ;;
   production)
     TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
-    TARGET_NAME="auxscan-production"
+    TARGET_NAME="AuxScan Production"
     IMAGE_TAG="production"
     SPOT_FLAG="--provisioning-model=SPOT --instance-termination-action=DELETE"
     ;;

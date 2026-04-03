@@ -16,8 +16,8 @@ IMAGE_TAG="${3:-${ENV}}"
 # Environment-specific configuration
 case "$ENV" in
   staging)
-    TARGET_NAME="AuxScan Staging"
-    TARGET_URLS='["https://auxscan.stage.data-estate.cloud"]'
+    TARGET_NAME="AuxScan Production"
+    TARGET_URLS='["https://auxscan.app.data-estate.cloud"]'
     VM_SCAN_NAME="pentest-scan-staging-$(date +%Y%m%d-%H%M%S)"
     SPOT_FLAG=""
     ;;
