@@ -37,7 +37,7 @@ module Notifiers
             text: {
               type: 'mrkdwn',
               text: [
-                ":rocket: *Scan Started*",
+                ':rocket: *Scan Started*',
                 "*Target:* #{target_name}",
                 "*Profile:* #{scan.profile}",
                 "*Scan ID:* `#{scan.id[0..7]}`"
