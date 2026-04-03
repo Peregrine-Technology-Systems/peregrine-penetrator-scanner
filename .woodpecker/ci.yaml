@@ -26,6 +26,12 @@ steps:
       - scripts/woodpecker/lint.sh
     depends_on: []
 
+  - name: test-cloud-functions
+    image: bash
+    commands:
+      - scripts/woodpecker/test-cloud-functions.sh
+    depends_on: []
+
   - name: notify-status
     image: bash
     environment:
@@ -35,4 +41,4 @@ steps:
       - scripts/woodpecker/notify-status.sh
     when:
       - status: [success, failure]
-    depends_on: [check-release-notes, test, lint]
+    depends_on: [check-release-notes, test, lint, test-cloud-functions]
