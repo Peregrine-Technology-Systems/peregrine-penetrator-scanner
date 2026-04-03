@@ -12,20 +12,27 @@ module Scanners
       report_name = 'zap_results.json'
       zap_output = zap_wrk.join(report_name)
       local_output = output_dir.join(report_name)
+      all_findings = []
 
-      target_urls.each do |url|
-        cmd = build_command(mode, url, report_name)
+      # ZAP starts a full Java daemon per invocation — scan each unique
+      # origin once (ZAP's spider handles path discovery internally).
+      # Scanning individual paths would cause zombie processes (#625).
+      unique_origins(target_urls).each do |origin|
+        cmd = build_command(mode, origin, report_name)
         result = run_command(cmd, timeout: tool_config[:timeout])
 
         # ZAP returns 2 for warnings found (not an error)
-        return { success: false, error: result[:stderr], findings: [] } unless result[:success] || result[:exit_code] == 2
+        unless result[:success] || result[:exit_code] == 2
+          return { success: false, error: result[:stderr], findings: [] }
+        end
+
+        if File.exist?(zap_output)
+          FileUtils.cp(zap_output.to_s, local_output.to_s)
+          all_findings.concat(parse_results(local_output))
+        end
       end
 
-      # Copy results from ZAP wrk dir to our output dir
-      FileUtils.cp(zap_output.to_s, local_output.to_s) if File.exist?(zap_output)
-
-      findings = parse_results(local_output)
-      { success: true, findings:, output_file: local_output.to_s }
+      { success: true, findings: all_findings, output_file: local_output.to_s }
     end
 
     private
@@ -45,6 +52,12 @@ module Scanners
       cmd += " -z \"-config scanner.delayInMs=#{tool_config[:delay_ms]}\"" if tool_config[:delay_ms]
 
       cmd
+    end
+
+    def unique_origins(urls)
+      urls.map { |url| URI.parse(url) }
+          .map { |uri| "#{uri.scheme}://#{uri.host}#{":#{uri.port}" unless [80, 443].include?(uri.port)}" }
+          .uniq
     end
 
     def parse_results(output_file)

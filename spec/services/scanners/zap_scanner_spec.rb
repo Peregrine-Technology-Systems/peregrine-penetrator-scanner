@@ -89,9 +89,16 @@ RSpec.describe Scanners::ZapScanner do
 
     it 'parses results on success' do
       parsed_findings = [{ source_tool: 'zap', title: 'XSS', severity: 'high' }]
-      output_file = scanner.send(:output_dir).join('zap_results.json')
-      FileUtils.touch(output_file)
-      allow(ResultParsers::ZapParser).to receive(:new).with(output_file).and_return(
+      # Stub ZAP wrk dir existence and FileUtils.cp to create the output file
+      allow(File).to receive(:exist?).and_call_original
+      allow(File).to receive(:exist?).with(anything).and_wrap_original do |m, path|
+        path.to_s.include?('/zap/wrk/') ? true : m.call(path)
+      end
+      allow(FileUtils).to receive(:cp) do |_src, dest|
+        FileUtils.touch(dest)
+      end
+
+      allow(ResultParsers::ZapParser).to receive(:new).and_return(
         instance_double(ResultParsers::ZapParser, parse: parsed_findings)
       )
 
@@ -104,11 +111,36 @@ RSpec.describe Scanners::ZapScanner do
       expect(result[:findings]).to eq([])
     end
 
-    context 'with multiple target URLs' do
+    context 'with multiple target URLs on different hosts' do
       let(:target) { create(:target, urls: ['https://example.com', 'https://test.com'].to_json) }
 
-      it 'runs command for each URL' do
+      it 'runs command once per unique origin' do
         expect(scanner).to receive(:run_command).twice.and_return(command_results[:success])
+        scanner.run
+      end
+    end
+
+    context 'with discovered URLs on the same host' do
+      let(:target) do
+        create(:target, urls: [
+          'https://example.com',
+          'https://example.com/admin',
+          'https://example.com/.bash_history'
+        ].to_json)
+      end
+
+      it 'deduplicates to one invocation per origin (ZAP spider handles paths)' do
+        expect(scanner).to receive(:run_command).once.and_return(command_results[:success])
+        scanner.run
+      end
+
+      it 'scans the origin URL, not individual paths' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include('-t https://example.com')
+          expect(cmd).not_to include('/admin')
+          expect(cmd).not_to include('/.bash_history')
+          command_results[:success]
+        end
         scanner.run
       end
     end
