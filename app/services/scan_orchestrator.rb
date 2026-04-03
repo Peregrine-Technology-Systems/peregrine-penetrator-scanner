@@ -84,11 +84,14 @@ class ScanOrchestrator
   end
 
   def run_scan_phases
+    @phase_index = 0
     profile.phases.each do |phase|
       break mark_cancelled if @control_plane&.cancelled?
 
       Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
+      @tool_index = 0
       run_phase(phase)
+      @phase_index += 1
     end
 
     return if @control_plane&.cancelled?
@@ -175,8 +178,19 @@ class ScanOrchestrator
     @control_plane&.update_progress(findings_count: scan.findings_dataset.count)
     @discovered_urls.concat(result[:discovered_urls]) if result[:discovered_urls]
     save_findings(result[:findings]) if result[:findings]&.any?
+    @tool_index = (@tool_index || 0) + 1
   rescue StandardError => e
+    raise "Critical tool failure (#{tool_config.tool}): #{e.message}" if critical_failure?(e)
+
     Penetrator.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
+  end
+
+  def critical_failure?(error)
+    # First tool in first phase failing = likely target issue
+    return true if @phase_index&.zero? && (@tool_index || 0) <= 1
+
+    # Connection-related errors are always critical
+    error.message.match?(/unreachable|connection refused|name.*resolution|ECONNREFUSED|EHOSTUNREACH/i)
   end
 
   def feed_discovered_urls(tool_config)
