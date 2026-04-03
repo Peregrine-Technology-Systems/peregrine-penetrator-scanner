@@ -54,8 +54,6 @@ class ScanOrchestrator
   private
 
   def start_control_plane
-    return nil unless HeartbeatSender.enabled?
-
     ControlPlaneLoop.new(
       scan_uuid: ENV.fetch('SCAN_UUID', scan.id),
       job_id: ENV.fetch('JOB_ID', nil),
