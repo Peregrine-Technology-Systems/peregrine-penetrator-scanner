@@ -56,7 +56,11 @@ flowchart TD
     B -->|smoke| D[SmokeChecker<br/>Infra validation]
     B -->|quick/standard/thorough| E[ScanOrchestrator]
 
-    E --> F[Discovery: ffuf + Nikto]
+    E --> N[Slack: Scan Started]
+    N --> P[Preflight Check<br/>HTTP HEAD targets, 10s timeout]
+    P -->|unreachable| X[Fail + self-terminate]
+    P -->|reachable| F[Discovery: ffuf + Nikto]
+    F -->|critical failure| X
     F --> G[Active: OWASP ZAP]
     G --> H[Targeted: Nuclei + sqlmap]
     H --> I[FindingNormalizer<br/>SHA256 dedup]
@@ -82,8 +86,11 @@ sequenceDiagram
 
     loop Every 30s
         S->>R: Heartbeat (progress, tool, findings)
+        S->>G: Write heartbeat.json (progress)
         S->>G: Check control.json for cancel
     end
+
+    Note over S: Scavenger checks heartbeat.json<br/>staleness every 5-10 min
 
     S->>G: Write scan_results.json
     S->>R: Callback (completed)
@@ -192,17 +199,27 @@ This project followed **stepwise refinement** — building a working monolith fi
 
 ## Reliability
 
+### 5-Layer VM Safety System
+
+| Layer | Mechanism | Timeout | Catches |
+|-------|-----------|---------|---------|
+| **Preflight** | HTTP HEAD each target URL | 10s | Bad URLs, DNS failures, unreachable hosts |
+| **Critical failure** | First tool or connection errors abort scan | Immediate | Target goes down mid-scan |
+| **GCS heartbeat** | `heartbeat.json` every 30s, scavenger checks staleness | 5m stale | Hung scans with live containers |
+| **Timeout** | Ruby `Timeout.timeout` + shell `timeout` wrapper | 3600s | Scans exceeding global limit |
+| **Scavenger** | SSH + heartbeat check, Cloud Scheduler every 5m | 10m soft / 240m hard | All orphaned VMs |
+
+### Additional Reliability
+
 | Mechanism | Prevents |
 |-----------|---------|
-| SCAN_TIMEOUT (default 3600s) | Hung scans |
 | Per-tool timeout (default 600s) | Individual tool hangs |
-| Heartbeat every 30s | Reporter detects dead scanners |
-| `last_tool_started_at` in heartbeat | Reporter detects hung tools |
+| Scan-start Slack notification | Silent scan launches |
 | `scan_started.json` marker | Detect started-but-never-completed scans |
 | `callback_pending.json` dead letter | Recover when callback fails |
-| VM self-terminate trap + scavenger | No orphan VMs |
 | Cancel via GCS `control.json` | Stop stale/runaway scans |
-| Deploy smoke test | Verify baked image works on ephemeral VM |
+| Deploy smoke test (validates status + results) | Broken baked images |
+| Health endpoint method guard (GET = health) | Health polls creating VMs |
 
 ### Deploy Verification
 
@@ -234,7 +251,7 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted).
 
 | Pipeline | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yaml` | Push (not main) | RSpec + RuboCop + RELEASE_NOTES check |
+| `ci.yaml` | Push (not main) | RSpec + RuboCop + RELEASE_NOTES check + Python Cloud Function tests |
 | `build-base.yaml` | Dockerfile.base changes | Build scanner-base image |
 | `build.yaml` | Staging push | Build baked scanner:staging |
 | `deploy.yaml` | Staging/main push | Tag image, trigger scan VM |
