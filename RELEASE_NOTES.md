@@ -1,6 +1,6 @@
 # Release Notes
 
-## Unreleased
+## v0.13.4 — 2026-04-03
 
 - fix: smoke tests verify scan completion status and smoke-test checks, not just GCS artifact existence (#506)
 
