@@ -139,9 +139,63 @@ fi
 
 if [ -n "$JSON_FILES" ]; then
   echo "  PASS: JSON results found: ${JSON_FILES}"
+
+  TMPFILE=$(mktemp)
+  gsutil cp "$JSON_FILES" "$TMPFILE" 2>/dev/null
+
+  # Verify required keys exist
+  for key in schema_version metadata summary findings; do
+    if python3 -c "import json,sys; d=json.load(open('$TMPFILE')); assert '$key' in d" 2>/dev/null; then
+      echo "  PASS: JSON has '${key}' key"
+    else
+      echo "  FAIL: JSON missing '${key}' key"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+
+  # Verify scan completed (not failed/crashed)
+  SCAN_STATUS=$(python3 -c "
+import json, sys
+d = json.load(open('$TMPFILE'))
+s = d.get('summary', {})
+status = d.get('status') or s.get('status', '')
+print(status)
+" 2>/dev/null || echo "")
+
+  if [ "$SCAN_STATUS" = "completed" ]; then
+    echo "  PASS: scan status=completed"
+  elif [ -n "$SCAN_STATUS" ]; then
+    echo "  FAIL: scan status=${SCAN_STATUS} (expected completed)"
+    ERRORS=$((ERRORS + 1))
+  else
+    echo "  WARN: no status field in results"
+  fi
+
+  # Verify smoke test flag and checks
+  python3 -c "
+import json, sys
+d = json.load(open('$TMPFILE'))
+s = d.get('summary', {})
+if s.get('smoke_test'):
+    checks = s.get('checks', {})
+    passed = s.get('passed', False)
+    print(f\"  Smoke test: {'PASSED' if passed else 'FAILED'}\")
+    for check, status in checks.items():
+        print(f\"    {check}: {status}\")
+    if not passed:
+        sys.exit(1)
+else:
+    print(f\"  Findings: {s.get('total_findings', 'unknown')}\")
+" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    echo "  FAIL: smoke test checks did not pass"
+    ERRORS=$((ERRORS + 1))
+  fi
+
+  rm -f "$TMPFILE"
 else
-  echo "  WARN: No JSON results found for scan_uuid=${SCAN_UUID}"
-  echo "  (VM may not have written results yet, or path differs)"
+  echo "  FAIL: No JSON results found for scan_uuid=${SCAN_UUID}"
+  ERRORS=$((ERRORS + 1))
 fi
 
 # Summary
