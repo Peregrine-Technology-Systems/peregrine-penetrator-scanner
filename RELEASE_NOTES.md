@@ -1,7 +1,16 @@
 # Release Notes
 
+## Unreleased
+
+- fix: staging scans target correct URL (auxscan.app, not auxscan.stage) — fixes ZAP 600s timeout (#595)
+
 ## v0.13.4 — 2026-04-03
 
+- fix: Cloud Function health endpoints use HTTP method guard — GET always returns health, POST triggers scan (#575)
+- fix: Cloud Function Python tests use Flask test client instead of MagicMock, fix broken assertions (#575)
+- feat: add Cloud Function Python tests to CI pipeline (#576)
+- feat: Cloud Function deployment script with post-deploy health verification (#577)
+- feat: smoke test verifies GET /health before triggering scan (#577)
 - fix: smoke tests verify scan completion status and smoke-test checks, not just GCS artifact existence (#506)
 
 ## v0.13.2 — 2026-04-02
