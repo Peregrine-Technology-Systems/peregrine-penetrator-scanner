@@ -1,21 +1,19 @@
 # Release Notes
 
+## Unreleased
+
 ## v0.13.2 — 2026-04-02
 
 - chore: promotion pipeline uses local merge branch — eliminates RELEASE_NOTES conflicts and cascading version bumps (#578)
 - fix: sync-back.sh uses local merge branch — same pattern as promote.sh (#582)
 
-## v0.13.2 — 2026-04-02
 
 ## v0.13.0 — 2026-04-02
 
-## v0.13.0 — 2026-04-02
 
 ## v0.3.1 — 2026-03-23
 
-## v0.13.0 — 2026-04-02
 
-## v0.3.1 — 2026-03-23
 
 - fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
 - fix: add 1-hour timeout to docker run preventing hung scans from orphaning VMs (#547)
@@ -24,7 +22,6 @@
 - fix: smoke-test VMs exit immediately after GCS export — skip BQ, callback, notifications (#547)
 - feat: add /health endpoint to vm-scavenger and trigger Cloud Functions (#550)
 
-## v0.3.1 — 2026-03-23
 
 - feat: populate CVSS scores, vectors, and EPSS data per finding (#521)
 - feat: extract CVSS score, vector, and EPSS from Nuclei template metadata (#523)
@@ -54,7 +51,6 @@
 - fix: CI pipeline guarantees production image contains main branch code — build verification, digest pinning, SHA tagging (#484)
 - fix: derive heartbeat URL from callback_url — reporter_base_url no longer needed (#512)
 
-## v0.3.1 — 2026-03-23
 
 - Control plane: HeartbeatSender POSTs liveness to reporter every 30s with progress (#376)
 - Control plane: ControlPlaneLoop background thread combines heartbeat + cancel checks (#376, #378)
@@ -75,7 +71,6 @@
 - docs: rewrite SECURITY_ARCHITECTURE.md for Sequel, Woodpecker CI, ephemeral VMs, control plane security
 - docs: add control plane audit events to audit_logging.md
 
-## v0.3.1 — 2026-03-23
 
 - Fix: sync-back replaces RELEASE_NOTES from main instead of merging — eliminates duplicate headings and stale entries (#343, #341, #342)
 - Add pre-push hook with full test suite, 90% coverage gate, and RuboCop enforcement (#351)
@@ -84,9 +79,7 @@
 - E2E integration test: validates full pipeline (scan → normalize → dedup → JSON export) with DVWA docker-compose (#28)
 - Fix: sync-back fetches main branch before reading RELEASE_NOTES — fixes failure on tag-triggered pipelines
 
-## v0.3.1 — 2026-03-23
 
-## v0.3.1 — 2026-03-23
 
 - Hybrid Docker model: dev clones at boot, staging builds baked image, prod re-tags (#276, #286, #309)
 - CI enforces RELEASE_NOTES.md update when code files change (#309)
@@ -136,7 +129,6 @@ Major refactor: stripped scanner to its core responsibility. Report generation, 
 - 389 specs, 0 failures, 94.96% coverage, 0 RuboCop offenses
 - 20 focused open issues (was 50+) — 18 closed, 13 transferred to reporter repo
 
-## v0.3.1 — 2026-03-23
 
 ### Features
 - Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
