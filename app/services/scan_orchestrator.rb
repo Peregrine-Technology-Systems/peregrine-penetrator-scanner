@@ -180,15 +180,15 @@ class ScanOrchestrator
     save_findings(result[:findings]) if result[:findings]&.any?
     @tool_index = (@tool_index || 0) + 1
   rescue StandardError => e
-    if critical_failure?(e)
-      raise "Critical tool failure (#{tool_config.tool}): #{e.message}"
-    end
+    raise "Critical tool failure (#{tool_config.tool}): #{e.message}" if critical_failure?(e)
+
     Penetrator.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
   end
 
   def critical_failure?(error)
     # First tool in first phase failing = likely target issue
     return true if @phase_index&.zero? && (@tool_index || 0) <= 1
+
     # Connection-related errors are always critical
     error.message.match?(/unreachable|connection refused|name.*resolution|ECONNREFUSED|EHOSTUNREACH/i)
   end
