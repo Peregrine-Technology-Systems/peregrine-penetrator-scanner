@@ -122,6 +122,26 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
     end
   end
 
+  describe 'heartbeat-aware scavenging' do
+    it 'has a heartbeat check function' do
+      expect(script).to include('def _check_heartbeat(scan_uuid):')
+    end
+
+    it 'reads SCAN_UUID from instance metadata' do
+      expect(script).to include('def _get_scan_uuid(instance):')
+      expect(script).to include("item.key == 'SCAN_UUID'")
+    end
+
+    it 'checks GCS heartbeat staleness' do
+      expect(script).to include('HEARTBEAT_STALE_MINUTES')
+      expect(script).to include('heartbeat.json')
+    end
+
+    it 'uses 10-minute soft max by default' do
+      expect(script).to include("'10'")
+    end
+  end
+
   describe 'trigger function health guard' do
     it 'uses HTTP method as primary health check guard' do
       expect(script).to include("request.method == 'GET'")
