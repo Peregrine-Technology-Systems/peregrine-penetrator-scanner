@@ -22,9 +22,7 @@ module Scanners
         result = run_command(cmd, timeout: tool_config[:timeout])
 
         # ZAP returns 2 for warnings found (not an error)
-        unless result[:success] || result[:exit_code] == 2
-          return { success: false, error: result[:stderr], findings: [] }
-        end
+        return { success: false, error: result[:stderr], findings: [] } unless result[:success] || result[:exit_code] == 2
 
         if File.exist?(zap_output)
           FileUtils.cp(zap_output.to_s, local_output.to_s)
