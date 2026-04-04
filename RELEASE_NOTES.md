@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix: Slack notification sequence — tag message is informational gray, not gold celebration (#367)
 - feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)
 
 ## v0.14.1 — 2026-04-04
