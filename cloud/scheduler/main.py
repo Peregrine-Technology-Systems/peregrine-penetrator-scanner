@@ -115,6 +115,40 @@ def _check_heartbeat(scan_uuid):
         return {'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None}
 
 
+def _check_status(scan_uuid):
+    """Check GCS for post-scan lifecycle status.
+
+    Returns dict with:
+      - has_status: True if status.json exists
+      - phase: lifecycle phase (scanning, completed, uploading, uploaded,
+               terminating, failed, upload_failed)
+      - stale_minutes: minutes since status was written
+    """
+    if not scan_uuid:
+        return {'has_status': False, 'phase': None, 'stale_minutes': None}
+
+    from google.cloud import storage as gcs
+    try:
+        client = gcs.Client(project=PROJECT)
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(f'control/{scan_uuid}/status.json')
+        if not blob.exists():
+            return {'has_status': False, 'phase': None, 'stale_minutes': None}
+
+        data = json.loads(blob.download_as_text())
+        ts = datetime.fromisoformat(data['timestamp'])
+        now = datetime.now(timezone.utc)
+        stale_minutes = (now - ts).total_seconds() / 60
+        return {
+            'has_status': True,
+            'phase': data.get('phase'),
+            'stale_minutes': round(stale_minutes, 1),
+        }
+    except Exception as e:
+        print(f'[vm-scavenger] Status check failed for {scan_uuid}: {e}')
+        return {'has_status': False, 'phase': None, 'stale_minutes': None}
+
+
 def _get_scan_uuid(instance):
     """Extract SCAN_UUID from instance metadata."""
     if instance.metadata and instance.metadata.items:
@@ -197,6 +231,7 @@ def _scavenge_vms_inner():
             status = _check_vm_status(instance.name, zone_name)
             scan_uuid = _get_scan_uuid(instance)
             heartbeat = _check_heartbeat(scan_uuid)
+            lifecycle = _check_status(scan_uuid)
 
             if age_minutes <= hard_max_minutes and status['alive']:
                 # Container running — check heartbeat for actual progress
@@ -216,11 +251,26 @@ def _scavenge_vms_inner():
                     )
                     continue
 
+            # Container gone but VM alive — check post-scan lifecycle phase
+            if (age_minutes <= hard_max_minutes and not status['alive']
+                    and lifecycle['has_status']):
+                phase = lifecycle['phase']
+                phase_age = lifecycle['stale_minutes'] or 0
+                if phase in ('uploading', 'completed', 'terminating') and phase_age <= HEARTBEAT_STALE_MINUTES:
+                    skipped.append(
+                        f'{instance.name} ({int(age_minutes)}m, '
+                        f'post-scan phase: {phase}, {phase_age}m ago)'
+                    )
+                    continue
+
             if age_minutes > hard_max_minutes:
                 reason = 'hard max exceeded (4h)'
             elif heartbeat.get('has_heartbeat') and heartbeat.get('stale_minutes', 0) > HEARTBEAT_STALE_MINUTES:
                 reason = (f'heartbeat stale ({heartbeat["stale_minutes"]}m, '
                           f'last tool: {heartbeat.get("current_tool", "unknown")})')
+            elif (lifecycle['has_status'] and lifecycle.get('stale_minutes', 0) > HEARTBEAT_STALE_MINUTES):
+                reason = (f'post-scan phase stuck ({lifecycle["phase"]}, '
+                          f'{lifecycle["stale_minutes"]}m ago)')
             elif status['ssh_failed']:
                 reason = 'SSH unreachable'
             else:
