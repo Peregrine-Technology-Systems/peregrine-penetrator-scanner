@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.15.1 — 2026-04-04
+
 ## v0.14.1 — 2026-04-04
 
 - feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)
