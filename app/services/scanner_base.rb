@@ -17,7 +17,8 @@ class ScannerBase
     result = execute
 
     if result[:success]
-      update_status('completed')
+      findings_count = Array(result[:findings]).length
+      update_status('completed', nil, findings_count:)
       logger.info("[#{tool_name}] Completed successfully")
     else
       update_status('failed', result[:error])
@@ -145,8 +146,8 @@ class ScannerBase
     )
   end
 
-  def update_status(status, error = nil)
-    entry = { status:, updated_at: Time.current.iso8601, error: }.compact
+  def update_status(status, error = nil, findings_count: nil)
+    entry = { status:, updated_at: Time.current.iso8601, error:, findings_count: }.compact
     scan.tool_statuses = (scan.tool_statuses || {}).merge(tool_name => entry)
     scan.save_changes
   end
