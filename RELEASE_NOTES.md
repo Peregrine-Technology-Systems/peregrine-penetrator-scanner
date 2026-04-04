@@ -1,8 +1,18 @@
 # Release Notes
 
+## Unreleased
+
+- docs: update README and CLAUDE.md for v0.13.5 VM safety system (#620)
+
 ## v0.13.5 — 2026-04-03
 
 - fix: staging scans target correct URL (auxscan.app, not auxscan.stage) — fixes ZAP 600s timeout (#595)
+- fix: preflight reachability check aborts scan on unreachable target — 10s fail vs 600s per tool (#600)
+- feat: GCS heartbeat every 30s — scan progress observable via control/{uuid}/heartbeat.json (#601)
+- feat: heartbeat-aware scavenging — kills stuck VMs with stale heartbeat, soft max reduced to 10m (#602)
+- feat: Slack notification on scan start with target, profile, scan ID (#603)
+- fix: abort scan on critical tool failure — first-tool or connection errors terminate scan immediately (#604)
+- fix: add timeout wrapper to cloud/lib/vm-startup.sh — matches scheduler version, prevents hung scans (#605)
 
 ## v0.13.4 — 2026-04-03
 
