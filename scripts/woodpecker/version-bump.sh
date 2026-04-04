@@ -159,8 +159,9 @@ if [ -n "${DOCKER_REGISTRY:-}" ]; then
   fi
 fi
 
-# Send the production release Slack notification directly (notify-status would
-# read stale CI_COMMIT_MESSAGE from the triggering merge, not from our release commit)
+# Send an informational Slack notification for the tag — NOT a celebration.
+# The gold "PRODUCTION RELEASE" message should only fire after successful
+# deployment, which is handled by the deploy pipeline's notify-status.sh (#367)
 if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
   COMMIT_URL="https://github.com/${REPO}/commit/$(git rev-parse HEAD)"
   SHORT_SHA=$(git rev-parse --short HEAD)
@@ -171,21 +172,20 @@ if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
   curl -s -X POST "$SLACK_WEBHOOK_URL" \
     -H "Content-Type: application/json" \
     -d "{
-      \"text\": \":rocket::rocket::rocket: PRODUCTION RELEASE ${TAG} — ${REPO_NAME}\",
-      \"blocks\": [
-        {\"type\": \"divider\"},
+      \"text\": \"Tagged ${TAG} — ${REPO_NAME} — deploying...\",
+      \"attachments\": [
         {
-          \"type\": \"header\",
-          \"text\": {\"type\": \"plain_text\", \"text\": \":rocket: PRODUCTION RELEASE ${TAG}\", \"emoji\": true}
-        },
-        {
-          \"type\": \"section\",
-          \"text\": {
-            \"type\": \"mrkdwn\",
-            \"text\": \"*<${REPO_URL}|${REPO_NAME}>* deployed to production\n\n*Version:* \`${TAG}\`\n*Commit:* <${COMMIT_URL}|\`${SHORT_SHA}\`> — release: ${TAG}\n*Bump:* ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})\n*Pipeline:* <${WOODPECKER_URL}|View in Woodpecker>\"
-          }
-        },
-        {\"type\": \"divider\"}
+          \"color\": \"#6c757d\",
+          \"blocks\": [
+            {
+              \"type\": \"section\",
+              \"text\": {
+                \"type\": \"mrkdwn\",
+                \"text\": \":label: *Tagged ${TAG}* — *<${REPO_URL}|${REPO_NAME}>*\n*Bump:* ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})\n*Commit:* <${COMMIT_URL}|\`${SHORT_SHA}\`>\n<${WOODPECKER_URL}|View pipeline>\"
+              }
+            }
+          ]
+        }
       ]
     }" || echo "Warning: Slack notification failed"
 fi
