@@ -188,6 +188,51 @@ class TestHealthEndpoints(unittest.TestCase):
         self.assertEqual(result['service'], 'trigger-scan-staging')
 
 
+class TestCheckStatus(unittest.TestCase):
+    def test_returns_no_status_for_none_uuid(self):
+        result = main._check_status(None)
+        self.assertFalse(result['has_status'])
+        self.assertIsNone(result['phase'])
+
+    def test_returns_no_status_for_empty_uuid(self):
+        result = main._check_status('')
+        self.assertFalse(result['has_status'])
+
+    @patch('google.cloud.storage.Client')
+    def test_returns_status_when_exists(self, mock_gcs_cls):
+        mock_client = MagicMock()
+        mock_gcs_cls.return_value = mock_client
+        mock_bucket = MagicMock()
+        mock_client.bucket.return_value = mock_bucket
+        mock_blob = MagicMock()
+        mock_bucket.blob.return_value = mock_blob
+        mock_blob.exists.return_value = True
+        ts = datetime.now(timezone.utc) - timedelta(minutes=2)
+        mock_blob.download_as_text.return_value = json.dumps({
+            'phase': 'uploading',
+            'timestamp': ts.isoformat(),
+        })
+
+        result = main._check_status('uuid-123')
+        self.assertTrue(result['has_status'])
+        self.assertEqual(result['phase'], 'uploading')
+        self.assertAlmostEqual(result['stale_minutes'], 2.0, delta=0.5)
+
+    @patch('google.cloud.storage.Client')
+    def test_returns_no_status_when_blob_missing(self, mock_gcs_cls):
+        mock_client = MagicMock()
+        mock_gcs_cls.return_value = mock_client
+        mock_bucket = MagicMock()
+        mock_client.bucket.return_value = mock_bucket
+        mock_blob = MagicMock()
+        mock_bucket.blob.return_value = mock_blob
+        mock_blob.exists.return_value = False
+
+        result = main._check_status('uuid-123')
+        self.assertFalse(result['has_status'])
+        self.assertIsNone(result['phase'])
+
+
 class TestScavengeVms(unittest.TestCase):
     def _make_instance(self, name, age_minutes, status='RUNNING'):
         created = datetime.now(timezone.utc) - timedelta(minutes=age_minutes)
@@ -322,6 +367,68 @@ class TestScavengeVms(unittest.TestCase):
         slack_msg = mock_slack.call_args[0][0]
         self.assertIn('Killed containers', slack_msg)
         self.assertIn('pentest-scan-20260320', slack_msg)
+
+    @patch.object(main, '_slack_notify')
+    @patch.object(main, '_check_status')
+    @patch.object(main, '_check_heartbeat')
+    @patch.object(main, '_check_vm_status')
+    @patch('main.compute_v1.InstancesClient')
+    def test_skips_vm_in_uploading_phase(self, mock_client_cls, mock_check,
+                                         mock_hb, mock_status, mock_slack):
+        """VM with no container but fresh 'uploading' status = skip."""
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        vm = self._make_instance('pentest-scan-uploading', 45)
+        vm.metadata = MagicMock()
+        vm.metadata.items = [MagicMock(key='SCAN_UUID', value='uuid-up')]
+        client.list.side_effect = self._single_zone_list(vm)
+        mock_check.return_value = {
+            'alive': False, 'containers': [], 'docker_ps': '',
+            'ssh_failed': False
+        }
+        mock_hb.return_value = {
+            'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None
+        }
+        mock_status.return_value = {
+            'has_status': True, 'phase': 'uploading', 'stale_minutes': 1.0
+        }
+
+        body, code = main.scavenge_vms(_build_request('POST', '/'))
+        self.assertIn('Skipped: 1', body)
+        client.delete.assert_not_called()
+
+    @patch.object(main, '_slack_notify')
+    @patch.object(main, '_check_status')
+    @patch.object(main, '_check_heartbeat')
+    @patch.object(main, '_check_vm_status')
+    @patch('main.compute_v1.InstancesClient')
+    def test_deletes_vm_stuck_in_uploading_phase(self, mock_client_cls,
+                                                  mock_check, mock_hb,
+                                                  mock_status, mock_slack):
+        """VM stuck in 'uploading' for >5m = delete."""
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        vm = self._make_instance('pentest-scan-stuck-upload', 45)
+        vm.metadata = MagicMock()
+        vm.metadata.items = [MagicMock(key='SCAN_UUID', value='uuid-stuck')]
+        client.list.side_effect = self._single_zone_list(vm)
+        mock_check.return_value = {
+            'alive': False, 'containers': [], 'docker_ps': '',
+            'ssh_failed': False
+        }
+        mock_hb.return_value = {
+            'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None
+        }
+        mock_status.return_value = {
+            'has_status': True, 'phase': 'uploading', 'stale_minutes': 10.0
+        }
+        op = MagicMock()
+        client.delete.return_value = op
+
+        body, code = main.scavenge_vms(_build_request('POST', '/'))
+        self.assertIn('Deleted: 1', body)
+        slack_msg = mock_slack.call_args[0][0]
+        self.assertIn('post-scan phase stuck', slack_msg)
 
     @patch.object(main, '_slack_notify')
     @patch('main.compute_v1.InstancesClient')
