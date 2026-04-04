@@ -142,6 +142,24 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
     end
   end
 
+  describe 'post-scan lifecycle status' do
+    it 'has a status check function' do
+      expect(script).to include('def _check_status(scan_uuid):')
+    end
+
+    it 'reads status.json from GCS' do
+      expect(script).to include('status.json')
+    end
+
+    it 'skips VMs in active post-scan phases' do
+      expect(script).to include("phase in ('uploading', 'completed', 'terminating')")
+    end
+
+    it 'detects stuck post-scan phases' do
+      expect(script).to include('post-scan phase stuck')
+    end
+  end
+
   describe 'trigger function health guard' do
     it 'uses HTTP method as primary health check guard' do
       expect(script).to include("request.method == 'GET'")
