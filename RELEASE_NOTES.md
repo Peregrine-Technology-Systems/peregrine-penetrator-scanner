@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix: Slack notification sequence — tag message is informational gray, not gold celebration (#367)
 - feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)
 - docs: comprehensive architecture documentation with Mermaid diagrams (#621)
 - fix: populate findings_count per tool in tool_statuses JSON for reporter Appendix A (#541)
