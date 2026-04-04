@@ -32,6 +32,20 @@ RSpec.describe ScannerBase do
     end
   end
 
+  let(:scanner_with_findings_class) do
+    Class.new(ScannerBase) do
+      def tool_name
+        'findings_scanner'
+      end
+
+      protected
+
+      def execute
+        { success: true, findings: [{ title: 'XSS' }, { title: 'SQLi' }, { title: 'CSRF' }] }
+      end
+    end
+  end
+
   let(:exception_scanner_class) do
     Class.new(ScannerBase) do
       def tool_name
@@ -54,6 +68,33 @@ RSpec.describe ScannerBase do
       scan.refresh
       statuses = scan.tool_statuses
       expect(statuses['test_scanner']['status']).to eq('completed')
+    end
+
+    it 'includes findings_count in completed tool status' do
+      scanner = scanner_with_findings_class.new(scan)
+      scanner.run
+
+      scan.refresh
+      statuses = scan.tool_statuses
+      expect(statuses['findings_scanner']['findings_count']).to eq(3)
+    end
+
+    it 'sets findings_count to 0 when no findings returned' do
+      scanner = test_scanner_class.new(scan)
+      scanner.run
+
+      scan.refresh
+      statuses = scan.tool_statuses
+      expect(statuses['test_scanner']['findings_count']).to eq(0)
+    end
+
+    it 'does not include findings_count in failed tool status' do
+      scanner = failing_scanner_class.new(scan)
+      scanner.run
+
+      scan.refresh
+      statuses = scan.tool_statuses
+      expect(statuses['failing_scanner']).not_to have_key('findings_count')
     end
 
     it 'returns the execute result on success' do
