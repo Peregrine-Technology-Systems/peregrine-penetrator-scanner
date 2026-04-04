@@ -21,8 +21,39 @@ PROJECT_ID=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/project/project-id"
 ZONE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/zone" | cut -d'/' -f4)
 INSTANCE_NAME=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/name")
 
+# Write lifecycle status to GCS for observability (scavenger, smoke tests, humans)
+write_status() {
+  local phase="$1"
+  local extra="${2:-}"
+  local scan_uuid
+  scan_uuid=$(get_metadata "SCAN_UUID" "")
+  local gcs_bucket
+  gcs_bucket=$(get_metadata "GCS_BUCKET" "${PROJECT_ID}-pentest-reports")
+  [ -z "${scan_uuid}" ] && return 0
+  local payload
+  payload=$(cat <<STATUSEOF
+{"scan_uuid":"${scan_uuid}","phase":"${phase}","instance_name":"${INSTANCE_NAME}","scan_mode":"${SCAN_MODE}","timestamp":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"${extra}}
+STATUSEOF
+  )
+  echo "${payload}" | gsutil cp - "gs://${gcs_bucket}/control/${scan_uuid}/status.json" 2>/dev/null || true
+  echo "[lifecycle] ${phase}"
+}
+
+# Send Slack notification from VM (complements Ruby-level notifications)
+send_slack() {
+  local message="$1"
+  local webhook_url
+  webhook_url=$(get_metadata "SLACK_WEBHOOK_URL" "")
+  [ -z "${webhook_url}" ] && return 0
+  curl -sf -X POST -H 'Content-Type: application/json' \
+    -d "{\"text\":\"${message}\"}" \
+    "${webhook_url}" 2>/dev/null || true
+}
+
 # Self-terminate on failure for scan VMs (prevents orphaned VMs incurring cost)
 self_terminate() {
+  write_status "terminating"
+  send_slack ":skull: VM self-terminating: ${INSTANCE_NAME} (${SCAN_MODE})"
   echo "=== Self-terminating VM ${INSTANCE_NAME} ==="
   sleep 5
   if ! gcloud compute instances delete "${INSTANCE_NAME}" \
@@ -91,6 +122,8 @@ case "$SCAN_MODE" in
 
     echo "Profile: ${SCAN_PROFILE}"
     echo "Target: ${TARGET_URLS}"
+
+    write_status "scanning"
 
     # Pull secrets from Secret Manager
     fetch_secret() {
@@ -191,16 +224,28 @@ case "$SCAN_MODE" in
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
       echo "Scan completed successfully"
+      write_status "completed" ",\"scan_exit_code\":0"
+      send_slack ":white_check_mark: Scan completed: ${TARGET_NAME} (${SCAN_PROFILE}) — uploading results"
     elif [ "$SCAN_EXIT" -eq 124 ]; then
       echo "ERROR: Scan timed out after ${SCAN_TIMEOUT}s — docker run killed"
+      write_status "failed" ",\"scan_exit_code\":124,\"error\":\"timeout after ${SCAN_TIMEOUT}s\""
+      send_slack ":warning: Scan timed out: ${TARGET_NAME} (${SCAN_PROFILE}) after ${SCAN_TIMEOUT}s"
     else
       echo "Scan failed with exit code ${SCAN_EXIT}"
+      write_status "failed" ",\"scan_exit_code\":${SCAN_EXIT}"
+      send_slack ":x: Scan failed: ${TARGET_NAME} (${SCAN_PROFILE}) exit code ${SCAN_EXIT}"
     fi
 
     # Upload results to GCS (backup — scanner also uploads via StorageService)
     if [ -n "$(ls -A ${RESULTS_DIR} 2>/dev/null)" ]; then
+      write_status "uploading"
       echo "Uploading results to gs://${GCS_BUCKET}/..."
-      gsutil -m cp -r "${RESULTS_DIR}/*" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/" 2>/dev/null || true
+      if gsutil -m cp -r "${RESULTS_DIR}/*" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/" 2>/dev/null; then
+        write_status "uploaded"
+      else
+        write_status "upload_failed"
+        send_slack ":warning: GCS upload failed: ${TARGET_NAME} — results may be lost"
+      fi
     fi
 
     # Self-termination handled by EXIT trap
