@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)
+
 ## v0.14.1 — 2026-04-04
 
 - fix: redirect docker output to log file — prevents GCE script runner crash on long lines (#631)
