@@ -149,6 +149,11 @@ case "$SCAN_MODE" in
       echo "Cloning repo (branch: development)..."
       git clone --depth 1 --branch development "${REPO_URL}" "${APP_DIR}"
 
+      # Redirect docker output to log file — GCE startup script runner crashes
+      # on long stdout lines (bufio.Scanner buffer overflow), killing the EXIT
+      # trap and orphaning the VM. See scanner#631.
+      SCAN_LOG="/tmp/scan.log"
+
       echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
       timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
         docker run --rm \
@@ -158,7 +163,7 @@ case "$SCAN_MODE" in
           --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
           "${BASE_IMAGE}" \
           bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bundle exec bin/scan" \
-          || SCAN_EXIT=$?
+          > "${SCAN_LOG}" 2>&1 || SCAN_EXIT=$?
     else
       # --- Image mode: pull baked image (staging or production) ---
       FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
@@ -168,6 +173,8 @@ case "$SCAN_MODE" in
 
       docker pull "${FULL_IMAGE}"
 
+      SCAN_LOG="/tmp/scan.log"
+
       echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
       timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
         docker run --rm \
@@ -176,8 +183,11 @@ case "$SCAN_MODE" in
           --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
           "${FULL_IMAGE}" \
           bundle exec bin/scan \
-          || SCAN_EXIT=$?
+          > "${SCAN_LOG}" 2>&1 || SCAN_EXIT=$?
     fi
+
+    echo "--- Scan Log (last 20 lines) ---"
+    tail -20 "${SCAN_LOG}" 2>/dev/null || true
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
       echo "Scan completed successfully"
