@@ -1,6 +1,6 @@
 # Release Notes
 
-## Unreleased
+## v0.14.0 — 2026-04-04
 
 - docs: update README and CLAUDE.md for v0.13.5 VM safety system (#620)
 
