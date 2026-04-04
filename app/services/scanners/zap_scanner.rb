@@ -1,3 +1,5 @@
+require 'uri'
+
 module Scanners
   class ZapScanner < ScannerBase
     def tool_name
