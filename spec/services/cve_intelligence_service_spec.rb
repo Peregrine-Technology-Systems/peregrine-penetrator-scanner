@@ -203,6 +203,41 @@ RSpec.describe CveIntelligenceService do
     end
   end
 
+  describe 'cost tracking' do
+    let(:scan) { create(:scan, :running) }
+    let(:cost_logger) { instance_double(ScanCostLogger) }
+
+    before do
+      allow(cost_logger).to receive(:track_nvd_api_call)
+      stub_request(:get, /services.nvd.nist.gov/)
+        .to_return(status: 200, body: api_responses[:nvd].to_json, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, /api.first.org/)
+        .to_return(status: 200, body: api_responses[:epss].to_json, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, /www.cisa.gov/)
+        .to_return(status: 200, body: api_responses[:kev].to_json, headers: { 'Content-Type' => 'application/json' })
+    end
+
+    it 'tracks NVD API calls when cost_logger provided' do
+      finding = create(:finding, scan:, source_tool: 'nuclei', severity: 'critical',
+                                 title: 'Log4Shell', cve_id: 'CVE-2021-44228',
+                                 evidence: { 'description' => 'test' })
+
+      svc = described_class.new(cost_logger:)
+      svc.enrich_finding(finding)
+
+      expect(cost_logger).to have_received(:track_nvd_api_call).once
+    end
+
+    it 'works without cost_logger (nil)' do
+      finding = create(:finding, scan:, source_tool: 'nuclei', severity: 'critical',
+                                 title: 'Log4Shell', cve_id: 'CVE-2021-44228',
+                                 evidence: { 'description' => 'test' })
+
+      svc = described_class.new
+      expect { svc.enrich_finding(finding) }.not_to raise_error
+    end
+  end
+
   describe 'KEV caching' do
     before do
       stub_request(:get, /www.cisa.gov/)
