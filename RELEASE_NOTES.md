@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- feat: tool chain in GCS export and callback — planned tools, per-tool timing, exit codes, findings count; schema v1.2 (#663)
 - fix: empty SCAN_UUID breaks GCS control paths — fall back to generated UUID instead of empty string (#659)
 - fix: promote pipeline stuck running — notify-status must run on success too for Woodpecker to finalize workflow (#654)
 - refactor: reduce redundant object instantiation and code duplication across services (#653)
