@@ -31,19 +31,20 @@ namespace :scan do
     # Enrich with CVE intelligence
     if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').count.positive?
       puts "\n--- CVE Intelligence Enrichment ---"
-      CveIntelligenceService.new.enrich_scan(scan)
+      CveIntelligenceService.new(cost_logger:).enrich_scan(scan)
     end
 
     # Export versioned JSON to GCS (canonical scan output)
     puts "\n--- Scan Results Export ---"
-    gcs_scan_results_path = ScanResultsExporter.new(scan).export
+    exporter = ScanResultsExporter.new(scan, cost_logger:)
+    gcs_scan_results_path = exporter.export
     puts "  Exported v#{ScanResultsExporter::SCHEMA_VERSION} to #{gcs_scan_results_path}"
     audit.json_exported(scan, gcs_path: gcs_scan_results_path)
 
     # Load findings to BigQuery FROM the versioned JSON
     if BigQueryLogger.enabled?
       puts "\n--- Finding History (JSON-first) ---"
-      scan_results = ScanResultsExporter.new(scan).build_envelope
+      scan_results = exporter.build_envelope
       logged = BigQueryLogger.new.log_from_json(scan_results)
       puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
       audit.bq_loaded(scan, rows_logged: logged)
