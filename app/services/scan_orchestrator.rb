@@ -64,7 +64,7 @@ class ScanOrchestrator
 
   def start_control_plane
     ControlPlaneLoop.new(
-      scan_uuid: ENV.fetch('SCAN_UUID', scan.id),
+      scan_uuid: ENV.fetch('SCAN_UUID', '').then { |v| v.present? ? v : scan.id },
       job_id: ENV.fetch('JOB_ID', nil),
       callback_url: ENV.fetch('CALLBACK_URL', ''),
       gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
@@ -124,7 +124,7 @@ class ScanOrchestrator
   end
 
   def write_started_marker
-    scan_uuid = ENV.fetch('SCAN_UUID', scan.id)
+    scan_uuid = ENV.fetch('SCAN_UUID', '').then { |v| v.present? ? v : scan.id }
     marker = {
       scan_uuid:,
       job_id: ENV.fetch('JOB_ID', nil),
