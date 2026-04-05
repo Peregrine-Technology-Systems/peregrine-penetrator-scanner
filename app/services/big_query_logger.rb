@@ -46,11 +46,12 @@ class BigQueryLogger
 
   attr_reader :findings_table_name, :metadata_table_name
 
-  def initialize
+  def initialize(cost_logger: nil)
     @scan_mode = ENV.fetch('SCAN_MODE', 'dev')
     @findings_table_name = "#{FINDINGS_TABLE_PREFIX}_#{@scan_mode}"
     @metadata_table_name = "#{METADATA_TABLE_PREFIX}_#{@scan_mode}"
     @client = Google::Cloud::Bigquery.new
+    @cost_logger = cost_logger
   end
 
   # New JSON-first interface: load from the versioned scan results envelope
@@ -182,6 +183,7 @@ class BigQueryLogger
   end
 
   def insert_rows(table, rows, label)
+    @cost_logger&.track_bq_insert(rows.to_json.bytesize)
     response = table.insert(rows)
 
     if response.success?

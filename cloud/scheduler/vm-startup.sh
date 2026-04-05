@@ -59,8 +59,10 @@ self_terminate() {
   if ! gcloud compute instances delete "${INSTANCE_NAME}" \
     --zone="${ZONE}" \
     --project="${PROJECT_ID}" \
-    --quiet 2>&1; then
-    echo "ERROR: Self-terminate failed for ${INSTANCE_NAME} — scavenger will clean up"
+    --quiet 2>/dev/null; then
+    echo "ERROR: gcloud delete failed for ${INSTANCE_NAME} — falling back to shutdown"
+    send_slack ":warning: gcloud delete failed for ${INSTANCE_NAME} — shutting down (scavenger will clean up)"
+    /sbin/shutdown -h now 2>/dev/null || true
   fi
 }
 
@@ -237,14 +239,15 @@ case "$SCAN_MODE" in
     fi
 
     # Upload results to GCS (backup — scanner also uploads via StorageService)
+    # Timeout prevents hung uploads from blocking self-termination (#650)
     if [ -n "$(ls -A ${RESULTS_DIR} 2>/dev/null)" ]; then
       write_status "uploading"
       echo "Uploading results to gs://${GCS_BUCKET}/..."
-      if gsutil -m cp -r "${RESULTS_DIR}/*" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/" 2>/dev/null; then
+      if timeout 120 gsutil -m cp -r "${RESULTS_DIR}/*" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/" 2>/dev/null; then
         write_status "uploaded"
       else
         write_status "upload_failed"
-        send_slack ":warning: GCS upload failed: ${TARGET_NAME} — results may be lost"
+        send_slack ":warning: GCS upload failed or timed out: ${TARGET_NAME} — results may be lost"
       fi
     fi
 
