@@ -72,6 +72,7 @@ class ScanCallbackService
     dead_letter = payload.merge(failed_at: Time.current.iso8601)
     path = "control/#{scan_uuid}/callback_pending.json"
 
+    @cost_logger&.track_gcs_upload(dead_letter.to_json.bytesize)
     StorageService.new.upload_json(path, dead_letter)
     Penetrator.logger.warn("[ScanCallbackService] Dead letter written to GCS: #{path}")
   rescue StandardError => e

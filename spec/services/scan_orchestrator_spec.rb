@@ -169,21 +169,7 @@ RSpec.describe ScanOrchestrator do
       expect { orchestrator.execute }.not_to raise_error
     end
 
-    it 'calls CveIntelligenceService.enrich_scan after normalization' do
-      enrichment_service = instance_double(CveIntelligenceService)
-      allow(CveIntelligenceService).to receive(:new).and_return(enrichment_service)
-      expect(enrichment_service).to receive(:enrich_scan).with(scan)
-
-      orchestrator.execute
-    end
-
-    it 'completes scan even when enrichment fails' do
-      allow(CveIntelligenceService).to receive(:new).and_raise(StandardError, 'API down')
-
-      orchestrator.execute
-      scan.refresh
-      expect(scan.status).to eq('completed')
-    end
+    # CVE enrichment moved to scan.rake for proper cost tracking (#651)
 
     it 'runs preflight reachability check before scan phases' do
       stub_request(:head, 'https://example.com/').to_return(status: 200)

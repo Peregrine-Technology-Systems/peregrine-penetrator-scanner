@@ -28,6 +28,26 @@ RSpec.describe Scan do
     end
   end
 
+  describe '#before_create' do
+    it 'generates a UUID when no SCAN_UUID is set' do
+      scan = create(:scan)
+      expect(scan.id).to match(/\A[0-9a-f-]{36}\z/)
+    end
+
+    it 'uses SCAN_UUID from environment when set' do
+      trigger_uuid = 'aabbccdd-1234-5678-9012-abcdef123456'
+      stub_const('ENV', ENV.to_h.merge('SCAN_UUID' => trigger_uuid))
+      scan = create(:scan)
+      expect(scan.id).to eq(trigger_uuid)
+    end
+
+    it 'does not override an explicitly provided ID' do
+      explicit_id = 'explicit-0000-1111-2222-333344445555'
+      scan = create(:scan, id: explicit_id)
+      expect(scan.id).to eq(explicit_id)
+    end
+  end
+
   describe '#duration' do
     it 'returns nil without timestamps' do
       scan = build(:scan)

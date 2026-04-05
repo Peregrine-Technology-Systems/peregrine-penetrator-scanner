@@ -2,13 +2,17 @@
 
 ## Unreleased
 
+- fix: promote pipeline stuck running — notify-status must run on success too for Woodpecker to finalize workflow (#654)
+- fix: comprehensive scan cost tracking — use SCAN_UUID from trigger as scan ID, track NVD API calls, GCS uploads (results + heartbeats + markers + dead letters), and BigQuery streaming insert bytes (#651)
+- fix: VM self-termination hardening — timeout on GCS upload, fallback shutdown on gcloud delete failure (#650)
+- fix: Slack notification sequence — tag message is informational gray, not gold celebration (#367)
+- feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)
+- docs: comprehensive architecture documentation with Mermaid diagrams (#621)
+- fix: populate findings_count per tool in tool_statuses JSON for reporter Appendix A (#541)
+
 ## v0.15.1 — 2026-04-04
 
 ## v0.14.1 — 2026-04-04
-
-- feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)
-- fix: populate findings_count per tool in tool_statuses JSON for reporter Appendix A (#541)
-
 
 - fix: redirect docker output to log file — prevents GCE script runner crash on long lines (#631)
 
