@@ -59,10 +59,8 @@ class DataRetentionPurger
   end
 
   def purge_table(dataset_id, table_name, date_column)
-    dataset = @client.dataset(dataset_id)
-    return { success: true, rows_deleted: 0 } unless dataset&.table(table_name)
+    return { success: true, rows_deleted: 0 } unless table_exists?(dataset_id, table_name)
 
-    cutoff_str = @cutoff.strftime('%Y-%m-%d %H:%M:%S UTC')
     sql = "DELETE FROM `#{dataset_id}.#{table_name}` WHERE #{date_column} < '#{cutoff_str}'"
     result = @client.query(sql)
     rows_deleted = result.total || 0
@@ -75,16 +73,23 @@ class DataRetentionPurger
   end
 
   def count_purgeable(dataset_id, table_name, date_column)
-    dataset = @client.dataset(dataset_id)
-    return 0 unless dataset&.table(table_name)
+    return 0 unless table_exists?(dataset_id, table_name)
 
-    cutoff_str = @cutoff.strftime('%Y-%m-%d %H:%M:%S UTC')
     sql = "SELECT COUNT(*) AS cnt FROM `#{dataset_id}.#{table_name}` WHERE #{date_column} < '#{cutoff_str}'"
     result = @client.query(sql)
     result.first[:cnt]
   rescue StandardError => e
     Penetrator.logger.error("[DataRetentionPurger] Preview failed for #{table_name}: #{e.message}")
     -1
+  end
+
+  def table_exists?(dataset_id, table_name)
+    dataset = @client.dataset(dataset_id)
+    dataset&.table(table_name) ? true : false
+  end
+
+  def cutoff_str
+    @cutoff.strftime('%Y-%m-%d %H:%M:%S UTC')
   end
 
   def log_purge_event(results)
