@@ -10,6 +10,8 @@
 - docs: comprehensive architecture documentation with Mermaid diagrams (#621)
 - fix: populate findings_count per tool in tool_statuses JSON for reporter Appendix A (#541)
 
+## v0.15.1 — 2026-04-04
+
 ## v0.14.1 — 2026-04-04
 
 - fix: redirect docker output to log file — prevents GCE script runner crash on long lines (#631)
