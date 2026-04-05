@@ -41,6 +41,13 @@ RSpec.describe Scan do
       expect(scan.id).to eq(trigger_uuid)
     end
 
+    it 'falls back to generated UUID when SCAN_UUID is empty string' do
+      stub_const('ENV', ENV.to_h.merge('SCAN_UUID' => ''))
+      scan = create(:scan)
+      expect(scan.id).to match(/\A[0-9a-f-]{36}\z/)
+      expect(scan.id).not_to be_empty
+    end
+
     it 'does not override an explicitly provided ID' do
       explicit_id = 'explicit-0000-1111-2222-333344445555'
       scan = create(:scan, id: explicit_id)
