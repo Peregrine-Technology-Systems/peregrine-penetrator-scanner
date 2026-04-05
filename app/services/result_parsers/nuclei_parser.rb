@@ -48,22 +48,22 @@ module ResultParsers
     private
 
     def extract_cwe(data)
-      cwe = data.dig('info', 'classification', 'cwe-id')
-      return nil unless cwe
-
-      cwe.is_a?(Array) ? cwe.first : cwe.to_s
-    end
-
-    def extract_float(data, key)
-      val = data.dig('info', 'classification', key)
-      val&.to_f
+      extract_classification(data, 'cwe-id')
     end
 
     def extract_cve(data)
-      cve = data.dig('info', 'classification', 'cve-id')
-      return nil unless cve
+      extract_classification(data, 'cve-id')
+    end
 
-      cve.is_a?(Array) ? cve.first : cve.to_s
+    def extract_classification(data, key)
+      val = data.dig('info', 'classification', key)
+      return nil unless val
+
+      val.is_a?(Array) ? val.first : val.to_s
+    end
+
+    def extract_float(data, key)
+      data.dig('info', 'classification', key)&.to_f
     end
   end
 end
