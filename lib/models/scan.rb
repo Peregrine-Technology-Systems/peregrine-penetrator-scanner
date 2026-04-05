@@ -9,7 +9,7 @@ class Scan < Sequel::Model
   one_to_many :findings
 
   def before_create
-    self.id ||= SecureRandom.uuid
+    self.id ||= ENV.fetch('SCAN_UUID', nil) || SecureRandom.uuid
     super
   end
 

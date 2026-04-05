@@ -3,14 +3,16 @@
 class ScanResultsExporter
   SCHEMA_VERSION = '1.1'
 
-  def initialize(scan)
+  def initialize(scan, cost_logger: nil)
     @scan = scan
     @target = scan.target
     @findings = scan.findings_dataset.non_duplicate.by_severity
+    @cost_logger = cost_logger
   end
 
   def export
     json = build_envelope.to_json
+    @cost_logger&.track_gcs_upload(json.bytesize)
     gcs_path = write_and_upload(json)
     Penetrator.logger.info("[ScanResultsExporter] Exported scan #{@scan.id} (v#{SCHEMA_VERSION}) to #{gcs_path}")
     gcs_path

@@ -30,6 +30,7 @@ RSpec.describe ScanCostLogger do
       expect(data[:anthropic_tokens_used]).to eq(0)
       expect(data[:nvd_api_calls]).to eq(0)
       expect(data[:gcs_bytes_uploaded]).to eq(0)
+      expect(data[:bq_bytes_inserted]).to eq(0)
     end
   end
 
@@ -64,22 +65,40 @@ RSpec.describe ScanCostLogger do
     end
   end
 
-  describe '#cost_data' do
-    it 'returns complete cost data hash' do
+  describe '#track_bq_insert' do
+    it 'accumulates inserted bytes' do
       logger = described_class.new(scan)
-      logger.track_anthropic_tokens(500)
-      logger.track_nvd_api_call
-      logger.track_gcs_upload(4096)
+      logger.track_bq_insert(5000)
+      logger.track_bq_insert(3000)
 
+      expect(logger.cost_data[:bq_bytes_inserted]).to eq(8000)
+    end
+  end
+
+  describe '#cost_data' do
+    it 'returns complete cost data hash with scan identity' do
+      logger = described_class.new(scan)
       data = logger.cost_data
+
       expect(data[:scan_id]).to eq(scan.id)
       expect(data[:vm_type]).to be_a(String)
       expect(data[:vm_runtime_seconds]).to be_a(Numeric)
       expect(data[:spot_instance]).to be(false).or be(true)
+      expect(data[:estimated_cost_usd]).to be_a(Numeric)
+    end
+
+    it 'includes all tracked resource counters' do
+      logger = described_class.new(scan)
+      logger.track_anthropic_tokens(500)
+      logger.track_nvd_api_call
+      logger.track_gcs_upload(4096)
+      logger.track_bq_insert(2048)
+
+      data = logger.cost_data
       expect(data[:anthropic_tokens_used]).to eq(500)
       expect(data[:nvd_api_calls]).to eq(1)
       expect(data[:gcs_bytes_uploaded]).to eq(4096)
-      expect(data[:estimated_cost_usd]).to be_a(Numeric)
+      expect(data[:bq_bytes_inserted]).to eq(2048)
     end
 
     it 'reads VM type from GCE metadata env var' do

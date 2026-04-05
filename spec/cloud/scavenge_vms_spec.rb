@@ -43,7 +43,7 @@ RSpec.describe 'VM scavenger and self-terminate' do # rubocop:disable RSpec/Desc
 
         it 'logs failure instead of silently swallowing errors' do
           expect(script).not_to match(/gcloud compute instances delete.*\|\| true/)
-          expect(script).to include('Self-terminate failed')
+          expect(script).to include('gcloud delete failed')
         end
 
         it 'mentions scavenger as fallback' do
