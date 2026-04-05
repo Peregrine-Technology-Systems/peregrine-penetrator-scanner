@@ -25,7 +25,7 @@ namespace :scan do
     audit.scan_started(scan)
 
     # Execute scan
-    orchestrator = ScanOrchestrator.new(scan)
+    orchestrator = ScanOrchestrator.new(scan, cost_logger:)
     orchestrator.execute
 
     # Enrich with CVE intelligence
@@ -45,7 +45,7 @@ namespace :scan do
     if BigQueryLogger.enabled?
       puts "\n--- Finding History (JSON-first) ---"
       scan_results = exporter.build_envelope
-      logged = BigQueryLogger.new.log_from_json(scan_results)
+      logged = BigQueryLogger.new(cost_logger:).log_from_json(scan_results)
       puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
       audit.bq_loaded(scan, rows_logged: logged)
     end

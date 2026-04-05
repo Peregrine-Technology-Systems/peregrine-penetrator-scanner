@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- fix: scan costs not appearing in BigQuery — use SCAN_UUID from trigger as scan ID, wire cost tracking into CVE and export services (#651)
+- fix: comprehensive scan cost tracking — use SCAN_UUID from trigger as scan ID, track NVD API calls, GCS uploads (results + heartbeats + markers + dead letters), and BigQuery streaming insert bytes (#651)
 - fix: VM self-termination hardening — timeout on GCS upload, fallback shutdown on gcloud delete failure (#650)
 - fix: Slack notification sequence — tag message is informational gray, not gold celebration (#367)
 - feat: observable post-scan lifecycle — GCS status.json + Slack for upload/terminate phases (#630)

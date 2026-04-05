@@ -13,10 +13,11 @@ class ScanOrchestrator
 
   attr_reader :scan, :profile
 
-  def initialize(scan)
+  def initialize(scan, cost_logger: nil)
     @scan = scan
     @profile = ScanProfile.load(scan.profile)
     @discovered_urls = []
+    @cost_logger = cost_logger
   end
 
   def execute
@@ -67,7 +68,8 @@ class ScanOrchestrator
       job_id: ENV.fetch('JOB_ID', nil),
       callback_url: ENV.fetch('CALLBACK_URL', ''),
       gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
-      callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', '')
+      callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', ''),
+      cost_logger: @cost_logger
     ).start
   end
 
@@ -131,6 +133,7 @@ class ScanOrchestrator
       vm_name: ENV.fetch('HOSTNAME', `hostname`.strip)
     }.compact
 
+    @cost_logger&.track_gcs_upload(marker.to_json.bytesize)
     StorageService.new.upload_json("control/#{scan_uuid}/scan_started.json", marker)
   rescue StandardError => e
     Penetrator.logger.warn("[ScanOrchestrator] Started marker write failed: #{e.message}")
