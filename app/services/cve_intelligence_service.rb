@@ -2,7 +2,8 @@ require 'faraday'
 require 'json'
 
 class CveIntelligenceService
-  def initialize
+  def initialize(cost_logger: nil)
+    @cost_logger = cost_logger
     @http = Faraday.new do |f|
       f.request :json
       f.response :json
@@ -63,6 +64,7 @@ class CveIntelligenceService
 
   def enrich_from_nvd(finding, enrichments)
     nvd_data = @nvd.fetch(finding.cve_id)
+    @cost_logger&.track_nvd_api_call
     return unless nvd_data
 
     enrichments[:cvss_score] = @nvd.extract_cvss(nvd_data)
