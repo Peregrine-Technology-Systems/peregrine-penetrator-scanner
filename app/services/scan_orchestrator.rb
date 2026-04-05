@@ -99,7 +99,6 @@ class ScanOrchestrator
     return if @control_plane&.cancelled?
 
     FindingNormalizer.new(scan).normalize
-    enrich_findings
     mark_completed
     Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings_dataset.count} findings")
   end
@@ -137,12 +136,6 @@ class ScanOrchestrator
     StorageService.new.upload_json("control/#{scan_uuid}/scan_started.json", marker)
   rescue StandardError => e
     Penetrator.logger.warn("[ScanOrchestrator] Started marker write failed: #{e.message}")
-  end
-
-  def enrich_findings
-    CveIntelligenceService.new.enrich_scan(scan)
-  rescue StandardError => e
-    Penetrator.logger.error("[ScanOrchestrator] Enrichment failed (non-fatal): #{e.message}")
   end
 
   def mark_completed
