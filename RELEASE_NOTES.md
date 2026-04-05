@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.15.2 — 2026-04-05
+
 - fix: empty SCAN_UUID breaks GCS control paths — fall back to generated UUID instead of empty string (#659)
 - fix: promote pipeline stuck running — notify-status must run on success too for Woodpecker to finalize workflow (#654)
 - refactor: reduce redundant object instantiation and code duplication across services (#653)
