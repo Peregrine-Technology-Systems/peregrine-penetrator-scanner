@@ -33,5 +33,5 @@ steps:
     commands:
       - scripts/woodpecker/notify-status.sh
     when:
-      - status: [failure]
+      - status: [success, failure]
     depends_on: [promote]

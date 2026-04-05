@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix: promote pipeline stuck running — notify-status must run on success too for Woodpecker to finalize workflow (#654)
 - fix: comprehensive scan cost tracking — use SCAN_UUID from trigger as scan ID, track NVD API calls, GCS uploads (results + heartbeats + markers + dead letters), and BigQuery streaming insert bytes (#651)
 - fix: VM self-termination hardening — timeout on GCS upload, fallback shutdown on gcloud delete failure (#650)
 - fix: Slack notification sequence — tag message is informational gray, not gold celebration (#367)
