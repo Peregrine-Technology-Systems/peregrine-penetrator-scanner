@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Post pipeline status to Slack — runs on EVERY build
-# Highlights: failures (red), production promotions (gold with version), success (green)
+# Highlights: failures (red), success (green/blue per environment)
 
 if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
   echo "SLACK_WEBHOOK_URL not set, skipping notification"
@@ -31,9 +31,9 @@ if [ "$STATUS" = "failure" ]; then
   TITLE="Pipeline FAILED"
 elif [ "$BRANCH" = "main" ] && [ -f VERSION ]; then
   VERSION=$(cat VERSION | tr -d '[:space:]')
-  EMOJI=":rocket::rocket::rocket:"
-  COLOR="#ffc107"
-  TITLE="PRODUCTION RELEASE v${VERSION}"
+  EMOJI=":white_check_mark:"
+  COLOR="#28a745"
+  TITLE="Main passed (v${VERSION})"
 elif [ "$BRANCH" = "staging" ]; then
   EMOJI=":large_blue_circle:"
   COLOR="#0d6efd"
@@ -52,54 +52,23 @@ fi
 # Build the message — repo name linked, no org prefix
 DETAILS="*Branch:* ${BRANCH}\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}"
 
-# Production releases get extra emphasis
-if [ "$BRANCH" = "main" ] && [ -f VERSION ]; then
-  VERSION=$(cat VERSION | tr -d '[:space:]')
-  DETAILS="*Version:* \`v${VERSION}\`\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Status:* Deployed to production"
-fi
-
-# Production release gets a distinct, prominent message
-if [ "$BRANCH" = "main" ] && [ -f VERSION ] && [ "$STATUS" != "failure" ]; then
-  VERSION=$(cat VERSION | tr -d '[:space:]')
-  curl -s -X POST "$SLACK_WEBHOOK_URL" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"text\": \":rocket::rocket::rocket: PRODUCTION RELEASE v${VERSION} — ${REPO}\",
-      \"blocks\": [
-        {\"type\": \"divider\"},
-        {
-          \"type\": \"header\",
-          \"text\": {\"type\": \"plain_text\", \"text\": \":rocket: PRODUCTION RELEASE v${VERSION}\", \"emoji\": true}
-        },
-        {
-          \"type\": \"section\",
-          \"text\": {
-            \"type\": \"mrkdwn\",
-            \"text\": \"*<${REPO_URL}|${REPO}>* deployed to production\n\n*Version:* \`v${VERSION}\`\n*Commit:* <${COMMIT_URL}|\`${COMMIT}\`> — ${MESSAGE}\n*Author:* ${AUTHOR}\n*Pipeline:* <${WOODPECKER_URL}|View in Woodpecker>\"
-          }
-        },
-        {\"type\": \"divider\"}
-      ]
-    }" || echo "Warning: Slack notification failed"
-else
-  # Standard notification for all other builds
-  curl -s -X POST "$SLACK_WEBHOOK_URL" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"text\": \"${EMOJI} ${TITLE} — ${REPO}\",
-      \"attachments\": [
-        {
-          \"color\": \"${COLOR}\",
-          \"blocks\": [
-            {
-              \"type\": \"section\",
-              \"text\": {
-                \"type\": \"mrkdwn\",
-                \"text\": \"${EMOJI} *${TITLE}* *<${REPO_URL}|${REPO}>*\n${DETAILS}\n<${WOODPECKER_URL}|View pipeline>\"
-              }
+# Standard notification for all builds (production celebration moved to deploy pipeline #367)
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"text\": \"${EMOJI} ${TITLE} — ${REPO}\",
+    \"attachments\": [
+      {
+        \"color\": \"${COLOR}\",
+        \"blocks\": [
+          {
+            \"type\": \"section\",
+            \"text\": {
+              \"type\": \"mrkdwn\",
+              \"text\": \"${EMOJI} *${TITLE}* *<${REPO_URL}|${REPO}>*\n${DETAILS}\n<${WOODPECKER_URL}|View pipeline>\"
             }
-          ]
-        }
-      ]
-    }" || echo "Warning: Slack notification failed"
-fi
+          }
+        ]
+      }
+    ]
+  }" || echo "Warning: Slack notification failed"

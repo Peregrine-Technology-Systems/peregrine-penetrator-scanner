@@ -12,6 +12,7 @@ class ScanCostLogger
   COST_PER_1K_ANTHROPIC_TOKENS = 0.003
   COST_PER_NVD_CALL = 0.0
   COST_PER_GCS_GB = 0.02
+  COST_PER_BQ_TB_STREAMED = 6.25
 
   SCHEMA_FIELDS = [
     { name: 'scan_id', type: 'STRING', mode: 'REQUIRED' },
@@ -21,6 +22,7 @@ class ScanCostLogger
     { name: 'anthropic_tokens_used', type: 'INTEGER', mode: 'NULLABLE' },
     { name: 'nvd_api_calls', type: 'INTEGER', mode: 'NULLABLE' },
     { name: 'gcs_bytes_uploaded', type: 'INTEGER', mode: 'NULLABLE' },
+    { name: 'bq_bytes_inserted', type: 'INTEGER', mode: 'NULLABLE' },
     { name: 'estimated_cost_usd', type: 'FLOAT', mode: 'NULLABLE' },
     { name: 'created_at', type: 'TIMESTAMP', mode: 'REQUIRED' }
   ].freeze
@@ -30,6 +32,7 @@ class ScanCostLogger
     @anthropic_tokens_used = 0
     @nvd_api_calls = 0
     @gcs_bytes_uploaded = 0
+    @bq_bytes_inserted = 0
   end
 
   def track_anthropic_tokens(count)
@@ -44,6 +47,10 @@ class ScanCostLogger
     @gcs_bytes_uploaded += bytes
   end
 
+  def track_bq_insert(bytes)
+    @bq_bytes_inserted += bytes
+  end
+
   def cost_data
     {
       scan_id: @scan.id,
@@ -53,6 +60,7 @@ class ScanCostLogger
       anthropic_tokens_used: @anthropic_tokens_used,
       nvd_api_calls: @nvd_api_calls,
       gcs_bytes_uploaded: @gcs_bytes_uploaded,
+      bq_bytes_inserted: @bq_bytes_inserted,
       estimated_cost_usd:
     }
   end
@@ -87,7 +95,7 @@ class ScanCostLogger
   end
 
   def estimated_cost_usd
-    compute_cost + anthropic_cost + storage_cost
+    compute_cost + anthropic_cost + storage_cost + bigquery_cost
   end
 
   def compute_cost
@@ -104,6 +112,11 @@ class ScanCostLogger
   def storage_cost
     gb = @gcs_bytes_uploaded / (1024.0**3)
     gb * COST_PER_GCS_GB
+  end
+
+  def bigquery_cost
+    tb = @bq_bytes_inserted / (1024.0**4)
+    tb * COST_PER_BQ_TB_STREAMED
   end
 
   def ensure_table(client)
