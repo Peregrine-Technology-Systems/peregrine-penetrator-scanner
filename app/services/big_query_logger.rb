@@ -54,20 +54,28 @@ class BigQueryLogger
     @cost_logger = cost_logger
   end
 
-  # New JSON-first interface: load from the versioned scan results envelope
   def log_from_json(scan_results)
-    findings_count = log_findings_from_json(scan_results)
-    log_metadata_from_json(scan_results)
+    schema_version = flex(scan_results, 'schema_version')
+    metadata = flex(scan_results, 'metadata') || {}
+    summary = flex(scan_results, 'summary') || {}
+    findings = flex(scan_results, 'findings') || []
+
+    findings_count = log_findings(findings, metadata, schema_version)
+    log_metadata(metadata, summary, schema_version)
     findings_count
   rescue StandardError => e
     Penetrator.logger.error("[BigQueryLogger] Failed: #{e.message}")
     0
   end
 
-  # Legacy interface: load from ActiveRecord scan object (backward compatible)
-  def log_findings(scan)
+  # Legacy interface: load from Sequel scan object
+  def log_findings_from_scan(scan)
     findings = scan.findings_dataset.non_duplicate
-    rows = findings.map { |f| build_row_from_ar(f, scan) }
+    schema_version = ScanResultsExporter::SCHEMA_VERSION
+    metadata = { scan_id: scan.id, target_urls: scan.target.url_list,
+                 started_at: scan.started_at || scan.created_at, profile: scan.profile }
+
+    rows = findings.map { |f| build_finding_row(normalize_ar_finding(f), metadata, schema_version) }
     return 0 if rows.empty?
 
     insert_rows(ensure_findings_table, rows, 'findings')
@@ -80,106 +88,84 @@ class BigQueryLogger
     ENV['GOOGLE_CLOUD_PROJECT'].present?
   end
 
-  # Keep legacy alias for backward compatibility
   def table_name
     findings_table_name
   end
 
   private
 
-  def log_findings_from_json(scan_results)
-    schema_version = scan_results['schema_version'] || scan_results[:schema_version]
-    metadata = scan_results['metadata'] || scan_results[:metadata] || {}
-    findings = scan_results['findings'] || scan_results[:findings] || []
+  # Flexible key access — handles both string and symbol keys
+  def flex(hash, key)
+    hash[key] || hash[key.to_sym]
+  end
+
+  def log_findings(findings, metadata, schema_version)
     return 0 if findings.empty?
 
-    rows = findings.map { |f| build_row_from_json(f, metadata, schema_version) }
+    rows = findings.map { |f| build_finding_row(f, metadata, schema_version) }
     insert_rows(ensure_findings_table, rows, 'findings')
   end
 
-  def log_metadata_from_json(scan_results)
-    schema_version = scan_results['schema_version'] || scan_results[:schema_version]
-    metadata = scan_results['metadata'] || scan_results[:metadata] || {}
-    summary = scan_results['summary'] || scan_results[:summary] || {}
-
+  def log_metadata(metadata, summary, schema_version)
     row = {
-      scan_id: metadata['scan_id'] || metadata[:scan_id],
-      target_name: metadata['target_name'] || metadata[:target_name],
-      profile: metadata['profile'] || metadata[:profile],
-      duration_seconds: summary['duration_seconds'] || summary[:duration_seconds],
-      tool_statuses: (metadata['tool_statuses'] || metadata[:tool_statuses] || {}).to_json,
+      scan_id: flex(metadata, 'scan_id'),
+      target_name: flex(metadata, 'target_name'),
+      profile: flex(metadata, 'profile'),
+      duration_seconds: flex(summary, 'duration_seconds'),
+      tool_statuses: (flex(metadata, 'tool_statuses') || {}).to_json,
       schema_version:,
-      scan_date: metadata['started_at'] || metadata[:started_at] || Time.now.iso8601,
-      total_findings: summary['total_findings'] || summary[:total_findings],
-      by_severity: (summary['by_severity'] || summary[:by_severity] || {}).to_json
+      scan_date: flex(metadata, 'started_at') || Time.now.iso8601,
+      total_findings: flex(summary, 'total_findings'),
+      by_severity: (flex(summary, 'by_severity') || {}).to_json
     }
 
     insert_rows(ensure_metadata_table, [row], 'metadata')
   end
 
-  def build_row_from_json(finding, metadata, schema_version)
-    evidence = finding['evidence'] || finding[:evidence]
+  def build_finding_row(finding, metadata, schema_version)
+    evidence = flex(finding, 'evidence')
     {
-      fingerprint: finding['fingerprint'] || finding[:id] || SecureRandom.hex(32),
-      site: Array(metadata['target_urls'] || metadata[:target_urls]).first,
-      scan_id: metadata['scan_id'] || metadata[:scan_id],
-      scan_date: metadata['started_at'] || metadata[:started_at] || Time.now.iso8601,
-      profile: metadata['profile'] || metadata[:profile],
+      fingerprint: flex(finding, 'fingerprint') || flex(finding, 'id') || SecureRandom.hex(32),
+      site: Array(flex(metadata, 'target_urls')).first,
+      scan_id: flex(metadata, 'scan_id'),
+      scan_date: flex(metadata, 'started_at') || Time.now.iso8601,
+      profile: flex(metadata, 'profile'),
       schema_version:,
-      severity: finding['severity'] || finding[:severity],
-      title: finding['title'] || finding[:title],
-      tool: finding['source_tool'] || finding[:source_tool],
-      cwe_id: finding['cwe_id'] || finding[:cwe_id],
-      cve_id: finding['cve_id'] || finding[:cve_id],
-      url: finding['url'] || finding[:url],
-      parameter: finding['parameter'] || finding[:parameter],
-      cvss_score: finding['cvss_score'] || finding[:cvss_score],
-      cvss_vector: finding['cvss_vector'] || finding[:cvss_vector],
-      epss_score: finding['epss_score'] || finding[:epss_score],
-      kev_known_exploited: finding['kev_known_exploited'] || finding[:kev_known_exploited],
+      severity: flex(finding, 'severity'),
+      title: flex(finding, 'title'),
+      tool: flex(finding, 'source_tool'),
+      cwe_id: flex(finding, 'cwe_id'),
+      cve_id: flex(finding, 'cve_id'),
+      url: flex(finding, 'url'),
+      parameter: flex(finding, 'parameter'),
+      cvss_score: flex(finding, 'cvss_score'),
+      cvss_vector: flex(finding, 'cvss_vector'),
+      epss_score: flex(finding, 'epss_score'),
+      kev_known_exploited: flex(finding, 'kev_known_exploited'),
       evidence: evidence.is_a?(Hash) ? evidence.to_json : evidence&.to_s,
-      ticket_system: ticket_from_evidence(evidence, 'ticket_system'),
-      ticket_ref: ticket_from_evidence(evidence, 'ticket_ref'),
-      ticket_pushed_at: ticket_from_evidence(evidence, 'ticket_pushed_at'),
-      ticket_status: ticket_from_evidence(evidence, 'ticket_ref') ? 'open' : nil
+      ticket_system: ticket_from(evidence, 'ticket_system'),
+      ticket_ref: ticket_from(evidence, 'ticket_ref'),
+      ticket_pushed_at: ticket_from(evidence, 'ticket_pushed_at'),
+      ticket_status: ticket_from(evidence, 'ticket_ref') ? 'open' : nil
     }
   end
 
-  # Legacy: build row from ActiveRecord objects
-  def build_row_from_ar(finding, scan)
+  def normalize_ar_finding(finding)
     {
-      fingerprint: finding.fingerprint,
-      site: scan.target.url_list.first,
-      scan_id: scan.id,
-      scan_date: scan.started_at || scan.created_at,
-      profile: scan.profile,
-      schema_version: ScanResultsExporter::SCHEMA_VERSION,
-      severity: finding.severity,
-      title: finding.title,
-      tool: finding.source_tool,
-      cwe_id: finding.cwe_id,
-      cve_id: finding.cve_id,
-      url: finding.url,
-      parameter: finding.parameter,
-      cvss_score: finding.cvss_score,
-      cvss_vector: finding.cvss_vector,
-      epss_score: finding.epss_score,
-      kev_known_exploited: finding.kev_known_exploited,
-      evidence: finding.evidence.is_a?(Hash) ? finding.evidence.to_json : finding.evidence&.to_s,
-      ticket_system: ticket_field(finding, 'ticket_system'),
-      ticket_ref: ticket_field(finding, 'ticket_ref'),
-      ticket_pushed_at: ticket_field(finding, 'ticket_pushed_at'),
-      ticket_status: ticket_field(finding, 'ticket_ref') ? 'open' : nil
+      fingerprint: finding.fingerprint, id: finding.id,
+      severity: finding.severity, title: finding.title,
+      source_tool: finding.source_tool, cwe_id: finding.cwe_id,
+      cve_id: finding.cve_id, url: finding.url, parameter: finding.parameter,
+      cvss_score: finding.cvss_score, cvss_vector: finding.cvss_vector,
+      epss_score: finding.epss_score, kev_known_exploited: finding.kev_known_exploited,
+      evidence: finding.evidence
     }
   end
 
-  def ticket_from_evidence(evidence, key)
-    evidence.is_a?(Hash) ? (evidence[key] || evidence[key.to_sym]) : nil
-  end
+  def ticket_from(evidence, key)
+    return nil unless evidence.is_a?(Hash)
 
-  def ticket_field(finding, key)
-    ev = finding.evidence
-    ev.is_a?(Hash) ? ev[key] : nil
+    evidence[key] || evidence[key.to_sym]
   end
 
   def insert_rows(table, rows, label)

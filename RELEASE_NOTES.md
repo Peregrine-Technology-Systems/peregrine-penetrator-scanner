@@ -1,9 +1,13 @@
 # Release Notes
 
+## Unreleased
+
 ## v0.15.2 — 2026-04-05
 
+- feat: tool chain in GCS export and callback — planned tools, per-tool timing, exit codes, findings count; schema v1.2 (#663)
 - fix: empty SCAN_UUID breaks GCS control paths — fall back to generated UUID instead of empty string (#659)
 - fix: promote pipeline stuck running — notify-status must run on success too for Woodpecker to finalize workflow (#654)
+- refactor: reduce redundant object instantiation and code duplication across services (#653)
 - fix: comprehensive scan cost tracking — use SCAN_UUID from trigger as scan ID, track NVD API calls, GCS uploads (results + heartbeats + markers + dead letters), and BigQuery streaming insert bytes (#651)
 - fix: VM self-termination hardening — timeout on GCS upload, fallback shutdown on gcloud delete failure (#650)
 - fix: Slack notification sequence — tag message is informational gray, not gold celebration (#367)
