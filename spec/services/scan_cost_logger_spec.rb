@@ -147,11 +147,23 @@ RSpec.describe ScanCostLogger do
   end
 
   describe '#log_to_bigquery' do
+    let(:schema_fields) do
+      ScanCostLogger::SCHEMA_FIELDS.map do |f|
+        double(name: f[:name]) # rubocop:disable RSpec/VerifiedDoubles
+      end
+    end
+    let(:schema_double) do
+      s = double('schema') # rubocop:disable RSpec/VerifiedDoubles
+      allow(s).to receive(:fields).and_return(schema_fields)
+      allow(s).to receive_messages(string: nil, integer: nil, float: nil, boolean: nil, timestamp: nil)
+      s
+    end
+
     before do
       mocks = bq_mocks
       allow(mock_bigquery).to receive(:dataset).with('pentest_history').and_return(mocks[:dataset])
       allow(mocks[:dataset]).to receive(:table).with('scan_costs').and_return(mocks[:table])
-      allow(mocks[:table]).to receive(:insert).and_return(mocks[:response])
+      allow(mocks[:table]).to receive_messages(insert: mocks[:response], schema: schema_double)
     end
 
     it 'inserts cost data row into BigQuery' do
