@@ -362,8 +362,8 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
 
       extra_keys = row.keys - schema_names
       expect(extra_keys).to be_empty,
-        "cost_data has fields not in SCHEMA_FIELDS: #{extra_keys}. " \
-        'BQ streaming insert will reject the row. Add missing fields to SCHEMA_FIELDS.'
+                            "cost_data has fields not in SCHEMA_FIELDS: #{extra_keys}. " \
+                            'BQ streaming insert will reject the row. Add missing fields to SCHEMA_FIELDS.'
     end
 
     it 'SCHEMA_FIELDS covers all cost_data keys' do
@@ -373,7 +373,7 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
 
       missing_keys = row.keys - schema_names
       expect(missing_keys).to be_empty,
-        "cost_data returns #{missing_keys} which are not in SCHEMA_FIELDS"
+                              "cost_data returns #{missing_keys} which are not in SCHEMA_FIELDS"
     end
 
     it 'all cost_data values have correct types for BQ' do
