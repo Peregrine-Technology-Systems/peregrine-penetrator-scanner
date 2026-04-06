@@ -5,14 +5,7 @@ module Notifiers
     end
 
     def send_notification
-      url = ENV.fetch('SLACK_WEBHOOK_URL', nil)
-      payload = build_payload
-
-      response = Faraday.post(url) do |req|
-        req.headers['Content-Type'] = 'application/json'
-        req.body = payload.to_json
-      end
-
+      response = self.class.post_webhook(build_payload)
       Penetrator.logger.info("[NotificationService] Webhook sent: #{response.status}")
     end
 
@@ -47,13 +40,17 @@ module Notifiers
         ]
       }
 
+      post_webhook(payload)
+    rescue StandardError => e
+      Penetrator.logger.error("[SlackNotifier] Failed to send start notification: #{e.message}")
+    end
+
+    def self.post_webhook(payload)
       url = ENV.fetch('SLACK_WEBHOOK_URL', nil)
       Faraday.post(url) do |req|
         req.headers['Content-Type'] = 'application/json'
         req.body = payload.to_json
       end
-    rescue StandardError => e
-      Penetrator.logger.error("[SlackNotifier] Failed to send start notification: #{e.message}")
     end
 
     private
