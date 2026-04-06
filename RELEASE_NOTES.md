@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.16.0 — 2026-04-06
+
 ## v0.15.2 — 2026-04-05
 
 - feat: tool chain in GCS export and callback — planned tools, per-tool timing, exit codes, findings count; schema v1.2 (#663)
