@@ -35,9 +35,7 @@ class StorageService
   end
 
   def upload_to_gcs(local_path, remote_path, content_type)
-    require 'google/cloud/storage'
-    storage = Google::Cloud::Storage.new
-    bucket = storage.bucket(@bucket_name)
+    bucket = gcs_bucket
     unless bucket
       Penetrator.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local storage")
       return upload_local(local_path, remote_path)
@@ -56,15 +54,19 @@ class StorageService
   end
 
   def gcs_signed_url(remote_path, expires_in)
-    require 'google/cloud/storage'
-    storage = Google::Cloud::Storage.new
-    bucket = storage.bucket(@bucket_name)
+    bucket = gcs_bucket
     unless bucket
       Penetrator.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local URL")
       return "file://#{local_storage_path(remote_path)}"
     end
     file = bucket.file(remote_path)
     file.signed_url(expires: expires_in.to_i, method: 'GET')
+  end
+
+  def gcs_bucket
+    require 'google/cloud/storage'
+    @gcs_client ||= Google::Cloud::Storage.new
+    @gcs_client.bucket(@bucket_name)
   end
 
   def local_storage_path(remote_path)

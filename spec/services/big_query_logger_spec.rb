@@ -195,14 +195,14 @@ RSpec.describe BigQueryLogger do
         row = rows.first
         expect(row[:fingerprint]).to eq(finding.fingerprint)
         expect(row[:severity]).to eq('high')
-        expect(row[:schema_version]).to eq('1.1')
+        expect(row[:schema_version]).to eq('1.2')
         expect(row[:cve_id]).to eq('CVE-2024-5678')
         expect(row[:cvss_score]).to eq(7.5)
         expect(row[:parameter]).to eq('q')
         bq_mocks[:response]
       end
 
-      described_class.new.log_findings(scan)
+      described_class.new.log_findings_from_scan(scan)
     end
 
     it 'excludes duplicate findings' do
@@ -219,11 +219,11 @@ RSpec.describe BigQueryLogger do
         bq_mocks[:response]
       end
 
-      described_class.new.log_findings(scan)
+      described_class.new.log_findings_from_scan(scan)
     end
 
     it 'returns the count of logged findings' do
-      expect(described_class.new.log_findings(scan)).to eq(1)
+      expect(described_class.new.log_findings_from_scan(scan)).to eq(1)
     end
   end
 

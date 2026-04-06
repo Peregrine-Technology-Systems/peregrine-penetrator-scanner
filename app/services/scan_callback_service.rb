@@ -41,7 +41,8 @@ class ScanCallbackService
       duration_seconds: @scan.duration&.to_i,
       summary: @scan.summary || {},
       gcs_scan_results_path: @gcs_scan_results_path,
-      cost_data: @cost_logger.cost_data
+      cost_data: @cost_logger.cost_data,
+      tool_chain: ScanResultsExporter.new(@scan).build_tool_chain
     }
     payload.compact
   end
