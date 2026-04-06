@@ -69,7 +69,38 @@ RSpec.describe ScanResultsExporter do
     let(:envelope) { exporter.build_envelope }
 
     it 'includes schema_version' do
-      expect(envelope[:schema_version]).to eq('1.1')
+      expect(envelope[:schema_version]).to eq('1.2')
+    end
+
+    describe 'tool_chain' do
+      let(:tool_chain) { envelope[:tool_chain] }
+
+      it 'includes profile metadata' do
+        expect(tool_chain[:profile][:name]).to eq('standard')
+        expect(tool_chain[:profile][:description]).to be_present
+        expect(tool_chain[:profile][:estimated_duration_minutes]).to eq(30)
+      end
+
+      it 'includes planned tools from profile YAML' do
+        tool_names = tool_chain[:planned].pluck(:tool)
+        expect(tool_names).to include('zap', 'nuclei')
+      end
+
+      it 'includes phase and config for planned tools' do
+        zap = tool_chain[:planned].find { |t| t[:tool] == 'zap' }
+        expect(zap[:phase]).to eq('active_scan')
+        expect(zap[:config]).to include(mode: 'full')
+      end
+
+      it 'includes executed tools from tool_statuses' do
+        executed_names = tool_chain[:executed].map { |t| t[:tool] }
+        expect(executed_names).to contain_exactly('zap', 'nuclei')
+      end
+
+      it 'includes status for each executed tool' do
+        zap = tool_chain[:executed].find { |t| t[:tool] == 'zap' }
+        expect(zap[:status]).to eq('completed')
+      end
     end
 
     describe 'metadata' do
@@ -171,7 +202,7 @@ RSpec.describe ScanResultsExporter do
       allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
         content = File.read(local_path)
         parsed = JSON.parse(content)
-        expect(parsed['schema_version']).to eq('1.1')
+        expect(parsed['schema_version']).to eq('1.2')
         expect(parsed['findings'].size).to eq(2)
         true
       end
