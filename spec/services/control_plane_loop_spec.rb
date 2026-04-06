@@ -87,16 +87,23 @@ RSpec.describe ControlPlaneLoop do
     end
 
     it 'includes progress data in GCS heartbeat' do
-      loop_instance.update_progress(current_tool: 'zap', findings_count: 5)
-
       storage = instance_double(StorageService)
       allow(StorageService).to receive(:new).and_return(storage)
+      allow(storage).to receive(:upload_json)
+
+      instance = described_class.new(
+        scan_uuid: 'scan-123', job_id: 'job-456',
+        callback_url: 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
+        gcs_bucket: 'test-bucket', callback_secret: 'secret'
+      )
+      instance.update_progress(current_tool: 'zap', findings_count: 5)
+
       expect(storage).to receive(:upload_json).with(
         anything,
         hash_including(current_tool: 'zap', findings_count: 5)
       )
 
-      loop_instance.send(:tick)
+      instance.send(:tick)
     end
   end
 end
