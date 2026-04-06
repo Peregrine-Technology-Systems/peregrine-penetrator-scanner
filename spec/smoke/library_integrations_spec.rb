@@ -350,6 +350,51 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
     end
   end
 
+  describe 'ScanCostLogger schema integrity' do
+    let(:scan) do
+      create(:scan, :completed, started_at: 1.hour.ago, completed_at: Time.current)
+    end
+
+    it 'cost_data keys match SCHEMA_FIELDS (no unknown fields sent to BQ)' do
+      logger = ScanCostLogger.new(scan)
+      row = logger.cost_data.merge(created_at: Time.current)
+      schema_names = ScanCostLogger::SCHEMA_FIELDS.map { |f| f[:name].to_sym }
+
+      extra_keys = row.keys - schema_names
+      expect(extra_keys).to be_empty,
+        "cost_data has fields not in SCHEMA_FIELDS: #{extra_keys}. " \
+        'BQ streaming insert will reject the row. Add missing fields to SCHEMA_FIELDS.'
+    end
+
+    it 'SCHEMA_FIELDS covers all cost_data keys' do
+      logger = ScanCostLogger.new(scan)
+      row = logger.cost_data
+      schema_names = ScanCostLogger::SCHEMA_FIELDS.map { |f| f[:name].to_sym }
+
+      missing_keys = row.keys - schema_names
+      expect(missing_keys).to be_empty,
+        "cost_data returns #{missing_keys} which are not in SCHEMA_FIELDS"
+    end
+
+    it 'all cost_data values have correct types for BQ' do
+      logger = ScanCostLogger.new(scan)
+      logger.track_anthropic_tokens(100)
+      logger.track_nvd_api_call
+      logger.track_gcs_upload(1024)
+      logger.track_bq_insert(512)
+      data = logger.cost_data
+
+      expect(data[:scan_id]).to be_a(String)
+      expect(data[:vm_runtime_seconds]).to be_a(Integer)
+      expect(data[:estimated_cost_usd]).to be_a(Float)
+      expect(data[:anthropic_tokens_used]).to be_a(Integer)
+      expect(data[:nvd_api_calls]).to be_a(Integer)
+      expect(data[:gcs_bytes_uploaded]).to be_a(Integer)
+      expect(data[:bq_bytes_inserted]).to be_a(Integer)
+      expect(data[:spot_instance]).to be(true).or be(false)
+    end
+  end
+
   describe 'ScanSummaryBuilder' do
     it 'counts non-duplicate findings grouped by severity' do
       scan = create(:scan, :running, tool_statuses: { 'zap' => {} })
