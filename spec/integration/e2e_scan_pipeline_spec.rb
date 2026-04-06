@@ -83,7 +83,7 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
       exporter = ScanResultsExporter.new(scan)
       envelope = exporter.build_envelope
 
-      expect(envelope[:schema_version]).to eq('1.1')
+      expect(envelope[:schema_version]).to eq('1.2')
       expect(envelope[:metadata][:scan_id]).to eq(scan.id)
       expect(envelope[:metadata][:target_name]).to eq('DVWA E2E Test')
       expect(envelope[:findings]).to be_an(Array)
