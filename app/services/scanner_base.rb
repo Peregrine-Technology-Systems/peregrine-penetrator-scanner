@@ -11,24 +11,24 @@ class ScannerBase
   end
 
   def run
-    update_status('running')
+    update_status('running', started_at: Time.current.iso8601)
     logger.info("[#{tool_name}] Starting scan for #{scan.target.name}")
 
     result = execute
 
     if result[:success]
       findings_count = Array(result[:findings]).length
-      update_status('completed', nil, findings_count:)
+      update_status('completed', nil, findings_count:, exit_code: 0)
       logger.info("[#{tool_name}] Completed successfully")
     else
-      update_status('failed', result[:error])
+      update_status('failed', result[:error], exit_code: result[:exit_code])
       logger.error("[#{tool_name}] Failed: #{result[:error]}")
       alert_on_failure(result)
     end
 
     result
   rescue StandardError => e
-    update_status('failed', e.message)
+    update_status('failed', e.message, exit_code: -1)
     logger.error("[#{tool_name}] Exception: #{e.message}")
     { success: false, error: e.message, findings: [] }
   end
@@ -146,8 +146,10 @@ class ScannerBase
     )
   end
 
-  def update_status(status, error = nil, findings_count: nil)
-    entry = { status:, updated_at: Time.current.iso8601, error:, findings_count: }.compact
+  def update_status(status, error = nil, findings_count: nil, exit_code: nil, started_at: nil)
+    existing = (scan.tool_statuses || {}).fetch(tool_name, {})
+    entry = existing.merge({ status:, updated_at: Time.current.iso8601, error:,
+                             findings_count:, exit_code:, started_at: }.compact)
     scan.tool_statuses = (scan.tool_statuses || {}).merge(tool_name => entry)
     scan.save_changes
   end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ScanResultsExporter
-  SCHEMA_VERSION = '1.1'
+  SCHEMA_VERSION = '1.2'
 
   def initialize(scan, cost_logger: nil)
     @scan = scan
@@ -21,10 +21,23 @@ class ScanResultsExporter
   def build_envelope
     {
       schema_version: SCHEMA_VERSION,
+      tool_chain: build_tool_chain,
       metadata: build_metadata,
       summary: build_summary,
       findings: @findings.map { |f| finding_to_hash(f) }
     }
+  end
+
+  def build_tool_chain
+    profile = ScanProfile.load(@scan.profile)
+    {
+      profile: { name: profile.name, description: profile.description,
+                 estimated_duration_minutes: profile.estimated_duration_minutes },
+      planned: build_planned_tools(profile),
+      executed: build_executed_tools(profile)
+    }
+  rescue ArgumentError
+    { profile: { name: @scan.profile }, planned: [], executed: build_executed_tools(nil) }
   end
 
   private
@@ -41,6 +54,46 @@ class ScanResultsExporter
       tool_statuses: @scan.tool_statuses || {},
       generated_at: Time.current.iso8601
     }
+  end
+
+  def build_planned_tools(profile)
+    profile.phases.flat_map do |phase|
+      phase.tools.map do |tc|
+        { tool: tc.tool, phase: phase.name, parallel: phase.parallel, config: tc.config }
+      end
+    end
+  end
+
+  def build_executed_tools(profile)
+    tool_statuses = @scan.tool_statuses || {}
+    tool_statuses.map do |tool_name, status|
+      started = status['started_at'] || status[:started_at]
+      completed = status['updated_at'] || status[:updated_at]
+      duration = started && completed ? time_diff(started, completed) : nil
+      {
+        tool: tool_name,
+        phase: find_phase(profile, tool_name),
+        status: status['status'] || status[:status],
+        started_at: started,
+        completed_at: completed,
+        duration_seconds: duration,
+        exit_code: status['exit_code'] || status[:exit_code],
+        findings_count: status['findings_count'] || status[:findings_count],
+        error: status['error'] || status[:error]
+      }
+    end
+  end
+
+  def find_phase(profile, tool_name)
+    return nil unless profile
+
+    profile.phases.find { |p| p.tools.any? { |t| t.tool == tool_name } }&.name
+  end
+
+  def time_diff(started, completed)
+    (Time.parse(completed) - Time.parse(started)).to_i
+  rescue ArgumentError, TypeError
+    nil
   end
 
   def build_summary
