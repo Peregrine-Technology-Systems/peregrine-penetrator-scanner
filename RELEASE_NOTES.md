@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.16.2 — 2026-04-06
+
 ## v0.16.0 — 2026-04-06
 
 - fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
