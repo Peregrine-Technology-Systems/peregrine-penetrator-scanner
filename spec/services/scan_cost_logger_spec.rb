@@ -163,8 +163,7 @@ RSpec.describe ScanCostLogger do
       mocks = bq_mocks
       allow(mock_bigquery).to receive(:dataset).with('pentest_history').and_return(mocks[:dataset])
       allow(mocks[:dataset]).to receive(:table).with('scan_costs').and_return(mocks[:table])
-      allow(mocks[:table]).to receive(:insert).and_return(mocks[:response])
-      allow(mocks[:table]).to receive(:schema).and_return(schema_double)
+      allow(mocks[:table]).to receive_messages(insert: mocks[:response], schema: schema_double)
     end
 
     it 'inserts cost data row into BigQuery' do
