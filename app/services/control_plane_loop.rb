@@ -11,6 +11,7 @@ class ControlPlaneLoop
     )
     @gcs_bucket = gcs_bucket
     @cost_logger = cost_logger
+    @storage = StorageService.new if gcs_bucket.to_s.present?
     @mutex = Mutex.new
     @cancelled = false
     @running = false
@@ -55,20 +56,22 @@ class ControlPlaneLoop
   end
 
   def tick
-    Timeout.timeout(TICK_TIMEOUT) do
-      progress = @mutex.synchronize { @progress.dup }
-      @heartbeat.send_heartbeat(status: 'running', **progress)
-      write_gcs_heartbeat(progress)
-      check_cancel
-    end
+    progress = @mutex.synchronize { @progress.dup }
+    safe_call('callback') { @heartbeat.send_heartbeat(status: 'running', **progress) }
+    safe_call('GCS heartbeat') { write_gcs_heartbeat(progress) }
+    safe_call('cancel check') { check_cancel }
+  end
+
+  def safe_call(label, &)
+    Timeout.timeout(TICK_TIMEOUT, &)
   rescue Timeout::Error
-    Penetrator.logger.warn("[ControlPlaneLoop] Tick timed out after #{TICK_TIMEOUT}s — skipping")
+    Penetrator.logger.warn("[ControlPlaneLoop] #{label} timed out after #{TICK_TIMEOUT}s — skipping")
   rescue StandardError => e
-    Penetrator.logger.warn("[ControlPlaneLoop] Tick error: #{e.message}")
+    Penetrator.logger.warn("[ControlPlaneLoop] #{label} error: #{e.message}")
   end
 
   def write_gcs_heartbeat(progress)
-    return if @gcs_bucket.to_s.empty?
+    return unless @storage
 
     payload = {
       scan_uuid: @scan_uuid,
@@ -77,19 +80,15 @@ class ControlPlaneLoop
       **progress
     }
     @cost_logger&.track_gcs_upload(payload.to_json.bytesize)
-    StorageService.new.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
-  rescue StandardError => e
-    Penetrator.logger.warn("[ControlPlaneLoop] GCS heartbeat failed: #{e.message}")
+    @storage.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
   end
 
   def check_cancel
     return unless ControlFlagReader.enabled?
 
-    if ControlFlagReader.new(gcs_bucket: @gcs_bucket, scan_uuid: @scan_uuid).cancelled?
-      @mutex.synchronize { @cancelled = true }
-      Penetrator.logger.info('[ControlPlaneLoop] Cancel signal detected')
-    end
-  rescue StandardError => e
-    Penetrator.logger.warn("[ControlPlaneLoop] Cancel check failed: #{e.message}")
+    return unless ControlFlagReader.new(gcs_bucket: @gcs_bucket, scan_uuid: @scan_uuid).cancelled?
+
+    @mutex.synchronize { @cancelled = true }
+    Penetrator.logger.info('[ControlPlaneLoop] Cancel signal detected')
   end
 end
