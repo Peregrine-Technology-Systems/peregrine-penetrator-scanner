@@ -71,12 +71,17 @@ class ScanCostLogger
     client = Google::Cloud::Bigquery.new
     table = ensure_table(client)
     row = cost_data.merge(created_at: Time.current)
-    table.insert([row])
+    response = table.insert([row])
 
-    Penetrator.logger.info("[ScanCostLogger] Logged cost data for scan #{@scan.id}")
-    true
+    if response.success?
+      Penetrator.logger.info("[ScanCostLogger] Logged cost data for scan #{@scan.id}")
+      true
+    else
+      Penetrator.logger.error("[ScanCostLogger] Insert failed: #{response.insert_errors}")
+      false
+    end
   rescue StandardError => e
-    Penetrator.logger.error("[ScanCostLogger] Failed: #{e.message}")
+    Penetrator.logger.error("[ScanCostLogger] Failed: #{e.class}: #{e.message}")
     false
   end
 
@@ -121,7 +126,24 @@ class ScanCostLogger
 
   def ensure_table(client)
     dataset = client.dataset(DATASET_ID) || client.create_dataset(DATASET_ID)
-    dataset.table(TABLE_NAME) || create_table(dataset)
+    existing = dataset.table(TABLE_NAME)
+    return create_table(dataset) unless existing
+
+    migrate_schema(existing)
+    existing
+  end
+
+  def migrate_schema(table)
+    existing_names = table.schema.fields.map(&:name)
+    missing = SCHEMA_FIELDS.reject { |f| existing_names.include?(f[:name]) }
+    return if missing.empty?
+
+    missing.each do |field|
+      table.schema { |s| s.send(bq_type_method(field[:type]), field[:name], mode: 'NULLABLE') }
+    end
+    Penetrator.logger.info("[ScanCostLogger] Migrated schema: added #{missing.pluck(:name).join(', ')}")
+  rescue StandardError => e
+    Penetrator.logger.warn("[ScanCostLogger] Schema migration skipped: #{e.message}")
   end
 
   def create_table(dataset)
