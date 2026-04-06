@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
+
 ## v0.15.2 — 2026-04-05
 
 - feat: tool chain in GCS export and callback — planned tools, per-tool timing, exit codes, findings count; schema v1.2 (#663)
