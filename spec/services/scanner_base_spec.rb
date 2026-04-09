@@ -160,6 +160,7 @@ RSpec.describe ScannerBase do
     it 'executes a shell command and returns output' do
       mock_stdin = instance_double(IO, close: nil)
       mock_stdout = instance_double(IO, read: "hello\n")
+      allow(mock_stdout).to receive(:read_nonblock).and_return("hello\n", nil)
       mock_stderr = instance_double(IO, read: '')
       status = instance_double(Process::Status, exitstatus: 0, success?: true)
       mock_wait_thr = double(pid: 12_345, value: status) # rubocop:disable RSpec/VerifiedDoubles
@@ -188,6 +189,7 @@ RSpec.describe ScannerBase do
 
       mock_stdin = instance_double(IO, close: nil)
       mock_stdout = instance_double(IO, read: 'output')
+      allow(mock_stdout).to receive(:read_nonblock).and_return('output', nil)
       mock_stderr = instance_double(IO, read: '')
       status = instance_double(Process::Status, exitstatus: 0, success?: true)
       mock_wait_thr = double(pid: 12_345, value: status) # rubocop:disable RSpec/VerifiedDoubles

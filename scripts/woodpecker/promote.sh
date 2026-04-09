@@ -37,16 +37,16 @@ if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
   exit 0
 fi
 
-# ── Guard: skip if sync-back or release PRs are in flight ──
+# ── Guard: skip if sync-back or release PRs target our base branch ──
 INFLIGHT=$(curl -s -H "$AUTH" \
-  "${API}/repos/${REPO}/pulls?state=open&per_page=100" \
+  "${API}/repos/${REPO}/pulls?state=open&base=${BASE}&per_page=100" \
   | jq '[.[] | select(
       (.title | test("^Sync:"))
       or (.head.ref | test("^release/"))
     )] | length')
 
 if [ "$INFLIGHT" -gt 0 ]; then
-  echo "Skipping promotion — ${INFLIGHT} sync-back or release PR(s) still open"
+  echo "Skipping promotion — ${INFLIGHT} sync-back or release PR(s) targeting ${BASE}"
   exit 0
 fi
 
