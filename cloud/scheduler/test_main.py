@@ -168,7 +168,9 @@ class TestHealthEndpoints(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         body, code, _ = main.trigger_production(
-            _build_request('POST', '/', json_body={}))
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
         result = json.loads(body)
         self.assertEqual(result['status'], 'accepted')
         client.insert.assert_called_once()
@@ -446,15 +448,41 @@ class TestScavengeVms(unittest.TestCase):
 
 class TestTriggerProduction(unittest.TestCase):
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    def test_rejects_missing_callback_url(self):
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body={}))
+        result = json.loads(body)
+        self.assertEqual(code, 400)
+        self.assertEqual(result['error'], 'callback_url is required')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    def test_rejects_empty_callback_url(self):
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body={'callback_url': ''}))
+        result = json.loads(body)
+        self.assertEqual(code, 400)
+        self.assertEqual(result['error'], 'callback_url is required')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    def test_rejects_no_body(self):
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body=None))
+        result = json.loads(body)
+        self.assertEqual(code, 400)
+        self.assertEqual(result['error'], 'callback_url is required')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
     @patch('main.compute_v1.InstancesClient')
-    def test_defaults_when_no_body(self, mock_client_cls):
+    def test_defaults_with_callback_url(self, mock_client_cls):
         client = MagicMock()
         mock_client_cls.return_value = client
         op = MagicMock()
         client.insert.return_value = op
 
         body, code, headers = main.trigger_production(
-            _build_request('POST', '/', json_body=None))
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
         result = json.loads(body)
 
         self.assertEqual(code, 200)
@@ -472,6 +500,8 @@ class TestTriggerProduction(unittest.TestCase):
         self.assertEqual(metadata_dict['IMAGE_TAG'], 'production')
         self.assertIn('auxscan.app.data-estate.cloud',
                        metadata_dict['TARGET_URLS'])
+        self.assertEqual(metadata_dict['CALLBACK_URL'],
+                         'https://orchestrator.example.com/callbacks')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
     @patch('main.compute_v1.InstancesClient')
@@ -523,6 +553,7 @@ class TestTriggerProduction(unittest.TestCase):
         main.trigger_production(
             _build_request('POST', '/', json_body={
                 'target_url': 'https://single.example.com',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
             }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
@@ -541,7 +572,10 @@ class TestTriggerProduction(unittest.TestCase):
 
         urls = '["https://a.com", "https://b.com"]'
         main.trigger_production(
-            _build_request('POST', '/', json_body={'target_urls': urls}))
+            _build_request('POST', '/', json_body={
+                'target_urls': urls,
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         metadata_dict = {
@@ -557,7 +591,9 @@ class TestTriggerProduction(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         _, _, headers = main.trigger_production(
-            _build_request('POST', '/', json_body=None))
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
         self.assertEqual(headers['Content-Type'], 'application/json')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
@@ -571,6 +607,7 @@ class TestTriggerProduction(unittest.TestCase):
             _build_request('POST', '/', json_body={
                 'profile': 'deep',
                 'scan_mode': 'staging',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
             }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
@@ -589,7 +626,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_development(
-            _build_request('POST', '/', json_body={'profile': 'quick'}))
+            _build_request('POST', '/', json_body={
+                'profile': 'quick',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
@@ -604,7 +644,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_staging(
-            _build_request('POST', '/', json_body={'profile': 'standard'}))
+            _build_request('POST', '/', json_body={
+                'profile': 'standard',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
@@ -619,7 +662,9 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_production(
-            _build_request('POST', '/', json_body=None))
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
@@ -634,7 +679,9 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_production(
-            _build_request('POST', '/', json_body=None))
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         self.assertEqual(instance.scheduling.provisioning_model, 'SPOT')
@@ -647,7 +694,9 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_staging(
-            _build_request('POST', '/', json_body=None))
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         self.assertNotEqual(
@@ -663,7 +712,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_production(
-            _build_request('POST', '/', json_body={'scan_mode': 'staging'}))
+            _build_request('POST', '/', json_body={
+                'scan_mode': 'staging',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
@@ -677,7 +729,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         client.insert.return_value = MagicMock()
 
         main.trigger_production(
-            _build_request('POST', '/', json_body={'profile': 'deep'}))
+            _build_request('POST', '/', json_body={
+                'profile': 'deep',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
