@@ -5,7 +5,6 @@ when:
 
 depends_on:
   - ci
-  - deploy
 
 labels:
   platform: linux
