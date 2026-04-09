@@ -380,6 +380,9 @@ def _trigger_scan(request, default_mode, default_tag):
       - scan_uuid, profile, target_url, target_name, target_urls
       - job_id, reporter_base_url
       - scan_mode, image_tag (override defaults from the environment function)
+      - spot (bool, default: false) — use SPOT pricing. Caller should only
+        enable after confirming capacity; SPOT VMs can be preempted immediately
+        in congested zones (#719)
 
     The per-environment function sets sensible defaults; the caller can
     override scan_mode/image_tag if needed (e.g., to control scan depth).
@@ -409,6 +412,7 @@ def _trigger_scan(request, default_mode, default_tag):
 
     job_id = data.get('job_id', '')
     reporter_base_url = data.get('reporter_base_url', '')
+    use_spot = data.get('spot', False)
 
     # Wrap single URL into JSON array for TARGET_URLS
     target_urls = data.get('target_urls')
@@ -430,8 +434,10 @@ def _trigger_scan(request, default_mode, default_tag):
 
     client = compute_v1.InstancesClient()
 
-    # Production uses spot pricing for ~60% cost savings
-    if scan_mode == 'production':
+    # SPOT pricing opt-in — caller must explicitly request it. SPOT VMs can
+    # be preempted within seconds in congested zones, causing silent scan
+    # failures. Default to on-demand for reliability. (#719)
+    if use_spot:
         scheduling = compute_v1.Scheduling(
             provisioning_model='SPOT',
             instance_termination_action='DELETE',
