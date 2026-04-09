@@ -1,8 +1,9 @@
 # Release Notes
 
-## v0.16.4 — 2026-04-09
+## Unreleased
 
 ## v0.16.4 — 2026-04-09
+
 
 ## v0.16.2 — 2026-04-06
 
@@ -10,6 +11,7 @@
 ## v0.16.0 — 2026-04-06
 
 - fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
+- fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
 - fix: VM startup failure observability — Cloud Function writes vm-created marker to GCS, EXIT trap sends failure callback to orchestrator (#711)
 - fix: revert promote depends_on deploy — deploy only runs on staging, blocking dev→staging promotion (#691)
 - fix: heartbeat stops updating during long Nuclei scans — chunked stdout reading yields GIL to heartbeat thread (#697)
