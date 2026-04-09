@@ -3,6 +3,7 @@
 ## Unreleased
 
 - fix: heartbeat stops updating during long Nuclei scans — chunked stdout reading yields GIL to heartbeat thread (#697)
+- fix: sync-back PRs no longer block unrelated promotions — guard scoped to target base branch (#698)
 - fix: make callback_url a required parameter from trigger call — reject with 400 if missing (#695)
 - fix: promote workflow must depends_on deploy to prevent pipeline contention (#691)
 
