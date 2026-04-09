@@ -50,9 +50,43 @@ send_slack() {
     "${webhook_url}" 2>/dev/null || true
 }
 
+# Notify caller of startup/scan failure so scans don't stay stuck at pending (#711)
+send_failure_callback() {
+  local callback_url
+  callback_url=$(get_metadata "CALLBACK_URL" "")
+  [ -z "${callback_url}" ] && return 0
+  local scan_uuid
+  scan_uuid=$(get_metadata "SCAN_UUID" "")
+  [ -z "${scan_uuid}" ] && return 0
+  local callback_secret
+  callback_secret=$(get_metadata "SCAN_CALLBACK_SECRET" "")
+
+  local payload
+  payload="{\"scan_uuid\":\"${scan_uuid}\",\"status\":\"failed\",\"error\":\"VM startup or scan failed (exit trap fired)\",\"instance_name\":\"${INSTANCE_NAME}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+  # Best-effort POST — if callback fails, the scan stays pending but GCS
+  # status.json already has the failure recorded for scavenger/debugging
+  curl -sf -X POST \
+    -H 'Content-Type: application/json' \
+    -H "X-Callback-Secret: ${callback_secret}" \
+    --max-time 10 \
+    -d "${payload}" \
+    "${callback_url}/heartbeat" 2>/dev/null || true
+}
+
 # Self-terminate on failure for scan VMs (prevents orphaned VMs incurring cost)
 self_terminate() {
+  local exit_code=$?
   write_status "terminating"
+
+  # If the exit trap fires with a non-zero exit code and the scan never
+  # completed successfully, notify the caller so the scan doesn't stay
+  # stuck at pending indefinitely (#711)
+  if [ "${SCAN_COMPLETED:-}" != "true" ]; then
+    write_status "startup-failed" ",\"exit_code\":${exit_code}"
+    send_failure_callback
+  fi
+
   send_slack ":skull: VM self-terminating: ${INSTANCE_NAME} (${SCAN_MODE})"
   echo "=== Self-terminating VM ${INSTANCE_NAME} ==="
   sleep 5
@@ -225,6 +259,7 @@ case "$SCAN_MODE" in
     tail -20 "${SCAN_LOG}" 2>/dev/null || true
 
     if [ "$SCAN_EXIT" -eq 0 ]; then
+      SCAN_COMPLETED="true"
       echo "Scan completed successfully"
       write_status "completed" ",\"scan_exit_code\":0"
       send_slack ":white_check_mark: Scan completed: ${TARGET_NAME} (${SCAN_PROFILE}) — uploading results"
