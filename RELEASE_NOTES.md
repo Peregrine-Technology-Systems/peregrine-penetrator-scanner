@@ -7,6 +7,8 @@
 ## v0.16.0 — 2026-04-06
 
 - fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
+- fix: make callback_url a required parameter from trigger call — reject with 400 if missing (#695)
+- fix: promote workflow must depends_on deploy to prevent pipeline contention (#691)
 
 ## v0.15.2 — 2026-04-05
 
