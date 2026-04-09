@@ -38,6 +38,27 @@ def _slack_notify(message):
         pass
 
 
+def _write_vm_created(scan_uuid, instance_name):
+    """Write vm-created marker to GCS after successful VM provisioning.
+
+    Provides a durable signal that the VM was created, even if
+    vm-startup.sh fails before the scan container starts. (#711)
+    """
+    try:
+        from google.cloud import storage as gcs
+        client = gcs.Client(project=PROJECT)
+        bucket = client.bucket(GCS_BUCKET)
+        blob = bucket.blob(f'control/{scan_uuid}/vm-created.json')
+        payload = json.dumps({
+            'scan_uuid': scan_uuid,
+            'instance_name': instance_name,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+        })
+        blob.upload_from_string(payload, content_type='application/json')
+    except Exception as e:
+        print(f'[trigger] Failed to write vm-created to GCS: {e}')
+
+
 def _check_vm_status(instance_name, zone_name):
     """SSH into VM to check scan container status.
 
@@ -481,6 +502,12 @@ def _trigger_scan(request, default_mode, default_tag):
         }
     )
     operation.result()
+
+    # Write vm-created marker to GCS — closes the observability gap between
+    # VM creation (confirmed by GCP API) and first heartbeat (~30s later).
+    # If vm-startup.sh fails before the scan container starts, this is the
+    # only durable signal that the VM was provisioned. (#711)
+    _write_vm_created(scan_uuid, instance_name)
 
     return json.dumps({
         'scan_uuid': scan_uuid,

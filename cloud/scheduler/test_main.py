@@ -447,6 +447,11 @@ class TestScavengeVms(unittest.TestCase):
 
 
 class TestTriggerProduction(unittest.TestCase):
+    def setUp(self):
+        patcher = patch.object(main, '_write_vm_created')
+        self._mock_write = patcher.start()
+        self.addCleanup(patcher.stop)
+
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
     def test_rejects_missing_callback_url(self):
         body, code, headers = main.trigger_production(
@@ -614,9 +619,63 @@ class TestTriggerProduction(unittest.TestCase):
         self.assertEqual(instance.labels['env'], 'staging')
         self.assertEqual(instance.labels['profile'], 'deep')
 
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_trigger_calls_write_vm_created(self, mock_client_cls):
+        """Trigger writes vm-created marker to GCS after VM insert (#711)."""
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'scan_uuid': 'scan-test711',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
+
+        self._mock_write.assert_called_once()
+        args = self._mock_write.call_args.args
+        self.assertEqual(args[0], 'scan-test711')
+        self.assertIn('pentest-scan-', args[1])
+
+
+class TestWriteVmCreated(unittest.TestCase):
+    """_write_vm_created writes a GCS marker after VM provisioning (#711)."""
+
+    @patch('google.cloud.storage.Client')
+    def test_writes_vm_created_json_to_correct_gcs_path(self, mock_cls):
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        mock_cls.return_value.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+
+        main._write_vm_created('scan-abc123', 'pentest-scan-abc1-1234')
+
+        mock_bucket.blob.assert_called_once_with(
+            'control/scan-abc123/vm-created.json')
+        mock_blob.upload_from_string.assert_called_once()
+        uploaded = json.loads(
+            mock_blob.upload_from_string.call_args.args[0])
+        self.assertEqual(uploaded['scan_uuid'], 'scan-abc123')
+        self.assertEqual(uploaded['instance_name'],
+                         'pentest-scan-abc1-1234')
+        self.assertIn('timestamp', uploaded)
+
+    @patch('google.cloud.storage.Client')
+    def test_write_vm_created_fails_silently(self, mock_cls):
+        """GCS failure must not crash the trigger function."""
+        mock_cls.side_effect = Exception('GCS unavailable')
+        # Should not raise
+        main._write_vm_created('scan-fail', 'pentest-scan-fail-1')
+
 
 class TestPerEnvironmentFunctions(unittest.TestCase):
     """Per-environment wrappers insulate callers from VM internals."""
+
+    def setUp(self):
+        patcher = patch.object(main, '_write_vm_created')
+        self._mock_write = patcher.start()
+        self.addCleanup(patcher.stop)
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
