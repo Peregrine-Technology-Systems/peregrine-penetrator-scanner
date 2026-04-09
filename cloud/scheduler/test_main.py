@@ -732,7 +732,25 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
-    def test_production_uses_spot_pricing(self, mock_cls):
+    def test_spot_pricing_when_requested(self, mock_cls):
+        """SPOT pricing is opt-in via spot=True (#719)."""
+        client = MagicMock()
+        mock_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+                'spot': True,
+            }))
+
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
+        self.assertEqual(instance.scheduling.provisioning_model, 'SPOT')
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_production_defaults_to_on_demand(self, mock_cls):
+        """Production no longer uses SPOT by default (#719)."""
         client = MagicMock()
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
@@ -743,7 +761,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
             }))
 
         instance = client.insert.call_args.kwargs['request']['instance_resource']
-        self.assertEqual(instance.scheduling.provisioning_model, 'SPOT')
+        self.assertNotEqual(
+            getattr(instance.scheduling, 'provisioning_model', None),
+            'SPOT',
+        )
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
