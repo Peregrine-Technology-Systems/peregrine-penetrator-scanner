@@ -354,9 +354,10 @@ def trigger_production(request):
 def _trigger_scan(request, default_mode, default_tag):
     """Internal: launch a scan VM.
 
-    Accepts optional JSON body from Reporter dispatch:
+    Accepts JSON body from orchestrator/reporter dispatch:
+      - callback_url (REQUIRED) — all heartbeats and completion callbacks go here
       - scan_uuid, profile, target_url, target_name, target_urls
-      - callback_url, job_id, reporter_base_url
+      - job_id, reporter_base_url
       - scan_mode, image_tag (override defaults from the environment function)
 
     The per-environment function sets sensible defaults; the caller can
@@ -380,6 +381,11 @@ def _trigger_scan(request, default_mode, default_tag):
                           'https://auxscan.app.data-estate.cloud')
     target_name = data.get('target_name', 'AuxScan Production')
     callback_url = data.get('callback_url', '')
+    if not callback_url:
+        return json.dumps({
+            'error': 'callback_url is required',
+        }), 400, {'Content-Type': 'application/json'}
+
     job_id = data.get('job_id', '')
     reporter_base_url = data.get('reporter_base_url', '')
 
