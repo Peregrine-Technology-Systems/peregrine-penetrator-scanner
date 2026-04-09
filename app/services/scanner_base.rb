@@ -101,8 +101,8 @@ class ScannerBase
     loop do
       result = io.read_nonblock(65_536, exception: false)
       case result
-      when nil          then break                    # EOF
-      when :wait_readable then IO.select([io], nil, nil, 0.1) # Releases GIL during wait
+      when nil then break # EOF
+      when :wait_readable then io.wait_readable(0.1) # Releases GIL during wait
       else chunks << result
       end
     end
