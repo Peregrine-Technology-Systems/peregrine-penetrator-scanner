@@ -13,7 +13,15 @@ from google.cloud import compute_v1
 PROJECT = os.environ.get('GCP_PROJECT', 'peregrine-pentest-dev')
 REGION = os.environ.get('GCP_REGION', 'us-central1')
 ZONE = os.environ.get('GCP_ZONE', 'us-central1-a')
-MACHINE_TYPE = f'zones/{ZONE}/machineTypes/e2-standard-4'
+# Zone fallback order: primary zone, then same-region alternates, then
+# cross-region zones. Scan VMs are stateless — any zone works. (#710)
+FALLBACK_ZONES = os.environ.get('FALLBACK_ZONES', ','.join([
+    'us-central1-a', 'us-central1-b', 'us-central1-f',
+    'us-east1-b', 'us-east1-c',
+    'us-west1-a', 'us-west1-b',
+    'us-east4-a', 'us-east4-b',
+])).split(',')
+MACHINE_TYPE_NAME = 'e2-standard-4'
 SERVICE_ACCOUNT = f'pentest-scanner@{PROJECT}.iam.gserviceaccount.com'
 IMAGE_FAMILY = 'ubuntu-2204-lts'
 IMAGE_PROJECT = 'ubuntu-os-cloud'
@@ -380,9 +388,6 @@ def _trigger_scan(request, default_mode, default_tag):
       - scan_uuid, profile, target_url, target_name, target_urls
       - job_id, reporter_base_url
       - scan_mode, image_tag (override defaults from the environment function)
-      - spot (bool, default: false) — use SPOT pricing. Caller should only
-        enable after confirming capacity; SPOT VMs can be preempted immediately
-        in congested zones (#719)
 
     The per-environment function sets sensible defaults; the caller can
     override scan_mode/image_tag if needed (e.g., to control scan depth).
@@ -412,7 +417,6 @@ def _trigger_scan(request, default_mode, default_tag):
 
     job_id = data.get('job_id', '')
     reporter_base_url = data.get('reporter_base_url', '')
-    use_spot = data.get('spot', False)
 
     # Wrap single URL into JSON array for TARGET_URLS
     target_urls = data.get('target_urls')
@@ -434,80 +438,95 @@ def _trigger_scan(request, default_mode, default_tag):
 
     client = compute_v1.InstancesClient()
 
-    # SPOT pricing opt-in — caller must explicitly request it. SPOT VMs can
-    # be preempted within seconds in congested zones, causing silent scan
-    # failures. Default to on-demand for reliability. (#719)
-    if use_spot:
-        scheduling = compute_v1.Scheduling(
-            provisioning_model='SPOT',
-            instance_termination_action='DELETE',
-        )
-    else:
-        scheduling = compute_v1.Scheduling()
+    scheduling = compute_v1.Scheduling()
 
-    instance = compute_v1.Instance(
-        name=instance_name,
-        machine_type=MACHINE_TYPE,
-        disks=[compute_v1.AttachedDisk(
-            auto_delete=True,
-            boot=True,
-            initialize_params=compute_v1.AttachedDiskInitializeParams(
-                source_image=f'projects/{IMAGE_PROJECT}/global/images/family/{IMAGE_FAMILY}',
-                disk_size_gb=30,
-                disk_type=f'zones/{ZONE}/diskTypes/pd-standard',
-            ),
-        )],
-        network_interfaces=[compute_v1.NetworkInterface(
-            name='global/networks/default',
-            access_configs=[compute_v1.AccessConfig(
-                name='External NAT',
-                type_='ONE_TO_ONE_NAT',
+    # Try each zone in FALLBACK_ZONES until one has capacity (#710)
+    created_zone = None
+    last_error = None
+    for zone in FALLBACK_ZONES:
+        instance = compute_v1.Instance(
+            name=instance_name,
+            machine_type=f'zones/{zone}/machineTypes/{MACHINE_TYPE_NAME}',
+            disks=[compute_v1.AttachedDisk(
+                auto_delete=True,
+                boot=True,
+                initialize_params=compute_v1.AttachedDiskInitializeParams(
+                    source_image=f'projects/{IMAGE_PROJECT}/global/images/family/{IMAGE_FAMILY}',
+                    disk_size_gb=30,
+                    disk_type=f'zones/{zone}/diskTypes/pd-standard',
+                ),
             )],
-        )],
-        service_accounts=[compute_v1.ServiceAccount(
-            email=SERVICE_ACCOUNT,
-            scopes=['https://www.googleapis.com/auth/cloud-platform'],
-        )],
-        metadata=compute_v1.Metadata(items=[
-            compute_v1.Items(key='SCAN_MODE', value=scan_mode),
-            compute_v1.Items(key='SCAN_PROFILE', value=profile),
-            compute_v1.Items(key='TARGET_NAME', value=target_name),
-            compute_v1.Items(key='TARGET_URLS', value=target_urls),
-            compute_v1.Items(key='SCAN_UUID', value=scan_uuid),
-            compute_v1.Items(key='CALLBACK_URL', value=callback_url),
-            compute_v1.Items(key='JOB_ID', value=job_id),
-            compute_v1.Items(
-                key='REPORTER_BASE_URL', value=reporter_base_url,
-            ),
-            compute_v1.Items(
-                key='GCS_BUCKET',
-                value=f'{PROJECT}-pentest-reports',
-            ),
-            compute_v1.Items(
-                key='REGISTRY',
-                value=f'us-central1-docker.pkg.dev/{PROJECT}/pentest',
-            ),
-            compute_v1.Items(key='IMAGE_TAG', value=image_tag),
-            compute_v1.Items(key='startup-script', value=startup_script),
-        ]),
-        scheduling=scheduling,
-        labels={
-            'env': scan_mode,
-            'project': 'pentest',
-            'scan': 'true',
-            'profile': profile,
-        },
-        tags=compute_v1.Tags(items=['pentest-scan']),
-    )
+            network_interfaces=[compute_v1.NetworkInterface(
+                name='global/networks/default',
+                access_configs=[compute_v1.AccessConfig(
+                    name='External NAT',
+                    type_='ONE_TO_ONE_NAT',
+                )],
+            )],
+            service_accounts=[compute_v1.ServiceAccount(
+                email=SERVICE_ACCOUNT,
+                scopes=['https://www.googleapis.com/auth/cloud-platform'],
+            )],
+            metadata=compute_v1.Metadata(items=[
+                compute_v1.Items(key='SCAN_MODE', value=scan_mode),
+                compute_v1.Items(key='SCAN_PROFILE', value=profile),
+                compute_v1.Items(key='TARGET_NAME', value=target_name),
+                compute_v1.Items(key='TARGET_URLS', value=target_urls),
+                compute_v1.Items(key='SCAN_UUID', value=scan_uuid),
+                compute_v1.Items(key='CALLBACK_URL', value=callback_url),
+                compute_v1.Items(key='JOB_ID', value=job_id),
+                compute_v1.Items(
+                    key='REPORTER_BASE_URL', value=reporter_base_url,
+                ),
+                compute_v1.Items(
+                    key='GCS_BUCKET',
+                    value=f'{PROJECT}-pentest-reports',
+                ),
+                compute_v1.Items(
+                    key='REGISTRY',
+                    value=f'us-central1-docker.pkg.dev/{PROJECT}/pentest',
+                ),
+                compute_v1.Items(key='IMAGE_TAG', value=image_tag),
+                compute_v1.Items(key='startup-script', value=startup_script),
+            ]),
+            scheduling=scheduling,
+            labels={
+                'env': scan_mode,
+                'project': 'pentest',
+                'scan': 'true',
+                'profile': profile,
+            },
+            tags=compute_v1.Tags(items=['pentest-scan']),
+        )
 
-    operation = client.insert(
-        request={
-            'project': PROJECT,
-            'zone': ZONE,
-            'instance_resource': instance,
-        }
-    )
-    operation.result()
+        try:
+            operation = client.insert(
+                request={
+                    'project': PROJECT,
+                    'zone': zone,
+                    'instance_resource': instance,
+                }
+            )
+            operation.result()
+            created_zone = zone
+            break
+        except Exception as e:
+            last_error = str(e)
+            print(f'[trigger-scan-{scan_mode}] Zone {zone} failed: '
+                  f'{last_error[:200]}')
+
+    if not created_zone:
+        _slack_notify(
+            f':x: VM creation failed for {scan_uuid} in all zones: '
+            f'{last_error[:200]}')
+        return json.dumps({
+            'error': f'VM creation failed in all zones: {last_error}',
+            'scan_uuid': scan_uuid,
+        }), 503, {'Content-Type': 'application/json'}
+
+    if created_zone != FALLBACK_ZONES[0]:
+        print(f'[trigger-scan-{scan_mode}] Created in fallback zone '
+              f'{created_zone} (primary {FALLBACK_ZONES[0]} exhausted)')
 
     # Write vm-created marker to GCS — closes the observability gap between
     # VM creation (confirmed by GCP API) and first heartbeat (~30s later).
@@ -519,4 +538,5 @@ def _trigger_scan(request, default_mode, default_tag):
         'scan_uuid': scan_uuid,
         'status': 'accepted',
         'instance_name': instance_name,
+        'zone': created_zone,
     }), 200, {'Content-Type': 'application/json'}
