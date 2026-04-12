@@ -3,7 +3,7 @@ require 'sequel_helper'
 RSpec.describe HeartbeatSender do
   let(:sender) do
     described_class.new(
-      callback_url: 'https://reporter.example.com/callbacks/scan_complete?job_id=j1',
+      callback_url: 'https://reporter.example.com/callbacks',
       scan_uuid: 'scan-123',
       job_id: 'job-456',
       callback_secret: 'secret-token'
