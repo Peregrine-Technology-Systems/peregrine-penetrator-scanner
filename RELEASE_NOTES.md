@@ -2,6 +2,8 @@
 
 ## v0.16.6 — 2026-04-09
 
+## v0.16.6 — 2026-04-09
+
 ## v0.16.4 — 2026-04-09
 
 
@@ -11,7 +13,10 @@
 ## v0.16.0 — 2026-04-06
 
 - fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
+- fix: callback URL path doubled — `/callbacks/callbacks/heartbeat` — treat CALLBACK_URL as base, append only endpoint suffix; fix vm-startup.sh auth header (#728) 
 - fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
+- fix: CI workflow runs on on-demand VMs to avoid spot preemption (#726)
+- fix: scan VMs fail on zone exhaustion — on-demand only, multi-region zone fallback (9 zones), structured 503 on total failure (#710, #719)
 - fix: VM startup failure observability — Cloud Function writes vm-created marker to GCS, EXIT trap sends failure callback to orchestrator (#711)
 - fix: revert promote depends_on deploy — deploy only runs on staging, blocking dev→staging promotion (#691)
 - fix: heartbeat stops updating during long Nuclei scans — chunked stdout reading yields GIL to heartbeat thread (#697)
