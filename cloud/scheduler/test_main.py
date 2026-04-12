@@ -638,6 +638,56 @@ class TestTriggerProduction(unittest.TestCase):
         self.assertEqual(args[0], 'scan-test711')
         self.assertIn('pentest-scan-', args[1])
 
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_returns_503_when_all_zones_exhausted(self, mock_client_cls):
+        """VM creation failure in all zones returns 503 (#710)."""
+        from google.api_core.exceptions import ServiceUnavailable
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        op = MagicMock()
+        op.result.side_effect = ServiceUnavailable('ZONE_RESOURCE_POOL_EXHAUSTED')
+        client.insert.return_value = op
+
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'scan_uuid': 'scan-fail503',
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
+        result = json.loads(body)
+
+        self.assertEqual(code, 503)
+        self.assertIn('VM creation failed', result['error'])
+        self.assertEqual(result['scan_uuid'], 'scan-fail503')
+        # Should have tried all fallback zones
+        self.assertEqual(client.insert.call_count, len(main.FALLBACK_ZONES))
+        self._mock_write.assert_not_called()
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
+    def test_falls_back_to_next_zone_on_exhaustion(self, mock_client_cls):
+        """Zone fallback: first zone fails, second succeeds (#710)."""
+        from google.api_core.exceptions import ServiceUnavailable
+        client = MagicMock()
+        mock_client_cls.return_value = client
+
+        fail_op = MagicMock()
+        fail_op.result.side_effect = ServiceUnavailable('EXHAUSTED')
+        ok_op = MagicMock()
+        ok_op.result.return_value = None
+        client.insert.side_effect = [fail_op, ok_op]
+
+        body, code, headers = main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
+        result = json.loads(body)
+
+        self.assertEqual(code, 200)
+        self.assertEqual(result['status'], 'accepted')
+        self.assertEqual(result['zone'], main.FALLBACK_ZONES[1])
+        self.assertEqual(client.insert.call_count, 2)
+
 
 class TestWriteVmCreated(unittest.TestCase):
     """_write_vm_created writes a GCS marker after VM provisioning (#711)."""
@@ -732,48 +782,13 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
-    def test_spot_pricing_when_requested(self, mock_cls):
-        """SPOT pricing is opt-in via spot=True (#719)."""
+    def test_always_uses_on_demand_scheduling(self, mock_cls):
+        """All VMs use on-demand — no SPOT pricing (#710, #719)."""
         client = MagicMock()
         mock_cls.return_value = client
         client.insert.return_value = MagicMock()
 
         main.trigger_production(
-            _build_request('POST', '/', json_body={
-                'callback_url': 'https://orchestrator.example.com/callbacks',
-                'spot': True,
-            }))
-
-        instance = client.insert.call_args.kwargs['request']['instance_resource']
-        self.assertEqual(instance.scheduling.provisioning_model, 'SPOT')
-
-    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
-    @patch('main.compute_v1.InstancesClient')
-    def test_production_defaults_to_on_demand(self, mock_cls):
-        """Production no longer uses SPOT by default (#719)."""
-        client = MagicMock()
-        mock_cls.return_value = client
-        client.insert.return_value = MagicMock()
-
-        main.trigger_production(
-            _build_request('POST', '/', json_body={
-                'callback_url': 'https://orchestrator.example.com/callbacks',
-            }))
-
-        instance = client.insert.call_args.kwargs['request']['instance_resource']
-        self.assertNotEqual(
-            getattr(instance.scheduling, 'provisioning_model', None),
-            'SPOT',
-        )
-
-    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
-    @patch('main.compute_v1.InstancesClient')
-    def test_staging_does_not_use_spot_pricing(self, mock_cls):
-        client = MagicMock()
-        mock_cls.return_value = client
-        client.insert.return_value = MagicMock()
-
-        main.trigger_staging(
             _build_request('POST', '/', json_body={
                 'callback_url': 'https://orchestrator.example.com/callbacks',
             }))

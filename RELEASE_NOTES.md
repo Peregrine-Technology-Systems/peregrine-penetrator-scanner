@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
+- fix: CI workflow runs on on-demand VMs to avoid spot preemption (#726)
+- fix: scan VMs fail on zone exhaustion — on-demand only, multi-region zone fallback (9 zones), structured 503 on total failure (#710, #719)
 - fix: VM startup failure observability — Cloud Function writes vm-created marker to GCS, EXIT trap sends failure callback to orchestrator (#711)
 - fix: revert promote depends_on deploy — deploy only runs on staging, blocking dev→staging promotion (#691)
 - fix: heartbeat stops updating during long Nuclei scans — chunked stdout reading yields GIL to heartbeat thread (#697)
