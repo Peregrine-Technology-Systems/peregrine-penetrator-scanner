@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: callback URL path doubled — `/callbacks/callbacks/heartbeat` — treat CALLBACK_URL as base, append only endpoint suffix; fix vm-startup.sh auth header (#728) 
+- fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
 - fix: CI workflow runs on on-demand VMs to avoid spot preemption (#726)
 - fix: scan VMs fail on zone exhaustion — on-demand only, multi-region zone fallback (9 zones), structured 503 on total failure (#710, #719)
 - fix: VM startup failure observability — Cloud Function writes vm-created marker to GCS, EXIT trap sends failure callback to orchestrator (#711)
