@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix: callback URL path doubled — `/callbacks/callbacks/heartbeat` — treat CALLBACK_URL as base, append only endpoint suffix; fix vm-startup.sh auth header (#728)
 - fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
 - fix: VM startup failure observability — Cloud Function writes vm-created marker to GCS, EXIT trap sends failure callback to orchestrator (#711)
 - fix: revert promote depends_on deploy — deploy only runs on staging, blocking dev→staging promotion (#691)
