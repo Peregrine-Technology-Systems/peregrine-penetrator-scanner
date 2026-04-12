@@ -68,10 +68,10 @@ send_failure_callback() {
   # status.json already has the failure recorded for scavenger/debugging
   curl -sf -X POST \
     -H 'Content-Type: application/json' \
-    -H "X-Callback-Secret: ${callback_secret}" \
+    -H "Authorization: Bearer ${callback_secret}" \
     --max-time 10 \
     -d "${payload}" \
-    "${callback_url}/heartbeat" 2>/dev/null || true
+    "${callback_url}/scan_complete" 2>/dev/null || true
 }
 
 # Self-terminate on failure for scan VMs (prevents orphaned VMs incurring cost)

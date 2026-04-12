@@ -97,7 +97,7 @@ class ScanCallbackService
   end
 
   def callback_url
-    ENV.fetch('CALLBACK_URL')
+    ENV.fetch('CALLBACK_URL').chomp('/') + '/scan_complete'
   end
 
   def callback_secret
