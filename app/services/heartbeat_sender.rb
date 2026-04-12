@@ -44,9 +44,8 @@ class HeartbeatSender
   private
 
   def derive_heartbeat_url(callback_url)
-    uri = URI.parse(callback_url)
-    "#{uri.scheme}://#{uri.host}#{":#{uri.port}" unless [80, 443].include?(uri.port)}/callbacks/heartbeat"
-  rescue URI::InvalidURIError
+    "#{callback_url.chomp('/')}/heartbeat"
+  rescue StandardError
     ''
   end
 
