@@ -69,7 +69,7 @@ RSpec.describe ScanResultsExporter do
     let(:envelope) { exporter.build_envelope }
 
     it 'includes schema_version' do
-      expect(envelope[:schema_version]).to eq('1.2')
+      expect(envelope[:schema_version]).to eq('1.3')
     end
 
     describe 'tool_chain' do
@@ -144,6 +144,24 @@ RSpec.describe ScanResultsExporter do
       it 'includes executive summary' do
         expect(summary[:executive_summary]).to eq('Two vulnerabilities identified.')
       end
+
+      context 'with cms_inventory on the scan' do
+        let(:inventory) { { 'cms' => 'wordpress', 'confidence' => 0.85, 'components' => [], 'core_version' => '6.4.2' } }
+
+        before do
+          scan.summary = scan.summary.merge('cms_inventory' => inventory)
+          scan.save_changes
+        end
+
+        it 'surfaces cms_inventory in the envelope summary' do
+          expect(exporter.build_envelope[:summary][:cms_inventory]).to eq(inventory)
+        end
+      end
+
+      it 'returns nil cms_inventory when none was captured' do
+        expect(summary).to have_key(:cms_inventory)
+        expect(summary[:cms_inventory]).to be_nil
+      end
     end
 
     describe 'findings' do
@@ -202,7 +220,7 @@ RSpec.describe ScanResultsExporter do
       allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
         content = File.read(local_path)
         parsed = JSON.parse(content)
-        expect(parsed['schema_version']).to eq('1.2')
+        expect(parsed['schema_version']).to eq('1.3')
         expect(parsed['findings'].size).to eq(2)
         true
       end
