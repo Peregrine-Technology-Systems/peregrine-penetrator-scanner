@@ -210,6 +210,41 @@ RSpec.describe ScanOrchestrator do
       expect(scan.status).to eq('failed')
       expect(scan.error_message).to include('Something broke')
     end
+
+    context 'when fingerprinting the target' do
+      it 'runs fingerprinting and stores cms_inventory on scan.summary' do
+        orchestrator.execute
+
+        scan.refresh
+        expect(scan.summary['cms_inventory']).to include('cms' => 'unknown', 'confidence' => 0.0)
+      end
+
+      it 'preserves cms_inventory in summary after scan completion' do
+        orchestrator.execute
+
+        scan.refresh
+        expect(scan.summary).to include('cms_inventory', 'total_findings')
+      end
+
+      it 'does not abort the scan when fingerprinting raises' do
+        registry = instance_double(Fingerprinters::FingerprinterRegistry)
+        allow(Fingerprinters::FingerprinterRegistry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:detect).and_raise(StandardError, 'detector blew up')
+
+        expect { orchestrator.execute }.not_to raise_error
+        scan.refresh
+        expect(scan.status).to eq('completed')
+      end
+
+      it 'skips fingerprinting on smoke profiles' do
+        smoke_profile = instance_double(ScanProfile, name: 'smoke', smoke: true, smoke_test: false, phases: [])
+        allow(ScanProfile).to receive(:load).and_return(smoke_profile)
+        allow(SmokeChecker).to receive(:new).and_return(instance_double(SmokeChecker, run: {}, passed?: true, results: {}))
+
+        expect(Fingerprinters::FingerprinterRegistry).not_to receive(:new)
+        orchestrator.execute
+      end
+    end
   end
 
   private
