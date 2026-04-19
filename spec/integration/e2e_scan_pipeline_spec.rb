@@ -43,6 +43,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
                                                   headers: { 'Content-Type' => 'application/json' })
     stub_request(:get, /www.cisa.gov/).to_return(status: 200, body: '{"vulnerabilities":[]}',
                                                  headers: { 'Content-Type' => 'application/json' })
+
+    # Stub the fingerprinter registry to a deterministic result (detector integration
+    # is covered by fingerprinter specs, not the E2E pipeline).
+    registry = instance_double(
+      Fingerprinters::FingerprinterRegistry,
+      detect: { cms: 'unknown', confidence: 0.0, components: [], detected_at: Time.current.iso8601 }
+    )
+    allow(Fingerprinters::FingerprinterRegistry).to receive(:new).and_return(registry)
   end
 
   describe 'full pipeline: scan → normalize → export' do
