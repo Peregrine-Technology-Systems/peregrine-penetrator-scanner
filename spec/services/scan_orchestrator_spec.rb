@@ -17,6 +17,15 @@ RSpec.describe ScanOrchestrator do
     allow(ScanProfile).to receive(:load).and_return(mock_profile)
     allow(FindingNormalizer).to receive(:new).and_return(instance_double(FindingNormalizer, normalize: nil))
     stub_request(:head, 'https://example.com/').to_return(status: 200)
+    stub_default_fingerprinter_registry
+  end
+
+  def stub_default_fingerprinter_registry
+    registry = instance_double(
+      Fingerprinters::FingerprinterRegistry,
+      detect: { cms: 'unknown', confidence: 0.0, components: [], detected_at: Time.current.iso8601 }
+    )
+    allow(Fingerprinters::FingerprinterRegistry).to receive(:new).and_return(registry)
   end
 
   describe '#execute' do
