@@ -43,6 +43,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
                                                   headers: { 'Content-Type' => 'application/json' })
     stub_request(:get, /www.cisa.gov/).to_return(status: 200, body: '{"vulnerabilities":[]}',
                                                  headers: { 'Content-Type' => 'application/json' })
+
+    # Stub the fingerprinter registry to a deterministic result (detector integration
+    # is covered by fingerprinter specs, not the E2E pipeline).
+    registry = instance_double(
+      Fingerprinters::FingerprinterRegistry,
+      detect: { cms: 'unknown', confidence: 0.0, components: [], detected_at: Time.current.iso8601 }
+    )
+    allow(Fingerprinters::FingerprinterRegistry).to receive(:new).and_return(registry)
   end
 
   describe 'full pipeline: scan → normalize → export' do
@@ -76,14 +84,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
       expect(summary['by_severity']).to be_a(Hash)
     end
 
-    it 'exports a v1.1 JSON envelope' do
+    it 'exports a v1.3 JSON envelope' do
       orchestrator = ScanOrchestrator.new(scan)
       orchestrator.execute
 
       exporter = ScanResultsExporter.new(scan)
       envelope = exporter.build_envelope
 
-      expect(envelope[:schema_version]).to eq('1.2')
+      expect(envelope[:schema_version]).to eq('1.3')
       expect(envelope[:metadata][:scan_id]).to eq(scan.id)
       expect(envelope[:metadata][:target_name]).to eq('DVWA E2E Test')
       expect(envelope[:findings]).to be_an(Array)
