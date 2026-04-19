@@ -82,5 +82,73 @@ RSpec.describe Scanners::NucleiScanner do
       result = scanner.run
       expect(result[:success]).to be true
     end
+
+    context 'with auto_templates enabled and WordPress detected' do
+      let(:tool_config) { { auto_templates: true, timeout: 600 } }
+
+      before do
+        scan.summary = { 'cms_inventory' => { 'cms' => 'wordpress', 'confidence' => 0.9 } }
+        scan.save_changes
+      end
+
+      it 'appends WordPress-specific Nuclei template paths' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include('-t http/technologies/wordpress/')
+          expect(cmd).to include('-t http/cves/wordpress/')
+          success_result
+        end
+
+        scanner.run
+      end
+
+      it 'merges auto templates with explicit templates without duplicates' do
+        scanner = described_class.new(scan, auto_templates: true,
+                                            templates: ['http/technologies/wordpress/', '/custom/t.yaml'],
+                                            timeout: 600)
+        allow(scanner).to receive(:run_command).and_return(success_result)
+        allow(ResultParsers::NucleiParser).to receive(:new).and_return(
+          instance_double(ResultParsers::NucleiParser, parse: [])
+        )
+
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd.scan('-t http/technologies/wordpress/').size).to eq(1)
+          expect(cmd).to include('-t /custom/t.yaml')
+          success_result
+        end
+
+        scanner.run
+      end
+    end
+
+    context 'with auto_templates enabled but no WordPress detected' do
+      let(:tool_config) { { auto_templates: true, timeout: 600 } }
+
+      it 'does not append any CMS template paths' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).not_to include('-t http/technologies/wordpress/')
+          success_result
+        end
+
+        scanner.run
+      end
+    end
+
+    context 'with auto_templates disabled (default) and WordPress detected' do
+      let(:tool_config) { { timeout: 600 } }
+
+      before do
+        scan.summary = { 'cms_inventory' => { 'cms' => 'wordpress', 'confidence' => 0.9 } }
+        scan.save_changes
+      end
+
+      it 'does not append CMS template paths' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).not_to include('-t http/')
+          success_result
+        end
+
+        scanner.run
+      end
+    end
   end
 end
