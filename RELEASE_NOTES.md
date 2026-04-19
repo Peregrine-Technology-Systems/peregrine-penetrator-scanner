@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- feat: opt-in Nuclei auto-templates when WordPress is detected — default off, enable per-profile with `auto_templates: true` on the nuclei tool config (#741)
 - feat: WordPress CMS detector — generator meta + wp-content/wp-includes + wp-json REST + readme/wp-login probes with weighted confidence scoring and core-version extraction (#738)
 - feat: fingerprinter framework (base class, registry, generic fallback) + orchestrator hook writes `cms_inventory` into `scan.summary` (#737)
 - fix: callback URL path doubled — `/callbacks/callbacks/heartbeat` — treat CALLBACK_URL as base, append only endpoint suffix; fix vm-startup.sh auth header (#728) 
