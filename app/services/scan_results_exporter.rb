@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ScanResultsExporter
-  SCHEMA_VERSION = '1.2'
+  SCHEMA_VERSION = '1.3'
 
   def initialize(scan, cost_logger: nil)
     @scan = scan
@@ -103,7 +103,8 @@ class ScanResultsExporter
       by_severity: summary['by_severity'] || @findings.group_and_count(:severity).all.to_h { |r| [r[:severity], r[:count]] },
       tools_run: summary['tools_run'] || (@scan.tool_statuses || {}).keys,
       duration_seconds: summary['duration_seconds'] || @scan.duration&.to_i,
-      executive_summary: summary['executive_summary']
+      executive_summary: summary['executive_summary'],
+      cms_inventory: summary['cms_inventory']
     }
   end
 
