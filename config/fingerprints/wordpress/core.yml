@@ -1,0 +1,19 @@
+signatures:
+  generator_meta:
+    weight: 0.7
+    pattern: '<meta[^>]+name=["\'']generator["\''][^>]+content=["\'']WordPress\s+([\d.]+)'
+  wp_content_path:
+    weight: 0.3
+    pattern: 'wp-content/'
+  wp_includes_path:
+    weight: 0.2
+    pattern: 'wp-includes/'
+  wp_json_rest:
+    weight: 0.5
+    path: '/wp-json/'
+  readme_html:
+    weight: 0.2
+    path: '/readme.html'
+  wp_login:
+    weight: 0.2
+    path: '/wp-login.php'
