@@ -58,8 +58,18 @@ class ScanOrchestrator
       run_smoke_checks
     else
       preflight_check
+      fingerprint_target
       run_scan_phases
     end
+  end
+
+  def fingerprint_target
+    result = Fingerprinters::FingerprinterRegistry.new(scan).detect
+    scan.summary = (scan.summary || {}).merge('cms_inventory' => result.transform_keys(&:to_s))
+    scan.save_changes
+    Penetrator.logger.info("[Fingerprint] CMS: #{result[:cms]} (confidence: #{result[:confidence]})")
+  rescue StandardError => e
+    Penetrator.logger.warn("[Fingerprint] Failed: #{e.message}")
   end
 
   def start_control_plane
@@ -141,14 +151,14 @@ class ScanOrchestrator
   def mark_completed
     scan.status = 'completed'
     scan.completed_at = Time.current
-    scan.summary = ScanSummaryBuilder.new(scan).build
+    scan.summary = (scan.summary || {}).merge(ScanSummaryBuilder.new(scan).build)
     scan.save_changes
   end
 
   def mark_cancelled
     scan.status = 'cancelled'
     scan.completed_at = Time.current
-    scan.summary = ScanSummaryBuilder.new(scan).build
+    scan.summary = (scan.summary || {}).merge(ScanSummaryBuilder.new(scan).build)
     scan.save_changes
     Penetrator.logger.info('[ScanOrchestrator] Scan cancelled by control plane')
   end
