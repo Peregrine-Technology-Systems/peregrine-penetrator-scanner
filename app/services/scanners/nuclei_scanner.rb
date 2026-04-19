@@ -1,5 +1,9 @@
 module Scanners
   class NucleiScanner < ScannerBase
+    CMS_TEMPLATE_PATHS = {
+      'wordpress' => %w[http/technologies/wordpress/ http/cves/wordpress/ http/vulnerabilities/wordpress/]
+    }.freeze
+
     def tool_name
       'nuclei'
     end
@@ -26,12 +30,25 @@ module Scanners
 
       cmd += " -severity #{tool_config[:severity_filter]}" if tool_config[:severity_filter]
 
-      tool_config[:templates].each { |t| cmd += " -t #{Shellwords.escape(t)}" } if tool_config[:templates].present?
+      templates = combined_templates
+      templates.each { |t| cmd += " -t #{Shellwords.escape(t)}" } if templates.any?
 
       cmd += " -rate-limit #{tool_config[:rate_limit]}" if tool_config[:rate_limit]
       cmd += " -bulk-size #{tool_config[:bulk_size]}" if tool_config[:bulk_size]
 
       cmd
+    end
+
+    def combined_templates
+      explicit = Array(tool_config[:templates])
+      (explicit + auto_templates).uniq
+    end
+
+    def auto_templates
+      return [] unless tool_config[:auto_templates]
+
+      detected_cms = scan.summary&.dig('cms_inventory', 'cms')
+      CMS_TEMPLATE_PATHS.fetch(detected_cms, [])
     end
 
     def parse_results(output_file)
