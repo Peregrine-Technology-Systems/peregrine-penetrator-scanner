@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.17.1 — 2026-04-20
+
 - fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
 
 ## v0.17.0 — 2026-04-19
