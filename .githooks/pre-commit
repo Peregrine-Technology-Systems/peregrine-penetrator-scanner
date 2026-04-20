@@ -67,7 +67,7 @@ fi
 # ============================================================
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 if [ "$CURRENT_BRANCH" != "development" ] && [ "$CURRENT_BRANCH" != "staging" ] && [ "$CURRENT_BRANCH" != "main" ]; then
-  CHANGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | grep -v 'CLAUDE.md' | grep -v '.github/' || true)
+  CHANGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | grep -v 'CLAUDE.md' | grep -v 'RELEASE_NOTES.md' | grep -v '.github/' || true)
   if [ -n "$CHANGED_MD" ]; then
     DOC_SCRIPT="scripts/docs/generate-doc-pdf.sh"
     if [ -x "$DOC_SCRIPT" ]; then

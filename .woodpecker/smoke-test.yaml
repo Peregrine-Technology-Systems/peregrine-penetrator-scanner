@@ -23,7 +23,6 @@ steps:
         from_secret: notification_email
     commands:
       - scripts/woodpecker/smoke-test.sh
-    failure: ignore
 
   - name: cleanup-smoke-vms
     image: bash
