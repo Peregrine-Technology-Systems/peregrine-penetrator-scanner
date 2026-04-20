@@ -7,9 +7,11 @@ set -euo pipefail
 #    - feat: → minor
 #    - everything else → patch
 # 2. Increment VERSION
-# 3. Update RELEASE_NOTES — move Unreleased items under version header
+# 3. Update RELEASE_NOTES — rename ## Unreleased to ## vX.Y.Z, re-seed a fresh
+#    ## Unreleased above so future PRs have a target section
 # 4. Commit + tag
-# 5. Tag Docker image (scanner:staging → scanner:vX.Y.Z + scanner:production)
+# 5. Create GitHub Release with the notes body (every tag gets a Release)
+# 6. Tag Docker image (scanner:staging → scanner:vX.Y.Z + scanner:production)
 
 REPO="Peregrine-Technology-Systems/peregrine-penetrator-scanner"
 API="https://api.github.com"
@@ -97,14 +99,29 @@ fi
 echo "${NEW_VERSION}" > VERSION
 echo "VERSION: ${CURRENT} → ${NEW_VERSION}"
 
-# Update RELEASE_NOTES.md — replace ## Unreleased with ## vX.Y.Z — date
+# Update RELEASE_NOTES.md — rename current ## Unreleased to ## vX.Y.Z, and insert
+# a fresh empty ## Unreleased above so future PRs have a target section.
+# Without the fresh Unreleased re-seed, subsequent PRs add items with no section
+# header, and the next bump renames an already-empty section (issue #753).
 DATE=$(date +%Y-%m-%d)
-if grep -q '^## Unreleased' RELEASE_NOTES.md; then
-  sed -i "s/^## Unreleased$/## ${TAG} — ${DATE}/" RELEASE_NOTES.md
-  echo "RELEASE_NOTES: ## Unreleased → ## ${TAG} — ${DATE}"
+if grep -q '^## Unreleased$' RELEASE_NOTES.md; then
+  # GNU sed: \n in replacement works on Linux (CI runs on Linux).
+  sed -i "s/^## Unreleased\$/## Unreleased\n\n## ${TAG} — ${DATE}/" RELEASE_NOTES.md
+  echo "RELEASE_NOTES: renamed ## Unreleased → ## ${TAG} — ${DATE}, seeded fresh ## Unreleased"
 else
-  echo "WARNING: No ## Unreleased section found in RELEASE_NOTES.md"
+  # No Unreleased heading — insert both fresh Unreleased and the new version
+  # heading right after the top-level title. This self-heals repos where
+  # version-bump previously consumed the Unreleased heading without re-seeding.
+  sed -i "1,/^# Release Notes/{s|^# Release Notes\$|# Release Notes\n\n## Unreleased\n\n## ${TAG} — ${DATE}|}" RELEASE_NOTES.md
+  echo "RELEASE_NOTES: no Unreleased section found — self-healed, added fresh ## Unreleased + ## ${TAG}"
 fi
+
+# Extract release notes content for the new version (between ## vX.Y.Z and the next ## heading)
+RELEASE_BODY=$(awk -v tag="## ${TAG} — ${DATE}" '
+  $0 == tag { capture = 1; next }
+  capture && /^## / { exit }
+  capture { print }
+' RELEASE_NOTES.md)
 
 # Commit all version changes
 git config user.name "woodpecker-ci[bot]"
@@ -125,6 +142,26 @@ git push origin main
 git tag -a "${TAG}" -m "Release ${TAG}"
 git push origin "${TAG}"
 echo "Created and pushed tag: ${TAG}"
+
+# Create GitHub Release — every tag must have a corresponding Release (no orphan tags).
+# Body is the RELEASE_NOTES section extracted above.
+RELEASE_PAYLOAD=$(jq -n \
+  --arg tag "${TAG}" \
+  --arg name "${TAG}" \
+  --arg body "${RELEASE_BODY:-No release notes captured.}" \
+  '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')
+
+RELEASE_RESPONSE=$(curl -s -o /tmp/release-response.json -w "%{http_code}" \
+  -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
+  "${API}/repos/${REPO}/releases" \
+  -d "${RELEASE_PAYLOAD}")
+
+if [ "$RELEASE_RESPONSE" = "201" ]; then
+  echo "Created GitHub Release: ${TAG}"
+else
+  echo "WARNING: Failed to create GitHub Release (HTTP ${RELEASE_RESPONSE})"
+  cat /tmp/release-response.json
+fi
 
 # Tag Docker image by DIGEST: scanner:staging → scanner:vX.Y.Z + scanner:production
 # Using digest ensures the exact bytes that passed staging CI get promoted,
