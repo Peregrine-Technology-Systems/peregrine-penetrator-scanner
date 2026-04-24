@@ -80,6 +80,11 @@ git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}
 
 git fetch --unshallow origin 2>/dev/null || true
 git fetch origin "$BRANCH" "$BASE"
+# Delete stale remote merge branch if one was left behind by a manually-closed
+# prior promote PR — otherwise the push below fails non-fast-forward.
+# (Incident 2026-04-21 across scaler/front-end/etc.)
+git push origin --delete "$MERGE_BRANCH" 2>/dev/null || true
+
 git checkout -b "$MERGE_BRANCH" "origin/${BASE}"
 
 if git merge "origin/${BRANCH}" --no-edit 2>/dev/null; then
