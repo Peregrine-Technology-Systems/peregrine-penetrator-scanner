@@ -163,6 +163,30 @@ else
   cat /tmp/release-response.json
 fi
 
+# #767: fire GitHub Deployment API for the new tag (cross-repo rollout #1187).
+# Triggers release.yaml via the deployment webhook on event=deployment.
+# Best-effort — failure here doesn't block the release.
+echo "Firing GitHub Deployment for ${TAG} → triggers release.yaml via deployment webhook"
+DEPLOY_PAYLOAD=$(jq -n --arg ref "$TAG" --arg desc "Auto-deploy of ${TAG} triggered by main merge" '{
+  ref: $ref,
+  environment: "production",
+  auto_merge: false,
+  required_contexts: [],
+  description: $desc,
+  production_environment: true
+}')
+DEPLOY_RESPONSE=$(curl -sS -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
+  -H "Content-Type: application/json" \
+  "${API}/repos/${REPO}/deployments" \
+  -d "$DEPLOY_PAYLOAD")
+DEPLOY_ID=$(echo "$DEPLOY_RESPONSE" | jq -r '.id // empty')
+if [ -n "$DEPLOY_ID" ] && [ "$DEPLOY_ID" != "null" ]; then
+  echo "Created Deployment id=${DEPLOY_ID} for ${TAG}"
+else
+  echo "WARNING: Deployment API call did not return an id — release.yaml may not fire"
+  echo "$DEPLOY_RESPONSE" | jq -r '.message // .' 2>/dev/null || echo "$DEPLOY_RESPONSE"
+fi
+
 # Tag Docker image by DIGEST: scanner:staging → scanner:vX.Y.Z + scanner:production
 # Using digest ensures the exact bytes that passed staging CI get promoted,
 # even if the staging tag was re-pointed by a concurrent build.
