@@ -3,46 +3,61 @@
 ## Unreleased
 
 ## v0.17.1 — 2026-04-20
+- ci: remove `failure: ignore` from smoke-test step — smoke-test failures no longer mask as pipeline success. `cleanup-smoke-vms` still runs via `when.status` so VMs get cleaned up even on failure (#762)
+
+## v0.17.1 — 2026-04-20
+
+- fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
 
 ## v0.17.0 — 2026-04-19
 
-## v0.17.0 — 2026-04-19
 
 ## v0.16.6 — 2026-04-09
 - fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions; historical v0.16.2/4/6/7 still empty pending manual backfill (#753)
+- fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
 
-## v0.17.0 — 2026-04-19
 
 - feat: opt-in Nuclei auto-templates when WordPress is detected — default off, enable per-profile with `auto_templates: true` on the nuclei tool config (#741)
 - feat: emit cms_inventory in scan envelope + bump SCHEMA_VERSION to 1.3 (#740)
 - feat: WordPress CMS detector — generator meta + wp-content/wp-includes + wp-json REST + readme/wp-login probes with weighted confidence scoring and core-version extraction (#738)
 - feat: fingerprinter framework (base class, registry, generic fallback) + orchestrator hook writes `cms_inventory` into `scan.summary` (#737)
+
+## v0.16.7 — 2026-04-12
+
 - fix: callback URL path doubled — `/callbacks/callbacks/heartbeat` — treat CALLBACK_URL as base, append only endpoint suffix; fix vm-startup.sh auth header (#728)
-- fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
 - fix: CI workflow runs on on-demand VMs to avoid spot preemption (#726)
-- fix: scan VMs fail on zone exhaustion — on-demand only, multi-region zone fallback (9 zones), structured 503 on total failure (#710, #719)
+- fix: scan VMs fail on zone exhaustion — multi-region zone fallback (9 zones), structured 503 on total failure (#710)
+
+
+- fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
+
+## v0.16.5 — 2026-04-09
+
 - fix: VM startup failure observability — Cloud Function writes vm-created marker to GCS, EXIT trap sends failure callback to orchestrator (#711)
-- fix: revert promote depends_on deploy — deploy only runs on staging, blocking dev→staging promotion (#691)
-- fix: heartbeat stops updating during long Nuclei scans — chunked stdout reading yields GIL to heartbeat thread (#697)
-- fix: sync-back PRs no longer block unrelated promotions — guard scoped to target base branch (#698)
-- fix: make callback_url a required parameter from trigger call — reject with 400 if missing (#695)
-- fix: promote workflow must depends_on deploy to prevent pipeline contention (#691)
-
-## v0.16.6 — 2026-04-09
-
-_Empty — release notes were eaten by the version-bump bug fixed in #753. Backfill pending._
+- fix: revert promote depends_on deploy — deploy only runs on staging, was blocking dev→staging promotion (#691)
 
 ## v0.16.4 — 2026-04-09
 
-_Empty — release notes were eaten by the version-bump bug fixed in #753. Backfill pending._
+- fix: heartbeat stops updating during long Nuclei scans — chunked stdout reading yields GIL to heartbeat thread (#697)
+- fix: sync-back PRs no longer block unrelated promotions — guard scoped to target base branch (#698)
+
+## v0.16.3 — 2026-04-09
+
+- fix: make callback_url a required parameter from trigger call — reject with 400 if missing (#695, #691)
+- fix: pre-commit hook excludes spec/ from code files — lint was being skipped (#683, #690)
 
 ## v0.16.2 — 2026-04-06
 
-_Empty — release notes were eaten by the version-bump bug fixed in #753. Backfill pending._
+- fix: BQ cost insert fails silently on schema mismatch — schema integrity smoke tests added (#661, #651)
+
+## v0.16.1 — 2026-04-06
+
+- fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
 
 ## v0.16.0 — 2026-04-06
 
-- fix: heartbeat stops updating during long Nuclei scans — cache StorageService, isolate tick operations with independent timeouts (#661)
+- feat: tool chain in GCS export and callback payload — planned tools, per-tool timing, exit codes, findings count; schema v1.2 (#663)
+- refactor: reduce redundant object instantiation and code duplication across services (#653)
 
 ## v0.15.2 — 2026-04-05
 
