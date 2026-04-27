@@ -1,7 +1,10 @@
 # Production release: tag staging image as production (no build, no CI)
+#
+# #767: trigger flipped from `event: push, branch: main` to `event: deployment`
+# (cross-repo rollout #1187). version-bump.sh POSTs the GitHub Deployment API
+# after tag creation; the deployment webhook fires this pipeline.
 when:
-  - event: push
-    branch: main
+  - event: deployment
 
 labels:
   platform: linux
@@ -13,6 +16,8 @@ steps:
     environment:
       DOCKER_REGISTRY:
         from_secret: docker_registry
+      GH_TOKEN:
+        from_secret: gh_token
     commands:
       - scripts/woodpecker/deploy.sh
 
