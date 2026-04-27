@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- feat: decouple production deploy from merge — fire GitHub Deployment API as a separate step (#767, cross-repo rollout #1187). `.woodpecker/release.yaml`'s production trigger flipped from `event: push, branch: main` to `event: deployment`. Staging deploy (`.woodpecker/deploy.yaml`) unchanged. `version-bump.sh` POSTs to `/repos/.../deployments` after Release creation; `deploy.sh` updated to map `CI_PIPELINE_EVENT == deployment` to TARGET=main and posts `in_progress` / `success` / `failure` status callbacks against the Deployment record. `GH_TOKEN` added to release.yaml's promote-image step. Reference impl: peregrine-grafana@f7507b4 + peregrine-monitoring@c80e0d3 + peregrine-penetrator-front-end PR#677. Allowlist prerequisite (ci-infrastructure#1188) cleared 2026-04-26.
+
 - fix: `promote.sh` deletes stale remote merge branch before push — avoids non-fast-forward on close-and-retry (ci-infrastructure#1089)
 
 - ci: remove `failure: ignore` from smoke-test step — smoke-test failures no longer mask as pipeline success. `cleanup-smoke-vms` still runs via `when.status` so VMs get cleaned up even on failure (#762)
