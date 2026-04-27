@@ -6,13 +6,21 @@
 
 - fix: `promote.sh` deletes stale remote merge branch before push — avoids non-fast-forward on close-and-retry (ci-infrastructure#1089)
 
-- ci: remove `failure: ignore` from smoke-test step — smoke-test failures no longer mask as pipeline success. `cleanup-smoke-vms` still runs via `when.status` so VMs get cleaned up even on failure (#762)
+## v0.17.2 — 2026-04-27
 
 ## v0.17.1 — 2026-04-20
+- ci: remove `failure: ignore` from smoke-test step — smoke-test failures no longer mask as pipeline success. `cleanup-smoke-vms` still runs via `when.status` so VMs get cleaned up even on failure (#762)
+
 
 - fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
 
 ## v0.17.0 — 2026-04-19
+
+
+## v0.16.6 — 2026-04-09
+- fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions; historical v0.16.2/4/6/7 still empty pending manual backfill (#753)
+- fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
+
 
 - feat: opt-in Nuclei auto-templates when WordPress is detected — default off, enable per-profile with `auto_templates: true` on the nuclei tool config (#741)
 - feat: emit cms_inventory in scan envelope + bump SCHEMA_VERSION to 1.3 (#740)
@@ -25,7 +33,6 @@
 - fix: CI workflow runs on on-demand VMs to avoid spot preemption (#726)
 - fix: scan VMs fail on zone exhaustion — multi-region zone fallback (9 zones), structured 503 on total failure (#710)
 
-## v0.16.6 — 2026-04-09
 
 - fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
 
