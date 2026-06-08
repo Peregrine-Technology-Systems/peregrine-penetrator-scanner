@@ -142,18 +142,87 @@ git config user.email "woodpecker-ci[bot]@users.noreply.github.com"
 # Set push URL with token (Woodpecker clone uses HTTPS without push credentials)
 git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
 
+# --- PR-based flow (Pattern A: enforce_admins blocks direct push to main) ---
+# Commit the bump on a release branch, PR → main, merge + tag via the API.
+# Mirrors peregrine-platform-ioi/scripts/woodpecker/version-bump.sh, including
+# the mergeable-race guards (ioi#266) and stale-branch delete (ioi#31).
+RELEASE_BRANCH="release/${TAG}"
+
+# Delete any stale remote release branch from a previous killed run before
+# pushing — otherwise restarts after agent disconnect fail non-fast-forward.
+git push origin --delete "${RELEASE_BRANCH}" 2>/dev/null || true
+
+git checkout -b "${RELEASE_BRANCH}"
 git add VERSION RELEASE_NOTES.md
 git commit -m "release: ${TAG}
 
 Bump: ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})
 
 Co-Authored-By: woodpecker-ci[bot] <woodpecker-ci[bot]@users.noreply.github.com>"
-git push origin main
+git push origin "${RELEASE_BRANCH}"
 
-# Create tag
-git tag -a "${TAG}" -m "Release ${TAG}"
-git push origin "${TAG}"
-echo "Created and pushed tag: ${TAG}"
+# Create the release PR via API
+PR_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+  "${API}/repos/${REPO}/pulls" \
+  -d "$(jq -n --arg t "release: ${TAG}" --arg h "${RELEASE_BRANCH}" \
+    --arg b "Automated version bump: ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})" \
+    '{title: $t, head: $h, base: "main", body: $b}')")
+PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+if [ "$PR_NUMBER" = "null" ] || [ -z "$PR_NUMBER" ]; then
+  echo "ERROR: Failed to create release PR"
+  echo "$PR_RESPONSE" | jq -r '.message // .errors[0].message // "unknown error"'
+  exit 1
+fi
+echo "Created release PR #${PR_NUMBER}"
+
+# GitHub computes .mergeable asynchronously (null while computing). Merging in
+# that window returns a misleading 409 "Base branch was modified". Poll up to
+# 30s for it to settle, then merge with up to 3 retries on that race only.
+for attempt in $(seq 1 30); do
+  PR_STATE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/pulls/${PR_NUMBER}")
+  MERGEABLE=$(echo "$PR_STATE" | jq -r '.mergeable')
+  MSTATE=$(echo "$PR_STATE" | jq -r '.mergeable_state')
+  if [ "$MERGEABLE" = "true" ] && [ "$MSTATE" = "clean" ]; then
+    echo "PR #${PR_NUMBER} mergeable after ${attempt}s"
+    break
+  fi
+  if [ "$attempt" = "30" ]; then
+    echo "ERROR: PR #${PR_NUMBER} not mergeable after 30s — mergeable=${MERGEABLE} state=${MSTATE}"
+    exit 1
+  fi
+  sleep 1
+done
+
+MERGED=""
+MERGE_RESPONSE=""
+for attempt in 1 2 3; do
+  MERGE_RESPONSE=$(curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+    "${API}/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+    -d "{\"merge_method\": \"merge\", \"commit_title\": \"release: ${TAG}\"}")
+  MERGED=$(echo "$MERGE_RESPONSE" | jq -r '.merged')
+  [ "$MERGED" = "true" ] && break
+  MSG=$(echo "$MERGE_RESPONSE" | jq -r '.message // ""')
+  echo "Merge attempt ${attempt} failed: ${MSG}"
+  echo "$MSG" | grep -q "Base branch was modified" || break
+  sleep $((attempt * 2))
+done
+if [ "$MERGED" != "true" ]; then
+  echo "ERROR: Failed to merge release PR #${PR_NUMBER} after retries"
+  exit 1
+fi
+echo "Merged release PR #${PR_NUMBER}"
+
+# Tag the merge commit via API (not git tag — works with enforce_admins)
+MERGE_SHA=$(echo "$MERGE_RESPONSE" | jq -r '.sha')
+TAG_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+  "${API}/repos/${REPO}/git/refs" \
+  -d "$(jq -n --arg ref "refs/tags/${TAG}" --arg sha "${MERGE_SHA}" '{ref: $ref, sha: $sha}')")
+if echo "$TAG_RESPONSE" | jq -e '.ref == "refs/tags/'"${TAG}"'"' >/dev/null 2>&1; then
+  echo "Created tag ${TAG} → ${MERGE_SHA}"
+else
+  echo "ERROR: Tag creation failed: $(echo "$TAG_RESPONSE" | jq -r '.message // "unknown"')"
+  exit 1
+fi
 
 # Create GitHub Release — every tag must have a corresponding Release (no orphan tags).
 # Body is the RELEASE_NOTES section extracted above.
