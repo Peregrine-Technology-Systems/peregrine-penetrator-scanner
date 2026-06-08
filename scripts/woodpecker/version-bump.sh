@@ -23,17 +23,22 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
-# Guard: skip version bump for automated commits (prevents infinite loop)
+# Guard: skip version bump for automated commits (prevents infinite loop).
+# Anchor on the SUBJECT line only (head -n1) — matching the full multi-line
+# message fires the guard on any merge commit whose body happens to contain
+# "release: v…" / "Sync:" on line 2+ (e.g. a PR body quoting a prior release
+# line), silently skipping a real release. Reference: identity v0.1.85 (#673).
 COMMIT_MSG="${CI_COMMIT_MESSAGE:-}"
-if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
+COMMIT_SUBJECT=$(printf '%s' "$COMMIT_MSG" | head -n 1)
+if echo "$COMMIT_SUBJECT" | grep -qE '^release: v[0-9]'; then
   echo "Skipping — version-bump commit (prevents loop)"
   exit 0
 fi
-if echo "$COMMIT_MSG" | grep -qiE '^Sync:|sync/version-|version files to'; then
+if echo "$COMMIT_SUBJECT" | grep -qiE '^Sync:|sync/version-|version files to'; then
   echo "Skipping — sync-back commit"
   exit 0
 fi
-if echo "$COMMIT_MSG" | grep -qE '^docs:|^docs\('; then
+if echo "$COMMIT_SUBJECT" | grep -qE '^docs:|^docs\('; then
   echo "Skipping — documentation-only commit"
   exit 0
 fi
@@ -67,6 +72,13 @@ if [ -z "$UNRELEASED_CONTENT" ]; then
     echo "Skipping — no unreleased content and no untagged content commits"
     exit 0
   fi
+  # Drift detection (MUST): ## Unreleased is empty BUT substantive commits exist
+  # since the last tag. A RELEASE_NOTES write was missed — fail loudly rather
+  # than silently tag an empty release. Silent-OK counterpart to the empty
+  # guard above (global standard: identity version-bump.sh lines 140-152).
+  echo "ERROR: ## Unreleased is empty but ${CONTENT_COMMITS} content commit(s) exist since ${LAST_TAG:-repo start}." >&2
+  echo "       RELEASE_NOTES.md was not updated for shipped work — refusing to tag an empty release." >&2
+  exit 1
 fi
 
 BUMP_TYPE="patch"
