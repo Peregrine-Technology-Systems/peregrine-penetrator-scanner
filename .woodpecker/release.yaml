@@ -8,7 +8,6 @@ when:
 
 labels:
   platform: linux
-  backend: local
 
 steps:
   - name: promote-image
