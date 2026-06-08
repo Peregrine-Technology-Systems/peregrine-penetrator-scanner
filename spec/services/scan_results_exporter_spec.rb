@@ -113,6 +113,20 @@ RSpec.describe ScanResultsExporter do
         expect(metadata[:profile]).to eq('standard')
       end
 
+      it 'includes build provenance for deployed-bits verification' do
+        expect(metadata[:scanner_version]).to eq(Penetrator::VERSION)
+        expect(metadata[:scanner_commit]).to eq('unknown')
+      end
+
+      it 'emits the baked GIT_COMMIT as scanner_commit when set' do
+        original = ENV.fetch('GIT_COMMIT', nil)
+        ENV['GIT_COMMIT'] = 'abc1234'
+        commit = ScanResultsExporter.new(scan).build_envelope[:metadata][:scanner_commit]
+        expect(commit).to eq('abc1234')
+      ensure
+        original.nil? ? ENV.delete('GIT_COMMIT') : ENV['GIT_COMMIT'] = original
+      end
+
       it 'includes timing data' do
         expect(metadata[:started_at]).to be_present
         expect(metadata[:completed_at]).to be_present
