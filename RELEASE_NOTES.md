@@ -5,6 +5,8 @@
 ## v0.17.2 — 2026-04-27
 
 ## v0.17.1 — 2026-04-20
+- ci: align workflows to current global standards — remove `backend: local` from all 9 `.woodpecker/*.yaml` workflows so steps route to the GCP agent fleet (`ci-agent@ci-runners-de`) instead of the bare d3ci42 droplet; this is the root cause of the persistent staging deploy/smoke-test failures since the fleet migration (#776, #781). `ci.yaml` now also excludes promotion-artifact branches (`merge/*`, `sync/*`, `release/*`) per MUST HAVE Rule #2. `version-bump.sh` guards are subject-anchored (`head -n1`) to avoid skipping a real release on a multi-line body match (identity v0.1.85 pattern), and gain loud drift detection (`exit 1`) when `## Unreleased` is empty while substantive commits exist (#776)
+
 - feat: decouple production deploy from merge — fire GitHub Deployment API as a separate step (#767, cross-repo rollout #1187). `.woodpecker/release.yaml`'s production trigger flipped from `event: push, branch: main` to `event: deployment`. Staging deploy (`.woodpecker/deploy.yaml`) unchanged. `version-bump.sh` POSTs to `/repos/.../deployments` after Release creation; `deploy.sh` updated to map `CI_PIPELINE_EVENT == deployment` to TARGET=main and posts `in_progress` / `success` / `failure` status callbacks against the Deployment record. `GH_TOKEN` added to release.yaml's promote-image step. Reference impl: peregrine-grafana@f7507b4 + peregrine-monitoring@c80e0d3 + peregrine-penetrator-front-end PR#677. Allowlist prerequisite (ci-infrastructure#1188) cleared 2026-04-26.
 
 - fix: `promote.sh` deletes stale remote merge branch before push — avoids non-fast-forward on close-and-retry (ci-infrastructure#1089)
