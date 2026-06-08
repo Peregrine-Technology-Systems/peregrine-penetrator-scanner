@@ -11,22 +11,28 @@ fi
 
 gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
+# Bake the build commit into the image so the running scan can prove which bits
+# it executed (smoke-test asserts envelope scanner_commit == this commit).
+COMMIT_SHA="${CI_COMMIT_SHA:-$(git rev-parse HEAD)}"
+
 echo "=== Building baked scanner image ==="
 echo "  Base: ${DOCKER_REGISTRY}/scanner-base:latest"
 echo "  Tag: staging"
+echo "  Commit: ${COMMIT_SHA}"
 
 docker buildx build \
   -f docker/Dockerfile \
   --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
+  --build-arg "GIT_COMMIT=${COMMIT_SHA}" \
   -t "${DOCKER_REGISTRY}/scanner:staging" \
   --push \
   .
 
 # Also tag with commit SHA for traceability
-COMMIT_SHA="${CI_COMMIT_SHA:-$(git rev-parse HEAD)}"
 docker buildx build \
   -f docker/Dockerfile \
   --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
+  --build-arg "GIT_COMMIT=${COMMIT_SHA}" \
   -t "${DOCKER_REGISTRY}/scanner:${COMMIT_SHA}" \
   --push \
   . 2>/dev/null || echo "WARNING: Could not push SHA-tagged image"
