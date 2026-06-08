@@ -8,7 +8,6 @@ depends_on:
 
 labels:
   platform: linux
-  backend: local
 
 steps:
   - name: deploy
