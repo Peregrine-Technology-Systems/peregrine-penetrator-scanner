@@ -14,48 +14,64 @@ case "$BRANCH" in
 esac
 
 GCS_BUCKET="${GCP_PROJECT}-pentest-reports"
+RESULTS_PREFIX="gs://${GCS_BUCKET}/scan-results/"
 POLL_INTERVAL=15
-MAX_WAIT=180  # 3 minutes max for smoke-test profile
+# Budget covers the full ephemeral-VM cycle: boot + scanner image pull (~120s
+# observed on e2-standard-4) + smoke scan + CVE enrichment + GCS/BQ export +
+# self-terminate. The previous 180s left the scan only ~60s after boot/pull, so
+# the observer gave up and cleanup-smoke-vms killed the VM mid-scan — no result
+# ever landed. Size to the real workload, not the symptom (falcon discipline:
+# don't widen tolerance to mask a stall — here the scan wasn't stalling, the
+# budget was simply wrong for unavoidable ephemeral-VM boot overhead).
+MAX_WAIT=480
 
 echo "=== Smoke Test: ${BRANCH} ==="
+
+# Snapshot existing results so we detect THIS scan's fresh output by set
+# difference. The old `gsutil ls | tail -1` grabbed the lexically-last of all
+# historical results — a silent-OK hole that could validate a months-old file
+# and pass while the current scan produced nothing.
+BEFORE=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | sort || echo "")
 
 # Launch a smoke-test scan VM (canned findings + stubbed reporter calls)
 scripts/woodpecker/trigger-scan.sh "${BRANCH}" smoke-test "${IMAGE_TAG}"
 
-VM_PREFIX="pentest-scan-${BRANCH}-"
-echo "Waiting for smoke scan VM to complete..."
-
+echo "Waiting up to ${MAX_WAIT}s for the smoke scan to publish a fresh result..."
+# The deploy step launches a long-running *standard* scan whose result may also
+# land in this window; accept only a fresh result whose profile is smoke-test so
+# we never validate the wrong scan (its envelope lacks summary.smoke_test and
+# would otherwise slip through the validation's else branch — a silent-OK hole).
+JSON_FILES=""
 elapsed=0
 while [ "$elapsed" -lt "$MAX_WAIT" ]; do
-  RUNNING_VMS=$(gcloud compute instances list \
-    --filter="name~${VM_PREFIX} AND status=RUNNING" \
-    --project="${GCP_PROJECT}" \
-    --format="value(name)" 2>/dev/null || echo "")
-
-  if [ -z "$RUNNING_VMS" ]; then
-    echo "Smoke VM terminated after ${elapsed}s — checking results..."
-    break
-  fi
-
-  echo "  VM still running (${elapsed}s elapsed)..."
   sleep "$POLL_INTERVAL"
   elapsed=$((elapsed + POLL_INTERVAL))
+  AFTER=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | sort || echo "")
+  FRESH_LIST=$(comm -13 <(printf '%s\n' "$BEFORE") <(printf '%s\n' "$AFTER") | grep -E '^gs://' || echo "")
+  if [ -n "$FRESH_LIST" ]; then
+    while IFS= read -r cand; do
+      [ -z "$cand" ] && continue
+      CAND_TMP=$(mktemp)
+      if gsutil cp "$cand" "$CAND_TMP" 2>/dev/null; then
+        CAND_PROFILE=$(python3 -c "import json; print(json.load(open('$CAND_TMP')).get('metadata',{}).get('profile',''))" 2>/dev/null || echo "")
+        if [ "$CAND_PROFILE" = "smoke-test" ]; then
+          JSON_FILES="$cand"
+          rm -f "$CAND_TMP"
+          break
+        fi
+      fi
+      rm -f "$CAND_TMP"
+    done <<< "$FRESH_LIST"
+    if [ -n "$JSON_FILES" ]; then
+      echo "Fresh smoke-test result published after ${elapsed}s: ${JSON_FILES}"
+      break
+    fi
+  fi
+  echo "  No fresh smoke-test result yet (${elapsed}s elapsed)..."
 done
 
-if [ "$elapsed" -ge "$MAX_WAIT" ]; then
-  echo "ERROR: Smoke test timed out after ${MAX_WAIT}s"
-  exit 1
-fi
-
-sleep 5  # GCS propagation
-
-echo "--- Checking GCS for results ---"
-RESULTS_PREFIX="gs://${GCS_BUCKET}/scan-results/"
 ERRORS=0
-
-# Check for versioned JSON export
-echo "Checking JSON results..."
-JSON_FILES=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | tail -1 || echo "")
+echo "--- Checking GCS for results ---"
 if [ -n "$JSON_FILES" ]; then
   echo "  PASS: JSON found: ${JSON_FILES}"
 
