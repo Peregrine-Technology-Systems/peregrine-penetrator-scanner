@@ -76,9 +76,10 @@ RSpec.describe StorageService do
       end
     end
 
-    context 'when GCS is configured but bucket is inaccessible' do
+    context 'when GCS is configured but the upload fails' do
       let(:gcs_storage_class) { Class.new }
       let(:mock_storage) { instance_double(gcs_storage_class) }
+      let(:mock_bucket) { instance_double(gcs_storage_class) }
 
       before do
         allow(ENV).to receive(:[]).and_call_original
@@ -91,20 +92,23 @@ RSpec.describe StorageService do
 
         stub_const('Google::Cloud::Storage', gcs_storage_class)
         allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
-        allow(mock_storage).to receive(:bucket).and_return(nil)
+        allow(mock_storage).to receive(:bucket).and_return(mock_bucket)
+        allow(mock_bucket).to receive(:create_file).and_raise(RuntimeError, 'permission denied')
       end
 
-      it 'falls back to local storage and logs a warning' do
+      # Silent-OK counterpart: a configured-GCS upload that fails must RAISE
+      # loudly, never silently fall back to a local path that's lost on the
+      # ephemeral VM's exit while the scan still reports completed (#784).
+      it 'raises a clear error and does NOT fall back to local storage' do
         source = Tempfile.new(['test', '.json'])
-        source.write('fallback content')
+        source.write('content')
         source.close
 
-        expect(Penetrator.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back to local/)
-        result = service.upload(source.path, 'scans/fallback.json')
+        expect { service.upload(source.path, 'scans/fail.json') }
+          .to raise_error(%r{GCS upload to 'my-bucket/scans/fail.json' failed.*permission denied})
 
-        dest_path = Penetrator.root.join('storage/reports/scans/fallback.json').to_s
-        expect(File.exist?(dest_path)).to be true
-        expect(result[:path]).to eq('scans/fallback.json')
+        dest_path = Penetrator.root.join('storage/reports/scans/fail.json').to_s
+        expect(File.exist?(dest_path)).to be false
       ensure
         source&.unlink
         FileUtils.rm_f(dest_path)
@@ -159,9 +163,11 @@ RSpec.describe StorageService do
       end
     end
 
-    context 'when GCS is configured but bucket is inaccessible' do
+    context 'when GCS is configured but the signed-url op fails' do
       let(:gcs_storage_class) { Class.new }
       let(:mock_storage) { instance_double(gcs_storage_class) }
+      let(:mock_bucket) { instance_double(gcs_storage_class) }
+      let(:mock_file) { instance_double(gcs_storage_class) }
 
       before do
         allow(ENV).to receive(:[]).and_call_original
@@ -174,14 +180,14 @@ RSpec.describe StorageService do
 
         stub_const('Google::Cloud::Storage', gcs_storage_class)
         allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
-        allow(mock_storage).to receive(:bucket).and_return(nil)
+        allow(mock_storage).to receive(:bucket).and_return(mock_bucket)
+        allow(mock_bucket).to receive(:file).and_return(mock_file)
+        allow(mock_file).to receive(:signed_url).and_raise(RuntimeError, 'denied')
       end
 
-      it 'falls back to local file:// URL and logs a warning' do
-        expect(Penetrator.logger).to receive(:warn).with(/GCS bucket.*inaccessible.*falling back/)
-        url = service.signed_url('scans/report.pdf')
-        expected = Penetrator.root.join('storage/reports/scans/report.pdf').to_s
-        expect(url).to eq("file://#{expected}")
+      # No silent file:// fallback when GCS is configured — surface the failure.
+      it 'raises rather than silently returning a local file:// URL' do
+        expect { service.signed_url('scans/report.pdf') }.to raise_error(/denied/)
       end
     end
   end
