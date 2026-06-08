@@ -7,6 +7,11 @@ FROM ${DOCKER_REGISTRY}/scanner-base:latest
 ENV APP_ENV=production
 ENV RUBY_YJIT_ENABLE=1
 
+# Bake the build commit into the image so the running scan can prove which bits
+# it executed (smoke-test asserts envelope scanner_commit == deployed commit).
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=${GIT_COMMIT}
+
 WORKDIR /app
 
 COPY Gemfile Gemfile.lock ./

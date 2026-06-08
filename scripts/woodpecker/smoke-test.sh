@@ -71,6 +71,39 @@ if [ -n "$JSON_FILES" ]; then
     fi
   done
 
+  # Prove deployed bits: the envelope must carry the version + commit baked into
+  # the image the smoke scan actually ran. On staging we assert an exact match
+  # against the CI workspace (cat VERSION) and the pipeline commit — this is the
+  # /version-equivalent for a batch scanner with no HTTP endpoint. On main the
+  # production image is the *retagged staging* image, so its baked commit is the
+  # staging build commit (not main HEAD); there we only assert the fields are
+  # present and rely on deploy.sh's production==staging digest verification.
+  ENV_VERSION=$(python3 -c "import json; print(json.load(open('$TMPFILE')).get('metadata',{}).get('scanner_version',''))" 2>/dev/null || echo "")
+  ENV_COMMIT=$(python3 -c "import json; print(json.load(open('$TMPFILE')).get('metadata',{}).get('scanner_commit',''))" 2>/dev/null || echo "")
+  if [ "$BRANCH" = "staging" ]; then
+    EXPECT_VERSION=$(tr -d '[:space:]' < VERSION)
+    EXPECT_COMMIT="${CI_COMMIT_SHA:-}"
+    if [ -n "$EXPECT_VERSION" ] && [ "$ENV_VERSION" = "$EXPECT_VERSION" ]; then
+      echo "  PASS: scanner_version=${ENV_VERSION} matches deployed VERSION"
+    else
+      echo "  FAIL: scanner_version=${ENV_VERSION:-<empty>} != deployed VERSION=${EXPECT_VERSION} (stale bits?)"
+      ERRORS=$((ERRORS + 1))
+    fi
+    if [ -n "$EXPECT_COMMIT" ] && [ "$ENV_COMMIT" = "$EXPECT_COMMIT" ]; then
+      echo "  PASS: scanner_commit matches pipeline commit ${EXPECT_COMMIT}"
+    else
+      echo "  FAIL: scanner_commit=${ENV_COMMIT:-<empty>} != pipeline commit=${EXPECT_COMMIT:-<unset>} (stale bits?)"
+      ERRORS=$((ERRORS + 1))
+    fi
+  else
+    if [ -n "$ENV_VERSION" ] && [ -n "$ENV_COMMIT" ] && [ "$ENV_COMMIT" != "unknown" ]; then
+      echo "  PASS: production envelope carries scanner_version=${ENV_VERSION} scanner_commit=${ENV_COMMIT}"
+    else
+      echo "  FAIL: production envelope missing scanner_version/scanner_commit (version=${ENV_VERSION:-<empty>} commit=${ENV_COMMIT:-<empty>})"
+      ERRORS=$((ERRORS + 1))
+    fi
+  fi
+
   # Verify scan completed successfully (not failed/crashed)
   SCAN_STATUS=$(python3 -c "
 import json, sys
