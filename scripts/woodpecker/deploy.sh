@@ -76,6 +76,19 @@ case "$TARGET" in
       "${REGISTRY}/scanner@${STAGING_DIGEST}" \
       "${REGISTRY}/scanner:production"
     echo "scanner:production → ${STAGING_DIGEST}"
+
+    # Act → verify → alert: re-resolve scanner:production and assert it points at
+    # the exact staging digest we just promoted. A retag that silently no-ops or
+    # races another push would otherwise report success while production serves
+    # the wrong bytes. The EXIT trap posts a failure Deployment status on exit 1.
+    PROD_DIGEST=$(gcloud artifacts docker images describe \
+      "${REGISTRY}/scanner:production" \
+      --format='value(image_summary.digest)' 2>/dev/null || echo "")
+    if [ "$PROD_DIGEST" != "$STAGING_DIGEST" ]; then
+      echo "ERROR: production digest verification failed — scanner:production=${PROD_DIGEST:-<empty>} != staging=${STAGING_DIGEST}"
+      exit 1
+    fi
+    echo "Verified: scanner:production digest == staging digest (${PROD_DIGEST})"
     ;;
   *)
     echo "No deployment for branch=$BRANCH event=$EVENT"
