@@ -45,6 +45,8 @@ class ScanResultsExporter
   def build_metadata
     {
       scan_id: @scan.id,
+      scanner_version: Penetrator::VERSION,
+      scanner_commit: ENV.fetch('GIT_COMMIT', 'unknown'),
       target_name: @target.name,
       target_urls: @target.url_list,
       profile: @scan.profile,

@@ -238,6 +238,16 @@ case "$SCAN_MODE" in
       send_slack ":x: Scan failed: ${TARGET_NAME} (${SCAN_PROFILE}) exit code ${SCAN_EXIT}"
     fi
 
+    # Always upload the scan log to GCS for post-mortem — the serial console is
+    # unreliable for long output (#631) and the VM self-destructs, so a failed
+    # scan otherwise leaves no trace. The host's gsutil uses the VM SA, so this
+    # works even when the container's own GCS writes fail. (#784)
+    if [ -f "${SCAN_LOG}" ]; then
+      timeout 60 gsutil cp "${SCAN_LOG}" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/scan.log" 2>/dev/null \
+        && echo "Scan log → gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/scan.log" \
+        || echo "WARNING: scan log upload to GCS failed"
+    fi
+
     # Upload results to GCS (backup — scanner also uploads via StorageService)
     # Timeout prevents hung uploads from blocking self-termination (#650)
     if [ -n "$(ls -A ${RESULTS_DIR} 2>/dev/null)" ]; then

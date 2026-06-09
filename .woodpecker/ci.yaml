@@ -1,13 +1,13 @@
-# Test & Lint — all branches except main (already tested on staging)
+# Test & Lint — all branches except main + promotion artifacts
+# (main is already tested on staging; merge/sync/release branches already
+# passed CI on their source branch — MUST HAVE Rule #2)
 when:
   - event: push
     branch:
-      exclude: main
+      exclude: [main, "merge/*", "sync/*", "release/*"]
 
 labels:
   platform: linux
-  backend: local
-  tier: ondemand
 
 steps:
   - name: check-release-notes

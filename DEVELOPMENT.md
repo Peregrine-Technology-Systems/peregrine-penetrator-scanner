@@ -360,7 +360,6 @@ peregrine-penetrator-scanner/
     nuclei/               # Custom Nuclei templates
   db/                     # Migrations (SQLite)
   docker/
-    Dockerfile            # Multi-stage: tools + Rails app
     docker-compose.yml    # Production scanner + DVWA
     docker-compose.dev.yml  # Development environment
   infra/                  # Pulumi IaC (Ruby) for GCP

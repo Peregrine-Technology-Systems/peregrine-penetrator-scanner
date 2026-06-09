@@ -14,48 +14,76 @@ case "$BRANCH" in
 esac
 
 GCS_BUCKET="${GCP_PROJECT}-pentest-reports"
+RESULTS_PREFIX="gs://${GCS_BUCKET}/scan-results/"
 POLL_INTERVAL=15
-MAX_WAIT=180  # 3 minutes max for smoke-test profile
+# Budget covers the full ephemeral-VM cycle: boot + scanner image pull (~120s
+# observed on e2-standard-4) + smoke scan + CVE enrichment + GCS/BQ export +
+# self-terminate. The previous 180s left the scan only ~60s after boot/pull, so
+# the observer gave up and cleanup-smoke-vms killed the VM mid-scan — no result
+# ever landed. Size to the real workload, not the symptom (falcon discipline:
+# don't widen tolerance to mask a stall — here the scan wasn't stalling, the
+# budget was simply wrong for unavoidable ephemeral-VM boot overhead).
+MAX_WAIT=480
 
 echo "=== Smoke Test: ${BRANCH} ==="
+
+# Preflight: prove the observer can actually READ the results bucket before it
+# is allowed to conclude "no results". The smoke runs as ci-agent@ on the fleet;
+# if that SA lacks storage.objectViewer, gsutil ls fails and the old
+# `2>/dev/null` swallowed it into a false "No JSON results found" — a silent-OK
+# that masked a permission gap as a scan failure. Fail loudly with the cause. (#784)
+if ! gsutil ls "gs://${GCS_BUCKET}/" >/dev/null 2>&1; then
+  echo "ERROR: smoke observer cannot list gs://${GCS_BUCKET}/ as $(gcloud config get-value account 2>/dev/null || echo '<unknown SA>')."
+  echo "       Cannot verify scan results — failing loudly rather than reporting a false 'no results found'."
+  echo "       Likely cause: ci-agent@ci-runners-de lacks roles/storage.objectViewer on the bucket (infra#3502)."
+  exit 1
+fi
+
+# Snapshot existing results so we detect THIS scan's fresh output by set
+# difference. The old `gsutil ls | tail -1` grabbed the lexically-last of all
+# historical results — a silent-OK hole that could validate a months-old file
+# and pass while the current scan produced nothing.
+BEFORE=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | sort || echo "")
 
 # Launch a smoke-test scan VM (canned findings + stubbed reporter calls)
 scripts/woodpecker/trigger-scan.sh "${BRANCH}" smoke-test "${IMAGE_TAG}"
 
-VM_PREFIX="pentest-scan-${BRANCH}-"
-echo "Waiting for smoke scan VM to complete..."
-
+echo "Waiting up to ${MAX_WAIT}s for the smoke scan to publish a fresh result..."
+# The deploy step launches a long-running *standard* scan whose result may also
+# land in this window; accept only a fresh result whose profile is smoke-test so
+# we never validate the wrong scan (its envelope lacks summary.smoke_test and
+# would otherwise slip through the validation's else branch — a silent-OK hole).
+JSON_FILES=""
 elapsed=0
 while [ "$elapsed" -lt "$MAX_WAIT" ]; do
-  RUNNING_VMS=$(gcloud compute instances list \
-    --filter="name~${VM_PREFIX} AND status=RUNNING" \
-    --project="${GCP_PROJECT}" \
-    --format="value(name)" 2>/dev/null || echo "")
-
-  if [ -z "$RUNNING_VMS" ]; then
-    echo "Smoke VM terminated after ${elapsed}s — checking results..."
-    break
-  fi
-
-  echo "  VM still running (${elapsed}s elapsed)..."
   sleep "$POLL_INTERVAL"
   elapsed=$((elapsed + POLL_INTERVAL))
+  AFTER=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | sort || echo "")
+  FRESH_LIST=$(comm -13 <(printf '%s\n' "$BEFORE") <(printf '%s\n' "$AFTER") | grep -E '^gs://' || echo "")
+  if [ -n "$FRESH_LIST" ]; then
+    while IFS= read -r cand; do
+      [ -z "$cand" ] && continue
+      CAND_TMP=$(mktemp)
+      if gsutil cp "$cand" "$CAND_TMP" 2>/dev/null; then
+        CAND_PROFILE=$(python3 -c "import json; print(json.load(open('$CAND_TMP')).get('metadata',{}).get('profile',''))" 2>/dev/null || echo "")
+        if [ "$CAND_PROFILE" = "smoke-test" ]; then
+          JSON_FILES="$cand"
+          rm -f "$CAND_TMP"
+          break
+        fi
+      fi
+      rm -f "$CAND_TMP"
+    done <<< "$FRESH_LIST"
+    if [ -n "$JSON_FILES" ]; then
+      echo "Fresh smoke-test result published after ${elapsed}s: ${JSON_FILES}"
+      break
+    fi
+  fi
+  echo "  No fresh smoke-test result yet (${elapsed}s elapsed)..."
 done
 
-if [ "$elapsed" -ge "$MAX_WAIT" ]; then
-  echo "ERROR: Smoke test timed out after ${MAX_WAIT}s"
-  exit 1
-fi
-
-sleep 5  # GCS propagation
-
-echo "--- Checking GCS for results ---"
-RESULTS_PREFIX="gs://${GCS_BUCKET}/scan-results/"
 ERRORS=0
-
-# Check for versioned JSON export
-echo "Checking JSON results..."
-JSON_FILES=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | tail -1 || echo "")
+echo "--- Checking GCS for results ---"
 if [ -n "$JSON_FILES" ]; then
   echo "  PASS: JSON found: ${JSON_FILES}"
 
@@ -70,6 +98,39 @@ if [ -n "$JSON_FILES" ]; then
       ERRORS=$((ERRORS + 1))
     fi
   done
+
+  # Prove deployed bits: the envelope must carry the version + commit baked into
+  # the image the smoke scan actually ran. On staging we assert an exact match
+  # against the CI workspace (cat VERSION) and the pipeline commit — this is the
+  # /version-equivalent for a batch scanner with no HTTP endpoint. On main the
+  # production image is the *retagged staging* image, so its baked commit is the
+  # staging build commit (not main HEAD); there we only assert the fields are
+  # present and rely on deploy.sh's production==staging digest verification.
+  ENV_VERSION=$(python3 -c "import json; print(json.load(open('$TMPFILE')).get('metadata',{}).get('scanner_version',''))" 2>/dev/null || echo "")
+  ENV_COMMIT=$(python3 -c "import json; print(json.load(open('$TMPFILE')).get('metadata',{}).get('scanner_commit',''))" 2>/dev/null || echo "")
+  if [ "$BRANCH" = "staging" ]; then
+    EXPECT_VERSION=$(tr -d '[:space:]' < VERSION)
+    EXPECT_COMMIT="${CI_COMMIT_SHA:-}"
+    if [ -n "$EXPECT_VERSION" ] && [ "$ENV_VERSION" = "$EXPECT_VERSION" ]; then
+      echo "  PASS: scanner_version=${ENV_VERSION} matches deployed VERSION"
+    else
+      echo "  FAIL: scanner_version=${ENV_VERSION:-<empty>} != deployed VERSION=${EXPECT_VERSION} (stale bits?)"
+      ERRORS=$((ERRORS + 1))
+    fi
+    if [ -n "$EXPECT_COMMIT" ] && [ "$ENV_COMMIT" = "$EXPECT_COMMIT" ]; then
+      echo "  PASS: scanner_commit matches pipeline commit ${EXPECT_COMMIT}"
+    else
+      echo "  FAIL: scanner_commit=${ENV_COMMIT:-<empty>} != pipeline commit=${EXPECT_COMMIT:-<unset>} (stale bits?)"
+      ERRORS=$((ERRORS + 1))
+    fi
+  else
+    if [ -n "$ENV_VERSION" ] && [ -n "$ENV_COMMIT" ] && [ "$ENV_COMMIT" != "unknown" ]; then
+      echo "  PASS: production envelope carries scanner_version=${ENV_VERSION} scanner_commit=${ENV_COMMIT}"
+    else
+      echo "  FAIL: production envelope missing scanner_version/scanner_commit (version=${ENV_VERSION:-<empty>} commit=${ENV_COMMIT:-<empty>})"
+      ERRORS=$((ERRORS + 1))
+    fi
+  fi
 
   # Verify scan completed successfully (not failed/crashed)
   SCAN_STATUS=$(python3 -c "
