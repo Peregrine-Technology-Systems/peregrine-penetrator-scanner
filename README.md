@@ -110,7 +110,6 @@ For the full architecture reference, see [docs/ARCHITECTURE.md](docs/ARCHITECTUR
 | **sqlmap** | Targeted | SQL injection detection |
 | **ffuf** | Discovery | Directory/endpoint enumeration |
 | **Nikto** | Discovery | Server misconfiguration detection |
-| **Dawnscanner** | Targeted | Ruby dependency audit |
 
 ---
 

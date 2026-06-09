@@ -1042,7 +1042,6 @@ flowchart TD
 | **OWASP ZAP** | Active Scan | Full DAST scanning (spider + active scan, optional ajax spider) | XML/JSON |
 | **Nuclei** | Targeted | Template-based vulnerability scanning (11K+ templates) | JSON |
 | **sqlmap** | Targeted | SQL injection detection and exploitation testing | JSON |
-| **Dawnscanner** | Targeted | Ruby dependency audit (thorough profile only) | JSON |
 
 ### Critical Failure Detection
 
