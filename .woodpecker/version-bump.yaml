@@ -12,8 +12,6 @@ steps:
     environment:
       DOCKER_REGISTRY:
         from_secret: docker_registry
-      SLACK_WEBHOOK_URL:
-        from_secret: slack_webhook_url
     commands:
       # GitHub App token (replaces static gh_token PAT) — peregrine-ci-app,
       # see peregrine-infrastructure/docs/operations/gh-app.md (#779)
@@ -24,9 +22,6 @@ steps:
 
   - name: notify-status
     image: bash
-    environment:
-      SLACK_WEBHOOK_URL:
-        from_secret: slack_webhook_url
     commands:
       - scripts/woodpecker/notify-status.sh
     when:
