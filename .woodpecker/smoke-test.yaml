@@ -1,8 +1,10 @@
-# Post-deploy smoke test — staging and production only (dev uses interactive VM)
-# Triggers smoke-test profile: canned findings, stubbed reporter calls, validates GCS
+# Post-deploy smoke test — STAGING only (dev uses interactive VM).
+# Production smoke moved to release.yaml (#808): this workflow depends_on the
+# staging-only `deploy`, so it could never run on `main`. Production is now
+# smoke-verified by release.yaml on the GitHub Deployment event.
 when:
   - event: push
-    branch: [staging, main]
+    branch: staging
 
 depends_on:
   - deploy
