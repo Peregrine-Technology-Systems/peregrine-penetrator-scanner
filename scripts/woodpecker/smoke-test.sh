@@ -27,6 +27,18 @@ MAX_WAIT=480
 
 echo "=== Smoke Test: ${BRANCH} ==="
 
+# Preflight: prove the observer can actually READ the results bucket before it
+# is allowed to conclude "no results". The smoke runs as ci-agent@ on the fleet;
+# if that SA lacks storage.objectViewer, gsutil ls fails and the old
+# `2>/dev/null` swallowed it into a false "No JSON results found" — a silent-OK
+# that masked a permission gap as a scan failure. Fail loudly with the cause. (#784)
+if ! gsutil ls "gs://${GCS_BUCKET}/" >/dev/null 2>&1; then
+  echo "ERROR: smoke observer cannot list gs://${GCS_BUCKET}/ as $(gcloud config get-value account 2>/dev/null || echo '<unknown SA>')."
+  echo "       Cannot verify scan results — failing loudly rather than reporting a false 'no results found'."
+  echo "       Likely cause: ci-agent@ci-runners-de lacks roles/storage.objectViewer on the bucket (infra#3502)."
+  exit 1
+fi
+
 # Snapshot existing results so we detect THIS scan's fresh output by set
 # difference. The old `gsutil ls | tail -1` grabbed the lexically-last of all
 # historical results — a silent-OK hole that could validate a months-old file
