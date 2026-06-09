@@ -5,7 +5,14 @@ set -euo pipefail
 # Uses 'smoke-test' profile: canned findings, stubbed reporter calls, validates full pipeline
 # Runs on staging and production only (development uses interactive VM)
 
-BRANCH="${CI_COMMIT_BRANCH}"
+BRANCH="${CI_COMMIT_BRANCH:-}"
+
+# #808: production smoke runs from release.yaml on the GitHub Deployment event.
+# On event=deployment CI_COMMIT_BRANCH is the tag (not "main"), so force main →
+# production, mirroring deploy.sh's tag/deployment detection (#767).
+if [ "${CI_PIPELINE_EVENT:-}" = "deployment" ] || [ -n "${CI_COMMIT_TAG:-}" ]; then
+  BRANCH="main"
+fi
 
 case "$BRANCH" in
   staging)     GCP_PROJECT="${GCP_PROJECT_DEV:?GCP_PROJECT_DEV not set}"; IMAGE_TAG="staging" ;;
