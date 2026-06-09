@@ -18,8 +18,6 @@ steps:
     environment:
       GCP_PROJECT_DEV:
         from_secret: gcp_project_dev
-      SLACK_WEBHOOK_URL:
-        from_secret: slack_webhook_url
       NOTIFICATION_EMAIL:
         from_secret: notification_email
     commands:
