@@ -11,7 +11,8 @@ set -euo pipefail
 #    ## Unreleased above so future PRs have a target section
 # 4. Commit + tag
 # 5. Create GitHub Release with the notes body (every tag gets a Release)
-# 6. Tag Docker image (scanner:staging → scanner:vX.Y.Z + scanner:production)
+# 6. Tag Docker image for traceability (scanner:staging → scanner:vX.Y.Z).
+#    Production promotion is owned by release.yaml on the Deployment event (#808).
 
 REPO="Peregrine-Technology-Systems/peregrine-penetrator-scanner"
 API="https://api.github.com"
@@ -268,9 +269,11 @@ else
   echo "$DEPLOY_RESPONSE" | jq -r '.message // .' 2>/dev/null || echo "$DEPLOY_RESPONSE"
 fi
 
-# Tag Docker image by DIGEST: scanner:staging → scanner:vX.Y.Z + scanner:production
-# Using digest ensures the exact bytes that passed staging CI get promoted,
-# even if the staging tag was re-pointed by a concurrent build.
+# Tag the Docker image by DIGEST for version traceability: scanner:vX.Y.Z.
+# Production promotion (scanner:staging → scanner:production) is NOT done here.
+# It is owned by release.yaml on the GitHub Deployment event (#767/#808), so the
+# production deploy is decoupled, smoke-verified, and recorded as a Deployment.
+# The Deployment POST above fires that path.
 if [ -n "${DOCKER_REGISTRY:-}" ]; then
   gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
@@ -279,25 +282,15 @@ if [ -n "${DOCKER_REGISTRY:-}" ]; then
     --format='value(image_summary.digest)' 2>/dev/null || echo "")
 
   if [ -n "$STAGING_DIGEST" ]; then
-    echo "Staging digest: ${STAGING_DIGEST}"
-
-    echo "Tagging scanner@${STAGING_DIGEST} as scanner:${TAG}"
+    echo "Tagging scanner@${STAGING_DIGEST} as scanner:${TAG} (version traceability)"
     gcloud artifacts docker tags add \
       "${DOCKER_REGISTRY}/scanner@${STAGING_DIGEST}" \
       "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
-
-    echo "Tagging scanner@${STAGING_DIGEST} as scanner:production"
-    gcloud artifacts docker tags add \
-      "${DOCKER_REGISTRY}/scanner@${STAGING_DIGEST}" \
-      "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
   else
-    echo "WARNING: Could not resolve staging digest — falling back to tag-based promotion"
+    echo "WARNING: Could not resolve staging digest — tagging scanner:${TAG} from the staging tag"
     gcloud artifacts docker tags add \
       "${DOCKER_REGISTRY}/scanner:staging" \
       "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
-    gcloud artifacts docker tags add \
-      "${DOCKER_REGISTRY}/scanner:staging" \
-      "${DOCKER_REGISTRY}/scanner:production" 2>/dev/null || echo "WARNING: Could not tag scanner:production"
   fi
 fi
 
