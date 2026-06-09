@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- ci: complete the #767 decoupled production deploy + production smoke (#808). Now that the `peregrine-ci-app` App token has `deployments: write` (infra#3514), `version-bump.sh`'s Deployment POST fires `release.yaml` (`event: deployment`), which retags `scanner:staging → scanner:production` (digest-verified) **and** runs a production smoke. `version-bump.sh` no longer retags `scanner:production` itself (release.yaml owns it). `smoke-test.sh` handles `event: deployment → main`; `smoke-test.yaml` is now staging-only (it depended on the staging-only `deploy`, so it could never smoke `main`). Production is finally smoke-verified on its own deploy, not just by byte-identity with staging (#808)
+
 ## v0.18.0 — 2026-06-09
 
 - chore: remove dead code + housekeeping — delete `dawn_scanner`/`dawn_parser` (and specs): wired into `SCANNER_MAP` but in no profile, and it audited the scanner's own gems (`dawn … Penetrator.root`) rather than the target, so it was both dead and architecturally wrong for a DAST tool. Delete the stale root `Dockerfile` (vestigial `rails new` scaffolding — the real image is `docker/Dockerfile`). Untrack + gitignore `spec/examples.txt` (RSpec persistence file that churned every run). Docs (README, ARCHITECTURE, DEVELOPMENT) updated. Also fix a `.githooks/pre-commit` bug: the best-effort local PDF-generation step (`generate-doc-pdf.sh` + the `[ -gt 0 ] && echo` guards) could return non-zero under `set -e`, silently aborting any commit that touched a real `.md` file. Made the whole block non-fatal with `|| true` (#799)
