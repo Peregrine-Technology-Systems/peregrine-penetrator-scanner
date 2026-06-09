@@ -2,40 +2,28 @@
 
 ## Unreleased
 
+- chore: remove dead code + housekeeping — delete `dawn_scanner`/`dawn_parser` (and specs): wired into `SCANNER_MAP` but in no profile, and it audited the scanner's own gems (`dawn … Penetrator.root`) rather than the target, so it was both dead and architecturally wrong for a DAST tool. Delete the stale root `Dockerfile` (vestigial `rails new` scaffolding — the real image is `docker/Dockerfile`). Untrack + gitignore `spec/examples.txt` (RSpec persistence file that churned every run). Docs (README, ARCHITECTURE, DEVELOPMENT) updated. Also fix a `.githooks/pre-commit` bug: the best-effort local PDF-generation step (`generate-doc-pdf.sh` + the `[ -gt 0 ] && echo` guards) could return non-zero under `set -e`, silently aborting any commit that touched a real `.md` file. Made the whole block non-fatal with `|| true` (#799)
+- ci: migrate CI GitHub auth from static `gh_token` PAT to the `peregrine-ci-app` GitHub App (incumbent migration per peregrine-infrastructure/docs/operations/gh-app.md, #779). `promote.yaml`, `version-bump.yaml`, `sync-back.yaml`, and `release.yaml` now fetch the GCS-hosted token wrapper and `eval "$(get-gh-app-installation-token.sh)"` to mint a 1-hour auto-expiring installation token, instead of `from_secret: gh_token`. The static `*--gh-token` SM secret + Woodpecker secret are kept disabled-but-present for the 30-day rollback window, then removed. No `from_secret: gh_token` remains in any workflow (#779)
+- fix: smoke observer fails loudly when it can't read the results bucket — the post-deploy smoke runs as `ci-agent@ci-runners-de` on the fleet and polls `gs://…-pentest-reports/scan-results/`. If that SA lacks `storage.objectViewer`, `gsutil ls` is permission-denied and the old `2>/dev/null` swallowed it into a false "No JSON results found" — masking a permission gap as a scan failure (silent-OK). Added a preflight bucket-read check that exits 1 with the actual cause (and points at infra#3502, the matching `objectViewer` grant). With #794, the scan now genuinely writes its result to GCS; this is the observer-side counterpart so a read-access gap can't be misread as a scan failure (#784)
+- fix: kill the GCS silent-OK + capture VM scan logs — `StorageService` no longer silently falls back to local disk when GCS is configured but the upload fails. A scan VM's purpose is to export to GCS; the old `WARN … falling back to local storage` wrote results to a container path lost on `--rm` exit while the scan still reported `completed` — a silent-OK that hid lost results for months and is why staging smoke never produced a `scan_results.json`. Now a configured-GCS upload failure raises loudly. Also `bucket(skip_lookup: true)` (don't gate object writes on `storage.buckets.get`), and `vm-startup.sh` uploads `/tmp/scan.log` to `gs://…/vm-results/<vm>/scan.log` unconditionally (the serial console is unreliable and the VM self-destructs, so failures otherwise leave no trace). Per the falcon silent-OK discipline. (#784)
+- fix: smoke-test reliability — size the observer budget to the real ephemeral-VM cycle (`MAX_WAIT` 180s→480s). The old 180s left the smoke scan only ~60s after the ~120s VM boot+image-pull, so `cleanup-smoke-vms` killed the VM mid-scan and no result ever landed — the cause of the persistent staging smoke failures once routing/IAM were fixed. Also replace the stale `gsutil ls | tail -1` result selection (which could validate a months-old file) with set-difference detection of *this* scan's fresh output, gated on `metadata.profile == smoke-test` so the deploy step's concurrent standard scan can't be validated by mistake (#784)
+- ci: adopt Pattern A branch protection + make `version-bump.sh` enforce_admins-compatible. `version-bump.sh` no longer direct-pushes to `main` — it commits the bump on a `release/vX.Y.Z` branch, opens + API-merges a PR to `main`, and creates the tag via the GitHub API (mirrors peregrine-platform-ioi, incl. the mergeable-race poll + 3-retry guards). Adds committed `scripts/setup-branch-protection.sh` as the source-of-truth artifact for Pattern A (PR required, 0 approvals, `enforce_admins: true`, no required status checks). Applied to `development` + `staging`; `main`'s `enforce_admins` flip is deferred until the new `version-bump.sh` reaches `main` (#787)
+- feat: smoke/deploy verification hardening — bake `GIT_COMMIT` into the scanner image (`docker/Dockerfile` + `build.sh`) and emit `scanner_version` (`Penetrator::VERSION`) + `scanner_commit` in the scan envelope `metadata` (additive, schema stays v1.3). `smoke-test.sh` now proves deployed bits: on staging it asserts `scanner_version == cat VERSION` and `scanner_commit == CI_COMMIT_SHA`; on main (retagged image) it asserts both fields are present. `deploy.sh` verifies the production retag (act→verify→alert): re-resolves `scanner:production` and fails loudly if its digest != the promoted staging digest (#786)
+- ci: align workflows to current global standards — remove `backend: local` from all 9 `.woodpecker/*.yaml` workflows so steps route to the GCP agent fleet (`ci-agent@ci-runners-de`) instead of the bare d3ci42 droplet; this is the root cause of the persistent staging deploy/smoke-test failures since the fleet migration (#776, #781). `ci.yaml` now also excludes promotion-artifact branches (`merge/*`, `sync/*`, `release/*`) per MUST HAVE Rule #2. `version-bump.sh` guards are subject-anchored (`head -n1`) to avoid skipping a real release on a multi-line body match (identity v0.1.85 pattern), and gain loud drift detection (`exit 1`) when `## Unreleased` is empty while substantive commits exist (#776)
+- feat: decouple production deploy from merge — fire GitHub Deployment API as a separate step (#767, cross-repo rollout #1187). `.woodpecker/release.yaml`'s production trigger flipped from `event: push, branch: main` to `event: deployment`. Staging deploy (`.woodpecker/deploy.yaml`) unchanged. `version-bump.sh` POSTs to `/repos/.../deployments` after Release creation; `deploy.sh` updated to map `CI_PIPELINE_EVENT == deployment` to TARGET=main and posts `in_progress` / `success` / `failure` status callbacks against the Deployment record. `GH_TOKEN` added to release.yaml's promote-image step. Reference impl: peregrine-grafana@f7507b4 + peregrine-monitoring@c80e0d3 + peregrine-penetrator-front-end PR#677. Allowlist prerequisite (ci-infrastructure#1188) cleared 2026-04-26.
+- fix: `promote.sh` deletes stale remote merge branch before push — avoids non-fast-forward on close-and-retry (ci-infrastructure#1089)
+- ci: remove `failure: ignore` from smoke-test step — smoke-test failures no longer mask as pipeline success. `cleanup-smoke-vms` still runs via `when.status` so VMs get cleaned up even on failure (#762)
+
 ## v0.17.2 — 2026-04-27
 
 ## v0.17.1 — 2026-04-20
-- chore: remove dead code + housekeeping — delete `dawn_scanner`/`dawn_parser` (and specs): wired into `SCANNER_MAP` but in no profile, and it audited the scanner's own gems (`dawn … Penetrator.root`) rather than the target, so it was both dead and architecturally wrong for a DAST tool. Delete the stale root `Dockerfile` (vestigial `rails new` scaffolding — the real image is `docker/Dockerfile`). Untrack + gitignore `spec/examples.txt` (RSpec persistence file that churned every run). Docs (README, ARCHITECTURE, DEVELOPMENT) updated. Also fix a `.githooks/pre-commit` bug: the best-effort local PDF-generation step (`generate-doc-pdf.sh` + the `[ -gt 0 ] && echo` guards) could return non-zero under `set -e`, silently aborting any commit that touched a real `.md` file. Made the whole block non-fatal with `|| true` (#799)
-- ci: migrate CI GitHub auth from static `gh_token` PAT to the `peregrine-ci-app` GitHub App (incumbent migration per peregrine-infrastructure/docs/operations/gh-app.md, #779). `promote.yaml`, `version-bump.yaml`, `sync-back.yaml`, and `release.yaml` now fetch the GCS-hosted token wrapper and `eval "$(get-gh-app-installation-token.sh)"` to mint a 1-hour auto-expiring installation token, instead of `from_secret: gh_token`. The static `*--gh-token` SM secret + Woodpecker secret are kept disabled-but-present for the 30-day rollback window, then removed. No `from_secret: gh_token` remains in any workflow (#779)
-
-- fix: smoke observer fails loudly when it can't read the results bucket — the post-deploy smoke runs as `ci-agent@ci-runners-de` on the fleet and polls `gs://…-pentest-reports/scan-results/`. If that SA lacks `storage.objectViewer`, `gsutil ls` is permission-denied and the old `2>/dev/null` swallowed it into a false "No JSON results found" — masking a permission gap as a scan failure (silent-OK). Added a preflight bucket-read check that exits 1 with the actual cause (and points at infra#3502, the matching `objectViewer` grant). With #794, the scan now genuinely writes its result to GCS; this is the observer-side counterpart so a read-access gap can't be misread as a scan failure (#784)
-
-- fix: kill the GCS silent-OK + capture VM scan logs — `StorageService` no longer silently falls back to local disk when GCS is configured but the upload fails. A scan VM's purpose is to export to GCS; the old `WARN … falling back to local storage` wrote results to a container path lost on `--rm` exit while the scan still reported `completed` — a silent-OK that hid lost results for months and is why staging smoke never produced a `scan_results.json`. Now a configured-GCS upload failure raises loudly. Also `bucket(skip_lookup: true)` (don't gate object writes on `storage.buckets.get`), and `vm-startup.sh` uploads `/tmp/scan.log` to `gs://…/vm-results/<vm>/scan.log` unconditionally (the serial console is unreliable and the VM self-destructs, so failures otherwise leave no trace). Per the falcon silent-OK discipline. (#784)
-
-- fix: smoke-test reliability — size the observer budget to the real ephemeral-VM cycle (`MAX_WAIT` 180s→480s). The old 180s left the smoke scan only ~60s after the ~120s VM boot+image-pull, so `cleanup-smoke-vms` killed the VM mid-scan and no result ever landed — the cause of the persistent staging smoke failures once routing/IAM were fixed. Also replace the stale `gsutil ls | tail -1` result selection (which could validate a months-old file) with set-difference detection of *this* scan's fresh output, gated on `metadata.profile == smoke-test` so the deploy step's concurrent standard scan can't be validated by mistake (#784)
-
-- ci: adopt Pattern A branch protection + make `version-bump.sh` enforce_admins-compatible. `version-bump.sh` no longer direct-pushes to `main` — it commits the bump on a `release/vX.Y.Z` branch, opens + API-merges a PR to `main`, and creates the tag via the GitHub API (mirrors peregrine-platform-ioi, incl. the mergeable-race poll + 3-retry guards). Adds committed `scripts/setup-branch-protection.sh` as the source-of-truth artifact for Pattern A (PR required, 0 approvals, `enforce_admins: true`, no required status checks). Applied to `development` + `staging`; `main`'s `enforce_admins` flip is deferred until the new `version-bump.sh` reaches `main` (#787)
-
-- feat: smoke/deploy verification hardening — bake `GIT_COMMIT` into the scanner image (`docker/Dockerfile` + `build.sh`) and emit `scanner_version` (`Penetrator::VERSION`) + `scanner_commit` in the scan envelope `metadata` (additive, schema stays v1.3). `smoke-test.sh` now proves deployed bits: on staging it asserts `scanner_version == cat VERSION` and `scanner_commit == CI_COMMIT_SHA`; on main (retagged image) it asserts both fields are present. `deploy.sh` verifies the production retag (act→verify→alert): re-resolves `scanner:production` and fails loudly if its digest != the promoted staging digest (#786)
-
-- ci: align workflows to current global standards — remove `backend: local` from all 9 `.woodpecker/*.yaml` workflows so steps route to the GCP agent fleet (`ci-agent@ci-runners-de`) instead of the bare d3ci42 droplet; this is the root cause of the persistent staging deploy/smoke-test failures since the fleet migration (#776, #781). `ci.yaml` now also excludes promotion-artifact branches (`merge/*`, `sync/*`, `release/*`) per MUST HAVE Rule #2. `version-bump.sh` guards are subject-anchored (`head -n1`) to avoid skipping a real release on a multi-line body match (identity v0.1.85 pattern), and gain loud drift detection (`exit 1`) when `## Unreleased` is empty while substantive commits exist (#776)
-
-- feat: decouple production deploy from merge — fire GitHub Deployment API as a separate step (#767, cross-repo rollout #1187). `.woodpecker/release.yaml`'s production trigger flipped from `event: push, branch: main` to `event: deployment`. Staging deploy (`.woodpecker/deploy.yaml`) unchanged. `version-bump.sh` POSTs to `/repos/.../deployments` after Release creation; `deploy.sh` updated to map `CI_PIPELINE_EVENT == deployment` to TARGET=main and posts `in_progress` / `success` / `failure` status callbacks against the Deployment record. `GH_TOKEN` added to release.yaml's promote-image step. Reference impl: peregrine-grafana@f7507b4 + peregrine-monitoring@c80e0d3 + peregrine-penetrator-front-end PR#677. Allowlist prerequisite (ci-infrastructure#1188) cleared 2026-04-26.
-
-- fix: `promote.sh` deletes stale remote merge branch before push — avoids non-fast-forward on close-and-retry (ci-infrastructure#1089)
-
-- ci: remove `failure: ignore` from smoke-test step — smoke-test failures no longer mask as pipeline success. `cleanup-smoke-vms` still runs via `when.status` so VMs get cleaned up even on failure (#762)
-
-
 - fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
 
 ## v0.17.0 — 2026-04-19
 
-
 ## v0.16.6 — 2026-04-09
 - fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions; historical v0.16.2/4/6/7 still empty pending manual backfill (#753)
 - fix: version-bump.sh re-seeds `## Unreleased` and creates a GitHub Release per tag — previously orphan tags accumulated and Unreleased items piled under older versions. Historical v0.16.1–v0.16.7 backfilled from git log in the same PR (#753)
-
 
 - feat: opt-in Nuclei auto-templates when WordPress is detected — default off, enable per-profile with `auto_templates: true` on the nuclei tool config (#741)
 - feat: emit cms_inventory in scan envelope + bump SCHEMA_VERSION to 1.3 (#740)
@@ -47,7 +35,6 @@
 - fix: callback URL path doubled — `/callbacks/callbacks/heartbeat` — treat CALLBACK_URL as base, append only endpoint suffix; fix vm-startup.sh auth header (#728)
 - fix: CI workflow runs on on-demand VMs to avoid spot preemption (#726)
 - fix: scan VMs fail on zone exhaustion — multi-region zone fallback (9 zones), structured 503 on total failure (#710)
-
 
 - fix: scan VMs preempted immediately — SPOT pricing now opt-in, defaults to on-demand for reliability (#719)
 
@@ -127,13 +114,9 @@
 - chore: promotion pipeline uses local merge branch — eliminates RELEASE_NOTES conflicts and cascading version bumps (#578)
 - fix: sync-back.sh uses local merge branch — same pattern as promote.sh (#582)
 
-
 ## v0.13.0 — 2026-04-02
 
-
 ## v0.3.1 — 2026-03-23
-
-
 
 - fix: cleanup stale smoke test VMs after every smoke-test pipeline run (#520)
 - fix: add 1-hour timeout to docker run preventing hung scans from orphaning VMs (#547)
@@ -141,7 +124,6 @@
 - fix: scavenger alerts Slack on failure instead of silently swallowing errors (#547)
 - fix: smoke-test VMs exit immediately after GCS export — skip BQ, callback, notifications (#547)
 - feat: add /health endpoint to vm-scavenger and trigger Cloud Functions (#550)
-
 
 - feat: populate CVSS scores, vectors, and EPSS data per finding (#521)
 - feat: extract CVSS score, vector, and EPSS from Nuclei template metadata (#523)
@@ -171,7 +153,6 @@
 - fix: CI pipeline guarantees production image contains main branch code — build verification, digest pinning, SHA tagging (#484)
 - fix: derive heartbeat URL from callback_url — reporter_base_url no longer needed (#512)
 
-
 - Control plane: HeartbeatSender POSTs liveness to reporter every 30s with progress (#376)
 - Control plane: ControlPlaneLoop background thread combines heartbeat + cancel checks (#376, #378)
 - Control plane: Job ID passthrough in heartbeats and callbacks (#379)
@@ -191,15 +172,12 @@
 - docs: rewrite SECURITY_ARCHITECTURE.md for Sequel, Woodpecker CI, ephemeral VMs, control plane security
 - docs: add control plane audit events to audit_logging.md
 
-
 - Fix: sync-back replaces RELEASE_NOTES from main instead of merging — eliminates duplicate headings and stale entries (#343, #341, #342)
 - Add pre-push hook with full test suite, 90% coverage gate, and RuboCop enforcement (#351)
 - Fix: pre-commit hook treats .sh files as code, not docs-only (#296)
 - Slack error notifications: immediate alerts for rate limiting (429) and tool failures with debounce (#52)
 - E2E integration test: validates full pipeline (scan → normalize → dedup → JSON export) with DVWA docker-compose (#28)
 - Fix: sync-back fetches main branch before reading RELEASE_NOTES — fixes failure on tag-triggered pipelines
-
-
 
 - Hybrid Docker model: dev clones at boot, staging builds baked image, prod re-tags (#276, #286, #309)
 - CI enforces RELEASE_NOTES.md update when code files change (#309)
@@ -248,7 +226,6 @@ Major refactor: stripped scanner to its core responsibility. Report generation, 
 ### Quality
 - 389 specs, 0 failures, 94.96% coverage, 0 RuboCop offenses
 - 20 focused open issues (was 50+) — 18 closed, 13 transferred to reporter repo
-
 
 ### Features
 - Scan cost tracking: ScanCostLogger logs per-scan cost metrics (VM runtime, tokens, API calls, GCS bytes) to BigQuery `scan_costs` table (#187)
