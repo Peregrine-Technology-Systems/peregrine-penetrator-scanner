@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.18.2 — 2026-06-09
+
 - ci: migrate CI pipeline-status notifications to the ci-events Pub/Sub bus (bus-only-emit, ci-infra#1366) and drop Slack — Slack is deprecated (#780). `notify-status.sh` now publishes a `pipeline.status` CloudEvent to `ci-events` as `ci-agent@`; `SLACK_WEBHOOK_URL` removed from all 9 workflows; `version-bump.sh`'s direct Slack message removed. Also fixes the production-smoke env bug surfaced by #808: `smoke-test.sh` passed `$BRANCH` (`main`) to `trigger-scan.sh`, which expects an environment name → "Unknown environment: main"; now passes `IMAGE_TAG` (staging|production). App-level `SlackNotifier` runtime migration tracked as a follow-up (#780)
 
 ## v0.18.1 — 2026-06-09
