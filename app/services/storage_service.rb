@@ -35,14 +35,15 @@ class StorageService
   end
 
   def upload_to_gcs(local_path, remote_path, content_type)
-    bucket = gcs_bucket
-    unless bucket
-      Penetrator.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local storage")
-      return upload_local(local_path, remote_path)
-    end
-    file = bucket.create_file(local_path, remote_path, content_type:)
+    file = gcs_bucket.create_file(local_path, remote_path, content_type:)
     Penetrator.logger.info("[StorageService] Uploaded to GCS: #{remote_path}")
     { path: remote_path, url: file.public_url }
+  rescue StandardError => e
+    # No silent local fallback when GCS is configured. A production scan VM's
+    # whole purpose is to export to GCS; a local fallback writes to a container
+    # path that is lost on --rm exit, while the scan still reports "completed" —
+    # a silent-OK that hid lost results for months (#784). Fail loudly instead.
+    raise "[StorageService] GCS upload to '#{@bucket_name}/#{remote_path}' failed: #{e.class}: #{e.message}"
   end
 
   def upload_local(local_path, remote_path)
@@ -54,19 +55,16 @@ class StorageService
   end
 
   def gcs_signed_url(remote_path, expires_in)
-    bucket = gcs_bucket
-    unless bucket
-      Penetrator.logger.warn("[StorageService] GCS bucket '#{@bucket_name}' inaccessible — falling back to local URL")
-      return "file://#{local_storage_path(remote_path)}"
-    end
-    file = bucket.file(remote_path)
-    file.signed_url(expires: expires_in.to_i, method: 'GET')
+    gcs_bucket.file(remote_path).signed_url(expires: expires_in.to_i, method: 'GET')
   end
 
   def gcs_bucket
     require 'google/cloud/storage'
     @gcs_client ||= Google::Cloud::Storage.new
-    @gcs_client.bucket(@bucket_name)
+    # skip_lookup: writing/reading objects needs storage.objects.*, NOT
+    # storage.buckets.get — don't gate uploads on a bucket-metadata read, and
+    # never return nil (which the old code turned into a silent local fallback).
+    @gcs_client.bucket(@bucket_name, skip_lookup: true)
   end
 
   def local_storage_path(remote_path)
