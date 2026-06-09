@@ -32,8 +32,6 @@ steps:
     environment:
       GCP_PROJECT_DEV:
         from_secret: gcp_project_dev
-      SLACK_WEBHOOK_URL:
-        from_secret: slack_webhook_url
       NOTIFICATION_EMAIL:
         from_secret: notification_email
     commands:
@@ -42,9 +40,6 @@ steps:
 
   - name: notify-status
     image: bash
-    environment:
-      SLACK_WEBHOOK_URL:
-        from_secret: slack_webhook_url
     commands:
       - scripts/woodpecker/notify-status.sh
     when:
