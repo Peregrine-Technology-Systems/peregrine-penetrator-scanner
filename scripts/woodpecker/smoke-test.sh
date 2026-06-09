@@ -53,7 +53,10 @@ fi
 BEFORE=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | sort || echo "")
 
 # Launch a smoke-test scan VM (canned findings + stubbed reporter calls)
-scripts/woodpecker/trigger-scan.sh "${BRANCH}" smoke-test "${IMAGE_TAG}"
+# trigger-scan.sh's first arg is the ENVIRONMENT (development|staging|production),
+# not the branch. IMAGE_TAG is exactly that (staging|production), so pass it —
+# BRANCH=main would otherwise be "Unknown environment: main" (#808).
+scripts/woodpecker/trigger-scan.sh "${IMAGE_TAG}" smoke-test
 
 echo "Waiting up to ${MAX_WAIT}s for the smoke scan to publish a fresh result..."
 # The deploy step launches a long-running *standard* scan whose result may also
