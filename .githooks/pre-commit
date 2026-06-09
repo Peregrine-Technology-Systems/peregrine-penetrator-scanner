@@ -71,11 +71,13 @@ if [ "$CURRENT_BRANCH" != "development" ] && [ "$CURRENT_BRANCH" != "staging" ] 
   if [ -n "$CHANGED_MD" ]; then
     DOC_SCRIPT="scripts/docs/generate-doc-pdf.sh"
     if [ -x "$DOC_SCRIPT" ]; then
-      # Branded pipeline: Mermaid → pandoc → HTML → Puppeteer PDF
+      # Branded pipeline: Mermaid → pandoc → HTML → Puppeteer PDF.
+      # Best-effort, local-only convenience (PDFs aren't committed) — must NEVER
+      # abort the commit under `set -e` if the toolchain is missing/errors.
       # shellcheck disable=SC2086
-      "$DOC_SCRIPT" $CHANGED_MD 2>/dev/null
+      "$DOC_SCRIPT" $CHANGED_MD 2>/dev/null || true
       GENERATED=$(find docs/pdf -name '*.pdf' -newer .git/index 2>/dev/null | wc -l | tr -d ' ')
-      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED branded PDF(s) locally (not committed — public repo)"
+      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED branded PDF(s) locally (not committed — public repo)" || true
     elif command -v pandoc &>/dev/null && command -v xelatex &>/dev/null; then
       # Fallback: plain pandoc (no branding, no Mermaid diagrams)
       mkdir -p docs/pdf
@@ -88,7 +90,7 @@ if [ "$CURRENT_BRANCH" != "development" ] && [ "$CURRENT_BRANCH" != "staging" ] 
           -V fontsize=11pt --highlight-style=tango \
           2>/dev/null && GENERATED=$((GENERATED + 1)) || true
       done
-      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s) locally (plain — branded pipeline unavailable)"
+      [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED PDF(s) locally (plain — branded pipeline unavailable)" || true
     fi
   fi
 fi
