@@ -15,10 +15,12 @@ clone:
 steps:
   - name: sync-back
     image: bash
-    environment:
-      GH_TOKEN:
-        from_secret: gh_token
     commands:
+      # GitHub App token (replaces static gh_token PAT) — peregrine-ci-app,
+      # see peregrine-infrastructure/docs/operations/gh-app.md (#779)
+      - gsutil cp gs://ci-runners-de-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
+      - chmod +x /tmp/get-gh-token.sh
+      - eval "$(/tmp/get-gh-token.sh)"
       - scripts/woodpecker/sync-back.sh
 
   - name: notify-status
