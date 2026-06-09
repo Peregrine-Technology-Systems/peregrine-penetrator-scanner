@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.18.1 — 2026-06-09
+
 - ci: complete the #767 decoupled production deploy + production smoke (#808). Now that the `peregrine-ci-app` App token has `deployments: write` (infra#3514), `version-bump.sh`'s Deployment POST fires `release.yaml` (`event: deployment`), which retags `scanner:staging → scanner:production` (digest-verified) **and** runs a production smoke. `version-bump.sh` no longer retags `scanner:production` itself (release.yaml owns it). `smoke-test.sh` handles `event: deployment → main`; `smoke-test.yaml` is now staging-only (it depended on the staging-only `deploy`, so it could never smoke `main`). Production is finally smoke-verified on its own deploy, not just by byte-identity with staging (#808)
 
 ## v0.18.0 — 2026-06-09
