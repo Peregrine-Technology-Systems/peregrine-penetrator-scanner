@@ -7,8 +7,7 @@ class ScanOrchestrator
     'nuclei' => Scanners::NucleiScanner,
     'sqlmap' => Scanners::SqlmapScanner,
     'ffuf' => Scanners::FfufScanner,
-    'nikto' => Scanners::NiktoScanner,
-    'dawn' => Scanners::DawnScanner
+    'nikto' => Scanners::NiktoScanner
   }.freeze
 
   attr_reader :scan, :profile
