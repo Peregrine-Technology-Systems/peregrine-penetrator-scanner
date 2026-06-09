@@ -23,6 +23,23 @@ steps:
       - eval "$(/tmp/get-gh-token.sh)"
       - scripts/woodpecker/deploy.sh
 
+  # #808: production smoke — verify the promoted scanner:production actually runs
+  # (launches a smoke-test scan VM, asserts a fresh result in GCS). This is the
+  # production-side smoke that smoke-test.yaml could never run on main (it
+  # depends_on the staging-only deploy). A failure here marks the release failed.
+  - name: smoke-test
+    image: bash
+    environment:
+      GCP_PROJECT_DEV:
+        from_secret: gcp_project_dev
+      SLACK_WEBHOOK_URL:
+        from_secret: slack_webhook_url
+      NOTIFICATION_EMAIL:
+        from_secret: notification_email
+    commands:
+      - scripts/woodpecker/smoke-test.sh
+    depends_on: [promote-image]
+
   - name: notify-status
     image: bash
     environment:
@@ -32,4 +49,4 @@ steps:
       - scripts/woodpecker/notify-status.sh
     when:
       - status: [success, failure]
-    depends_on: [promote-image]
+    depends_on: [smoke-test]
