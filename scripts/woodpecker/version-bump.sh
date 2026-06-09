@@ -294,35 +294,8 @@ if [ -n "${DOCKER_REGISTRY:-}" ]; then
   fi
 fi
 
-# Send an informational Slack notification for the tag — NOT a celebration.
-# The gold "PRODUCTION RELEASE" message should only fire after successful
-# deployment, which is handled by the deploy pipeline's notify-status.sh (#367)
-if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
-  COMMIT_URL="https://github.com/${REPO}/commit/$(git rev-parse HEAD)"
-  SHORT_SHA=$(git rev-parse --short HEAD)
-  WOODPECKER_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"
-  REPO_NAME="${REPO##*/}"
-  REPO_URL="https://github.com/${REPO}"
-
-  curl -s -X POST "$SLACK_WEBHOOK_URL" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"text\": \"Tagged ${TAG} — ${REPO_NAME} — deploying...\",
-      \"attachments\": [
-        {
-          \"color\": \"#6c757d\",
-          \"blocks\": [
-            {
-              \"type\": \"section\",
-              \"text\": {
-                \"type\": \"mrkdwn\",
-                \"text\": \":label: *Tagged ${TAG}* — *<${REPO_URL}|${REPO_NAME}>*\n*Bump:* ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})\n*Commit:* <${COMMIT_URL}|\`${SHORT_SHA}\`>\n<${WOODPECKER_URL}|View pipeline>\"
-              }
-            }
-          ]
-        }
-      ]
-    }" || echo "Warning: Slack notification failed"
-fi
+# Pipeline-status notification (tag / release) is published to the ci-events
+# Pub/Sub topic by the notify-status step (#780); Slack is deprecated, so no
+# direct webhook call here.
 
 echo "=== Release ${TAG} complete ==="
