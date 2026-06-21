@@ -52,6 +52,21 @@ if %w[smoke smoke-test].include?(profile)
   gcs_path = ScanResultsExporter.new(scan).export
   puts "  Exported to #{gcs_path}"
   audit.scan_completed(scan, gcs_path: gcs_path)
+
+  # Close the orchestrator loopback (#830): when a CALLBACK_URL is set (the VM was
+  # launched by the Cloud Function trigger / orchestrator, not the staging CI
+  # smoke), POST the real scan_complete callback so the full-flow smoke proves the
+  # callback path end-to-end. enabled? is the sole gate — the staging CI smoke
+  # sets no CALLBACK_URL, so this stays a no-op there.
+  if ScanCallbackService.enabled?
+    puts "\n--- Backend Callback ---"
+    if ScanCallbackService.new(scan, cost_logger, gcs_scan_results_path: gcs_path).notify
+      puts "  Callback sent to #{ENV.fetch('CALLBACK_URL', 'unknown')}"
+    else
+      puts '  Callback failed (smoke still succeeded)'
+    end
+  end
+
   scan.refresh
   status = scan.status == 'completed' ? 'PASSED' : 'FAILED'
   puts "\n=== Smoke Test #{status} ==="
