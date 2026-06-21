@@ -179,12 +179,21 @@ echo "Created release PR #${PR_NUMBER}"
 # GitHub computes .mergeable asynchronously (null while computing). Merging in
 # that window returns a misleading 409 "Base branch was modified". Poll up to
 # 30s for it to settle, then merge with up to 3 retries on that race only.
+#
+# Accept BOTH `clean` AND `unstable` (canonical ROBUST_PROMOTE_PATTERN.md poll):
+#   clean    = mergeable, all required checks green
+#   unstable = mergeable, required checks green, only a NON-required check
+#              pending/failing (e.g. CodeQL on the release PR)
+# Under Pattern A/B branch protection a non-required check never blocks the
+# merge, so bailing on `unstable` strands the release for a check that doesn't
+# gate it — the exact failure that stalled v0.19.0 (#775). `blocked`/`dirty`/
+# `behind` are NOT accepted and keep polling until the window expires.
 for attempt in $(seq 1 30); do
   PR_STATE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/pulls/${PR_NUMBER}")
   MERGEABLE=$(echo "$PR_STATE" | jq -r '.mergeable')
   MSTATE=$(echo "$PR_STATE" | jq -r '.mergeable_state')
-  if [ "$MERGEABLE" = "true" ] && [ "$MSTATE" = "clean" ]; then
-    echo "PR #${PR_NUMBER} mergeable after ${attempt}s"
+  if [ "$MERGEABLE" = "true" ] && { [ "$MSTATE" = "clean" ] || [ "$MSTATE" = "unstable" ]; }; then
+    echo "PR #${PR_NUMBER} mergeable after ${attempt}s (state=${MSTATE})"
     break
   fi
   if [ "$attempt" = "30" ]; then
@@ -213,13 +222,23 @@ if [ "$MERGED" != "true" ]; then
 fi
 echo "Merged release PR #${PR_NUMBER}"
 
-# Tag the merge commit via API (not git tag — works with enforce_admins)
+# Tag the merge commit via API (not git tag — works with enforce_admins).
+# Validate the SHA before tagging (#841): a null/garbage .sha parse would POST a
+# bad ref that fails downstream — fail loud here instead.
 MERGE_SHA=$(echo "$MERGE_RESPONSE" | jq -r '.sha')
+if ! echo "$MERGE_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+  echo "ERROR: invalid merge SHA '${MERGE_SHA}' from merge response — refusing to tag" >&2
+  exit 1
+fi
 TAG_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
   "${API}/repos/${REPO}/git/refs" \
   -d "$(jq -n --arg ref "refs/tags/${TAG}" --arg sha "${MERGE_SHA}" '{ref: $ref, sha: $sha}')")
 if echo "$TAG_RESPONSE" | jq -e '.ref == "refs/tags/'"${TAG}"'"' >/dev/null 2>&1; then
   echo "Created tag ${TAG} → ${MERGE_SHA}"
+elif curl -s -o /dev/null -w "%{http_code}" -H "$AUTH" \
+       "${API}/repos/${REPO}/git/refs/tags/${TAG}" | grep -q '^200$'; then
+  # Idempotent: a prior run (or concurrent run) already created it — converge.
+  echo "Tag ${TAG} already exists — converged"
 else
   echo "ERROR: Tag creation failed: $(echo "$TAG_RESPONSE" | jq -r '.message // "unknown"')"
   exit 1
@@ -233,16 +252,48 @@ RELEASE_PAYLOAD=$(jq -n \
   --arg body "${RELEASE_BODY:-No release notes captured.}" \
   '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')
 
-RELEASE_RESPONSE=$(curl -s -o /tmp/release-response.json -w "%{http_code}" \
-  -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
-  "${API}/repos/${REPO}/releases" \
-  -d "${RELEASE_PAYLOAD}")
+# Create the Release — idempotent + retried + fail-loud (#841). Every tag MUST
+# have a Release (Rule #8, SOC 2 CC7.2). A transient api.github.com flake must
+# not strand a tagged-but-Release-less commit (an orphan), so: GET first (skip if
+# present), POST with backoff retry, re-check existence after a failed POST (a
+# concurrent run may have created it), and exit 1 with a recovery command if it
+# truly can't be created — never warn-and-continue.
+release_exists() {
+  curl -s -o /dev/null -w "%{http_code}" -H "$AUTH" \
+    "${API}/repos/${REPO}/releases/tags/${TAG}" | grep -q '^200$'
+}
 
-if [ "$RELEASE_RESPONSE" = "201" ]; then
-  echo "Created GitHub Release: ${TAG}"
+if release_exists; then
+  echo "GitHub Release ${TAG} already exists — skipping"
 else
-  echo "WARNING: Failed to create GitHub Release (HTTP ${RELEASE_RESPONSE})"
-  cat /tmp/release-response.json
+  RELEASED=false
+  for attempt in 1 2 3; do
+    RELEASE_RESPONSE=$(curl -s -o /tmp/release-response.json -w "%{http_code}" \
+      -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
+      "${API}/repos/${REPO}/releases" \
+      -d "${RELEASE_PAYLOAD}")
+    if [ "$RELEASE_RESPONSE" = "201" ]; then
+      echo "Created GitHub Release: ${TAG}"
+      RELEASED=true
+      break
+    fi
+    # Re-check existence — a prior attempt or concurrent run may have landed it
+    # despite a flaky read of the POST response.
+    if release_exists; then
+      echo "GitHub Release ${TAG} now exists (converged after flake)"
+      RELEASED=true
+      break
+    fi
+    echo "Release attempt ${attempt}/3 failed (HTTP ${RELEASE_RESPONSE}):"
+    cat /tmp/release-response.json
+    [ "$attempt" -lt 3 ] && sleep $((attempt * 3))
+  done
+  if [ "$RELEASED" != "true" ]; then
+    echo "ERROR: Could not create GitHub Release ${TAG} after 3 attempts — tag exists, so this is an ORPHAN tag (SOC 2 CC7.2 gap)." >&2
+    echo "       Recover with:" >&2
+    echo "       gh release create ${TAG} --repo ${REPO} --title ${TAG} --notes \"\$(awk '/^## ${TAG} /{c=1;next} c&&/^## /{exit} c' RELEASE_NOTES.md)\"" >&2
+    exit 1
+  fi
 fi
 
 # #767: fire GitHub Deployment API for the new tag (cross-repo rollout #1187).
