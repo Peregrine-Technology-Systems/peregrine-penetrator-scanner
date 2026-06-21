@@ -222,4 +222,98 @@ RSpec.describe ResultParsers::NiktoParser do
       tmpfile&.unlink
     end
   end
+
+  # #823: a genuine critical must not silently drop to `info` when upstream
+  # reword a message past the keyword heuristic. Severity is driven from a stable
+  # identifier (test id / OSVDB id) via the maintained lookup; keyword inference
+  # is only the unmapped fallback, and every fall-through to `info` is logged.
+  describe 'severity from stable key (#823)' do
+    def parse_one(vuln)
+      tmpfile = Tempfile.new(['nikto', '.json'])
+      tmpfile.write({ 'vulnerabilities' => [vuln] }.to_json)
+      tmpfile.close
+      described_class.new(tmpfile.path).parse.first
+    ensure
+      tmpfile.unlink
+    end
+
+    it 'keeps a known-critical at critical even when the message would infer info' do
+      allow(described_class).to receive(:severity_map).and_return(
+        'by_id' => { '999992' => 'critical' }, 'by_osvdb' => {}
+      )
+
+      # Reworded message the keyword heuristic would bucket as info ("arbitrary
+      # OS operations" matches none of the critical/high/medium/low keywords).
+      result = parse_one(
+        'id' => '999992', 'OSVDB' => '0', 'url' => 'https://example.com/cgi',
+        'msg' => 'Endpoint permits arbitrary OS operations'
+      )
+
+      expect(result[:severity]).to eq('critical')
+    end
+
+    it 'resolves severity by OSVDB id when the test id is unmapped' do
+      allow(described_class).to receive(:severity_map).and_return(
+        'by_id' => {}, 'by_osvdb' => { '12345' => 'high' }
+      )
+
+      result = parse_one(
+        'id' => '0', 'OSVDB' => '12345', 'url' => 'https://example.com/x',
+        'msg' => 'Something the keywords do not recognise'
+      )
+
+      expect(result[:severity]).to eq('high')
+    end
+
+    it 'never maps on OSVDB "0" (no OSVDB assigned)' do
+      allow(described_class).to receive(:severity_map).and_return(
+        'by_id' => {}, 'by_osvdb' => { '0' => 'critical' }
+      )
+
+      result = parse_one(
+        'id' => '7', 'OSVDB' => '0', 'url' => 'https://example.com/x',
+        'msg' => 'Unrecognised finding text'
+      )
+
+      expect(result[:severity]).to eq('info')
+    end
+
+    it 'logs (does not silently bucket) a finding that falls through to info' do
+      allow(described_class).to receive(:severity_map).and_return(described_class::EMPTY_MAP)
+      expect(Penetrator.logger).to receive(:warn).with(/Unmapped finding fell through to info/)
+
+      parse_one(
+        'id' => '42', 'OSVDB' => '0', 'url' => 'https://example.com/x',
+        'msg' => 'Some unrecognised observation'
+      )
+    end
+
+    it 'falls back to keyword inference when the finding is unmapped' do
+      allow(described_class).to receive(:severity_map).and_return(described_class::EMPTY_MAP)
+
+      result = parse_one(
+        'id' => '999992', 'OSVDB' => '0', 'url' => 'https://example.com/cgi',
+        'msg' => 'Remote code execution via test.cgi'
+      )
+
+      expect(result[:severity]).to eq('critical')
+    end
+  end
+
+  describe '.load_severity_map' do
+    it 'degrades to the empty map (keyword fallback) on malformed YAML' do
+      allow(File).to receive(:exist?).with(described_class::SEVERITY_MAP_PATH).and_return(true)
+      allow(YAML).to receive(:safe_load_file).with(described_class::SEVERITY_MAP_PATH)
+                                             .and_raise(Psych::SyntaxError.new('f', 1, 1, 0, 'bad', 'ctx'))
+      allow(Penetrator.logger).to receive(:error)
+
+      expect(described_class.load_severity_map).to eq(described_class::EMPTY_MAP)
+    end
+
+    it 'returns the empty map when the file is absent' do
+      allow(File).to receive(:exist?).with(described_class::SEVERITY_MAP_PATH).and_return(false)
+
+      expect(described_class.load_severity_map).to eq(described_class::EMPTY_MAP)
+    end
+  end
 end
