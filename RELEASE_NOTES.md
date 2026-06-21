@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: harden promotion/release merge against GitHub async mergeability (#775). `version-bump.sh`'s mergeability poll now accepts `unstable` as well as `clean` — under Pattern A/B branch protection a non-required check (e.g. CodeQL on the release PR) never blocks the merge, so bailing on `unstable` stranded the release for a check that doesn't gate it (this is what stalled the v0.19.0 release and required a manual recovery). `promote.sh` replaces its single-shot `PUT /merge` — which printed "queued or waiting" and silently exit-0'd on failure, leaving PRs open with no clear error (a silent-OK, the original #775 report) — with the canonical poll (`clean`|`unstable`) + 3-attempt merge retry + fail-loud. Also fixes a `git commit --amend` in `promote.sh`'s Unreleased-dedup (global Rule #9 + ROBUST_PROMOTE_PATTERN.md forbid amend) → separate `chore:` commit. Pattern grounded in `~/.claude/docs/ROBUST_PROMOTE_PATTERN.md` (#775)
+
 - fix: Nikto severity driven from a stable key (test id / OSVDB id) via a maintained `config/nikto_severity_map.yml` lookup, with keyword inference as the unmapped fallback — and every fall-through to the `info` default is now logged (never silent). Closes the silent critical→info downgrade where a reworded upstream message (e.g. "Remote Code Execution" → "arbitrary OS operations") dropped a genuine critical to `info`. The shipped map starts empty (grown deliberately); the immediate behaviour change is observability of mis-maps + the mechanism to pin severities. Regression test asserts a known-critical stays critical via the stable key even when the message would infer `info` (positive broken-state counterpart) (#823)
 
 ## v0.19.0 — 2026-06-21
