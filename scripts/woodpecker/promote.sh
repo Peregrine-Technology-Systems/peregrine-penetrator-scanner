@@ -125,6 +125,23 @@ if [ -f RELEASE_NOTES.md ]; then
   fi
 fi
 
+# Pass 2: strip stale Unreleased entries already present in a versioned section
+# (#842, Rule #13). merge=union leaves entries under ## Unreleased on source
+# branches after version-bump moved them into ## vX on main; left unchecked they
+# collapse into the wrong section → empty Unreleased → no tag (the "#1 cause of
+# stuck releases"). Called UNCONDITIONALLY (no `command -v` guard): if the script
+# can't run, the pipeline fails loud rather than silently skipping the cleanup.
+# Pass 3 (repair misfiled) is deliberately NOT adopted — this repo has done
+# retroactive RELEASE_NOTES edits, which Pass 3's reference notes flag as a sharp
+# edge; Pass 2 + version-bump's empty-Unreleased drift-fail is correct here.
+if [ -f RELEASE_NOTES.md ]; then
+  scripts/cleanup-stale-unreleased.sh RELEASE_NOTES.md
+  if ! git diff --quiet RELEASE_NOTES.md; then
+    git add RELEASE_NOTES.md
+    git commit -m "chore: strip stale Unreleased entries already released (#842)"
+  fi
+fi
+
 git push origin "$MERGE_BRANCH"
 
 # ── Create PR ──
