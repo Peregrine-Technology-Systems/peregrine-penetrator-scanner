@@ -165,33 +165,27 @@ RSpec.describe ScanCallbackService do
     end
   end
 
-  describe '.stub_mode?' do
-    it 'returns true when SCAN_PROFILE is smoke-test' do
-      stub_const('ENV', ENV.to_h.merge('CALLBACK_URL' => callback_url, 'SCAN_PROFILE' => 'smoke-test'))
-      expect(described_class.stub_mode?).to be true
-    end
+  # The smoke-test profile no longer stubs the scan_complete callback (#830): the
+  # orchestrator full-flow loopback needs the real POST to prove the callback
+  # path. enabled? (CALLBACK_URL presence) is the sole control — the staging CI
+  # smoke sets no CALLBACK_URL, so the callback stays silent there without a stub.
+  describe 'POSTs regardless of SCAN_PROFILE (#830)' do
+    before { allow_any_instance_of(described_class).to receive(:sleep) } # rubocop:disable RSpec/AnyInstance
 
-    it 'returns false for normal profiles' do
-      expect(described_class.stub_mode?).to be false
-    end
-  end
-
-  describe 'stub mode behavior' do
-    it 'logs payload without making HTTP call' do
+    it 'POSTs scan_complete even when SCAN_PROFILE is smoke-test' do
       stub_const('ENV', ENV.to_h.merge(
                           'CALLBACK_URL' => callback_url,
                           'SCAN_CALLBACK_SECRET' => callback_secret,
                           'SCAN_UUID' => 'abc-123',
                           'SCAN_PROFILE' => 'smoke-test'
                         ))
-
-      expect(Penetrator.logger).to receive(:info).with(/STUB/)
+      stub_request(:post, scan_complete_url).to_return(status: 200, body: '{"ok":true}')
 
       service = described_class.new(scan, cost_logger)
       result = service.notify
 
       expect(result).to be true
-      expect(WebMock).not_to have_requested(:post, scan_complete_url)
+      expect(WebMock).to have_requested(:post, scan_complete_url).once
     end
   end
 

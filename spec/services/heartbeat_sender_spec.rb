@@ -71,29 +71,18 @@ RSpec.describe HeartbeatSender do
     end
   end
 
-  describe '.stub_mode?' do
-    it 'returns true when SCAN_PROFILE is smoke-test' do
+  # The smoke-test profile no longer stubs the heartbeat (#830): the orchestrator
+  # full-flow loopback needs the real POST to prove the callback path. enabled?
+  # (CALLBACK_URL presence) is the sole control — the staging CI smoke sets no
+  # CALLBACK_URL, so heartbeats stay silent there without a stub.
+  describe 'POSTs regardless of SCAN_PROFILE (#830)' do
+    it 'POSTs the heartbeat even when SCAN_PROFILE is smoke-test' do
       stub_const('ENV', ENV.to_h.merge('SCAN_PROFILE' => 'smoke-test'))
-      expect(described_class.stub_mode?).to be true
-    end
-
-    it 'returns false for normal profiles' do
-      stub_const('ENV', ENV.to_h.merge('SCAN_PROFILE' => 'standard'))
-      expect(described_class.stub_mode?).to be false
-    end
-  end
-
-  describe 'stub mode behavior' do
-    before do
-      stub_const('ENV', ENV.to_h.merge('SCAN_PROFILE' => 'smoke-test'))
-    end
-
-    it 'logs payload without making HTTP call' do
-      expect(Penetrator.logger).to receive(:info).with(/STUB/)
+      stub = stub_request(:post, heartbeat_url).to_return(status: 200)
 
       sender.send_heartbeat(status: 'running')
 
-      expect(WebMock).not_to have_requested(:post, heartbeat_url)
+      expect(stub).to have_been_requested
     end
   end
 
