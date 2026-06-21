@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.19.1 — 2026-06-21
+
 - fix: Nikto severity driven from a stable key (test id / OSVDB id) via a maintained `config/nikto_severity_map.yml` lookup, with keyword inference as the unmapped fallback — and every fall-through to the `info` default is now logged (never silent). Closes the silent critical→info downgrade where a reworded upstream message (e.g. "Remote Code Execution" → "arbitrary OS operations") dropped a genuine critical to `info`. The shipped map starts empty (grown deliberately); the immediate behaviour change is observability of mis-maps + the mechanism to pin severities. Regression test asserts a known-critical stays critical via the stable key even when the message would infer `info` (positive broken-state counterpart) (#823)
 
 ## v0.19.0 — 2026-06-21
