@@ -119,7 +119,26 @@ if [ -f RELEASE_NOTES.md ]; then
   if [ "$DUPES" -gt 1 ]; then
     awk '!seen[$0]++ || !/^## Unreleased$/' RELEASE_NOTES.md > RELEASE_NOTES.tmp && mv RELEASE_NOTES.tmp RELEASE_NOTES.md
     git add RELEASE_NOTES.md
-    git commit --amend --no-edit
+    # Separate chore: commit — NEVER amend (global CLAUDE.md Rule #9 + the
+    # ROBUST_PROMOTE_PATTERN.md warning; the squash-free merge keeps it readable).
+    git commit -m "chore: dedup ## Unreleased headers (merge=union artifact)"
+  fi
+fi
+
+# Pass 2: strip stale Unreleased entries already present in a versioned section
+# (#842, Rule #13). merge=union leaves entries under ## Unreleased on source
+# branches after version-bump moved them into ## vX on main; left unchecked they
+# collapse into the wrong section → empty Unreleased → no tag (the "#1 cause of
+# stuck releases"). Called UNCONDITIONALLY (no `command -v` guard): if the script
+# can't run, the pipeline fails loud rather than silently skipping the cleanup.
+# Pass 3 (repair misfiled) is deliberately NOT adopted — this repo has done
+# retroactive RELEASE_NOTES edits, which Pass 3's reference notes flag as a sharp
+# edge; Pass 2 + version-bump's empty-Unreleased drift-fail is correct here.
+if [ -f RELEASE_NOTES.md ]; then
+  scripts/cleanup-stale-unreleased.sh RELEASE_NOTES.md
+  if ! git diff --quiet RELEASE_NOTES.md; then
+    git add RELEASE_NOTES.md
+    git commit -m "chore: strip stale Unreleased entries already released (#842)"
   fi
 fi
 
@@ -147,16 +166,42 @@ echo "Created PR #${PR_NUMBER}: ${PR_URL}"
 
 # ── Auto-merge or request reviewer ──
 if [ "$MODE" = "auto" ]; then
-  MERGE_RESULT=$(curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" \
-    "${API}/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
-    -d '{"merge_method": "merge"}')
-  if echo "$MERGE_RESULT" | jq -e '.merged' > /dev/null 2>&1; then
-    echo "Auto-merged successfully"
-    # Clean up merge branch
-    curl -s -X DELETE -H "$AUTH" \
-      "${API}/repos/${REPO}/git/refs/heads/${MERGE_BRANCH}" > /dev/null 2>&1 || true
-  else
-    echo "Auto-merge queued or waiting for status checks"
+  # GitHub evaluates mergeability asynchronously — a PUT /merge on a brand-new PR
+  # returns 405/409 until the check resolves. Poll for it to settle, then merge
+  # with retry, then FAIL LOUD if it never lands. The old single-shot PUT printed
+  # "queued or waiting" and exit-0'd on failure — a silent-OK that left PRs open
+  # with no clear error and needed manual --admin merges (#775). Canonical poll +
+  # retry from ROBUST_PROMOTE_PATTERN.md. Accept clean|unstable (a non-required
+  # check pending/failing never blocks the merge); blocked/dirty/behind keep
+  # polling. The merge-branch flow is idempotent, so a failed run re-runs cleanly.
+  echo "Waiting for PR #${PR_NUMBER} to become mergeable..."
+  for i in $(seq 1 6); do
+    MERGE_STATE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/pulls/${PR_NUMBER}" \
+      | jq -r '.mergeable_state // "unknown"')
+    if [ "$MERGE_STATE" = "clean" ] || [ "$MERGE_STATE" = "unstable" ]; then break; fi
+    echo "  mergeability: ${MERGE_STATE} — retrying in 5s (attempt ${i}/6)"
+    sleep 5
+  done
+
+  MERGED=false
+  for ATTEMPT in 1 2 3; do
+    MERGE_RESULT=$(curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+      "${API}/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+      -d '{"merge_method": "merge"}')
+    if echo "$MERGE_RESULT" | jq -e '.merged' > /dev/null 2>&1; then
+      MERGED=true
+      echo "Auto-merged successfully"
+      curl -s -X DELETE -H "$AUTH" \
+        "${API}/repos/${REPO}/git/refs/heads/${MERGE_BRANCH}" > /dev/null 2>&1 || true
+      break
+    fi
+    echo "Merge attempt ${ATTEMPT}/3 failed: $(echo "$MERGE_RESULT" | jq -r '.message // "?"')"
+    [ "$ATTEMPT" -lt 3 ] && sleep 5
+  done
+
+  if [ "$MERGED" = "false" ]; then
+    echo "ERROR: auto-merge failed after 3 attempts — PR #${PR_NUMBER} left open"
+    exit 1
   fi
 else
   REPO_OWNER=$(curl -s -H "$AUTH" "${API}/repos/${REPO}" | jq -r '.owner.login // empty')
