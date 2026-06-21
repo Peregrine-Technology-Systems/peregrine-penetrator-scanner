@@ -79,10 +79,18 @@ for BRANCH in development staging; do
   # Dedup any duplicate headers
   awk '!seen[$0]++ || !/^## /' RELEASE_NOTES.md > RELEASE_NOTES.tmp && mv RELEASE_NOTES.tmp RELEASE_NOTES.md
 
-  # Check if dedup changed anything
+  # Subtract the JUST-released entries from ## Unreleased (#843): version-bump
+  # moved them into main's ## vX section, so merge=union leaves them duplicated
+  # under ## Unreleased here — they would otherwise appear twice on dev/staging
+  # and pollute the next release. cleanup strips any Unreleased line already in a
+  # versioned section. Unconditional (fail-loud if it can't run).
+  scripts/cleanup-stale-unreleased.sh RELEASE_NOTES.md
+
+  # Commit any RELEASE_NOTES cleanup as a SEPARATE commit — NEVER amend
+  # (global CLAUDE.md Rule #9 + ROBUST_PROMOTE_PATTERN.md warning).
   if ! git diff --quiet RELEASE_NOTES.md; then
     git add RELEASE_NOTES.md
-    git commit --amend --no-edit
+    git commit -m "chore: dedup headers + strip just-released Unreleased entries (#843)"
   fi
 
   # Skip if no actual file changes vs target
