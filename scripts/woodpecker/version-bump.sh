@@ -179,12 +179,21 @@ echo "Created release PR #${PR_NUMBER}"
 # GitHub computes .mergeable asynchronously (null while computing). Merging in
 # that window returns a misleading 409 "Base branch was modified". Poll up to
 # 30s for it to settle, then merge with up to 3 retries on that race only.
+#
+# Accept BOTH `clean` AND `unstable` (canonical ROBUST_PROMOTE_PATTERN.md poll):
+#   clean    = mergeable, all required checks green
+#   unstable = mergeable, required checks green, only a NON-required check
+#              pending/failing (e.g. CodeQL on the release PR)
+# Under Pattern A/B branch protection a non-required check never blocks the
+# merge, so bailing on `unstable` strands the release for a check that doesn't
+# gate it — the exact failure that stalled v0.19.0 (#775). `blocked`/`dirty`/
+# `behind` are NOT accepted and keep polling until the window expires.
 for attempt in $(seq 1 30); do
   PR_STATE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/pulls/${PR_NUMBER}")
   MERGEABLE=$(echo "$PR_STATE" | jq -r '.mergeable')
   MSTATE=$(echo "$PR_STATE" | jq -r '.mergeable_state')
-  if [ "$MERGEABLE" = "true" ] && [ "$MSTATE" = "clean" ]; then
-    echo "PR #${PR_NUMBER} mergeable after ${attempt}s"
+  if [ "$MERGEABLE" = "true" ] && { [ "$MSTATE" = "clean" ] || [ "$MSTATE" = "unstable" ]; }; then
+    echo "PR #${PR_NUMBER} mergeable after ${attempt}s (state=${MSTATE})"
     break
   fi
   if [ "$attempt" = "30" ]; then
