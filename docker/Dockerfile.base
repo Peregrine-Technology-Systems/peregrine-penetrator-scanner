@@ -48,6 +48,10 @@ RUN wget -q "https://github.com/ffuf/ffuf/releases/download/v${FFUF_VERSION}/ffu
 RUN git clone --depth 1 https://github.com/sullo/nikto.git /opt/nikto && \
     ln -s /opt/nikto/program/nikto.pl /usr/local/bin/nikto
 
+# testssl.sh (TLS/SSL analysis) — git tool, same clone pattern as nikto/sqlmap (#48)
+RUN git clone --depth 1 https://github.com/drwetter/testssl.sh.git /opt/testssl && \
+    ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl.sh
+
 # Wordlists
 RUN mkdir -p /usr/share/seclists/Discovery/Web-Content
 COPY docker/wordlists/common.txt /usr/share/seclists/Discovery/Web-Content/common.txt
@@ -63,6 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre-headless python3 perl libnet-ssleay-perl libjson-perl libxml-writer-perl \
     python3-pip \
     curl wget git ca-certificates \
+    openssl dnsutils \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
@@ -82,6 +87,8 @@ COPY --from=tools /usr/local/bin/ffuf /usr/local/bin/
 COPY --from=tools /opt/nikto /opt/nikto
 RUN ln -sf /opt/nikto/program/nikto.pl /usr/local/bin/nikto && \
     ln -sf /opt/nikto/program/nikto.conf /etc/nikto.conf
+COPY --from=tools /opt/testssl /opt/testssl
+RUN ln -sf /opt/testssl/testssl.sh /usr/local/bin/testssl.sh
 COPY --from=tools /usr/share/seclists /usr/share/seclists
 RUN mkdir -p /root/nuclei-templates
 
