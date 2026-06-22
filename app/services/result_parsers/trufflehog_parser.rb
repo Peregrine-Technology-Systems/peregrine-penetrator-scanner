@@ -23,20 +23,20 @@ module ResultParsers
       record = JSON.parse(line)
       {
         source_tool: 'trufflehog',
-        severity:    'high',
-        title:       record['DetectorDescription'] || record['DetectorName'].to_s,
-        url:         @target_url,
-        parameter:   nil,
-        cwe_id:      nil,
-        cve_id:      nil,
-        evidence:    {
+        severity: 'high',
+        title: record['DetectorDescription'] || record['DetectorName'].to_s,
+        url: @target_url,
+        parameter: nil,
+        cwe_id: nil,
+        cve_id: nil,
+        evidence: {
           detector_name: record['DetectorName'],
-          verified:      record['Verified'],
-          redacted:      record['Redacted']
+          verified: record['Verified'],
+          redacted: record['Redacted']
         }.compact
       }
     rescue JSON::ParserError
-      Penetrator.logger.warn("[TrufflehogParser] Skipping malformed line")
+      Penetrator.logger.warn('[TrufflehogParser] Skipping malformed line')
       nil
     end
   end

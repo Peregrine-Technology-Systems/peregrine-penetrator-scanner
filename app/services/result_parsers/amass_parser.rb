@@ -11,7 +11,7 @@ module ResultParsers
 
     def parse
       lines = File.readlines(@output_file, chomp: true)
-      urls = lines.reject { |l| l.match?(SKIP_PATTERNS) }.map { |h| "https://#{h.strip}" }
+      urls = lines.grep_v(SKIP_PATTERNS).map { |h| "https://#{h.strip}" }
       { discovered_urls: urls }
     rescue Errno::ENOENT => e
       Penetrator.logger.error("[AmassParser] File not found: #{e.message}")

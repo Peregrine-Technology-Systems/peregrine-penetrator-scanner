@@ -31,7 +31,11 @@ module Scanners
     private
 
     def target_domains
-      target_urls.filter_map { |url| URI.parse(url).host rescue nil }.uniq
+      target_urls.filter_map do |url|
+        URI.parse(url).host
+      rescue StandardError
+        nil
+      end.uniq
     end
 
     def enum_command(domain, db_dir)

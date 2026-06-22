@@ -16,7 +16,7 @@ module Scanners
       all_findings = []
 
       target_urls.each do |url|
-        files_dir  = output_dir.join("files_#{Digest::MD5.hexdigest(url)}")
+        files_dir = output_dir.join("files_#{Digest::MD5.hexdigest(url)}")
         output_file = output_dir.join("trufflehog_#{Digest::MD5.hexdigest(url)}.json")
         fetch_target_files(url, files_dir)
         run_command(build_command(files_dir, output_file), timeout: tool_config[:timeout])
@@ -31,7 +31,7 @@ module Scanners
     def fetch_target_files(url, files_dir)
       FileUtils.mkdir_p(files_dir)
       run_command(
-        "wget --quiet --mirror --no-parent --page-requisites " \
+        'wget --quiet --mirror --no-parent --page-requisites ' \
         "--directory-prefix=#{files_dir} --no-host-directories " \
         "--timeout=30 --tries=2 #{Shellwords.escape(url)}",
         timeout: 60
@@ -42,7 +42,7 @@ module Scanners
 
     def build_command(files_dir, output_file)
       "trufflehog filesystem #{files_dir} --json --no-verification " \
-      "> #{output_file} 2>/dev/null"
+        "> #{output_file} 2>/dev/null"
     end
 
     def parse_results(output_file, url)

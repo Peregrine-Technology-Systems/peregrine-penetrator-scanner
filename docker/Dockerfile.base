@@ -63,12 +63,13 @@ RUN npm install -g retire@latest --no-audit --no-fund
 
 # amass v5 — subdomain enumeration (#47)
 ARG AMASS_VERSION=5.1.1
-RUN wget -q "https://github.com/owasp-amass/amass/releases/download/v${AMASS_VERSION}/amass_linux_amd64.zip" \
-        -O /tmp/amass.zip && \
-    unzip -o /tmp/amass.zip -d /tmp/amass_extracted/ && \
+RUN wget -q "https://github.com/owasp-amass/amass/releases/download/v${AMASS_VERSION}/amass_linux_amd64.tar.gz" \
+        -O /tmp/amass.tar.gz && \
+    mkdir -p /tmp/amass_extracted && \
+    tar -xzf /tmp/amass.tar.gz -C /tmp/amass_extracted/ && \
     find /tmp/amass_extracted -name 'amass' -type f -exec mv {} /usr/local/bin/amass \; && \
     chmod +x /usr/local/bin/amass && \
-    rm -rf /tmp/amass.zip /tmp/amass_extracted
+    rm -rf /tmp/amass.tar.gz /tmp/amass_extracted
 
 # trufflehog v3 — secret/credential detection (#50)
 ARG TRUFFLEHOG_VERSION=3.95.6
