@@ -425,6 +425,8 @@ def _trigger_scan(request, default_mode, default_tag):
             target_urls = target_url
         else:
             target_urls = json.dumps([target_url])
+    elif isinstance(target_urls, list):
+        target_urls = json.dumps(target_urls)
 
     timestamp = int(time.time())
     instance_name = f'pentest-scan-{scan_uuid[:8]}-{timestamp}'
