@@ -3,12 +3,15 @@ require 'open3'
 
 class ScanOrchestrator
   SCANNER_MAP = {
-    'zap' => Scanners::ZapScanner,
-    'nuclei' => Scanners::NucleiScanner,
-    'sqlmap' => Scanners::SqlmapScanner,
-    'ffuf' => Scanners::FfufScanner,
-    'nikto' => Scanners::NiktoScanner,
-    'testssl' => Scanners::TestsslScanner
+    'zap'         => Scanners::ZapScanner,
+    'nuclei'      => Scanners::NucleiScanner,
+    'sqlmap'      => Scanners::SqlmapScanner,
+    'ffuf'        => Scanners::FfufScanner,
+    'nikto'       => Scanners::NiktoScanner,
+    'testssl'     => Scanners::TestsslScanner,
+    'retirejs'    => Scanners::RetirejsScanner,
+    'trufflehog'  => Scanners::TrufflehogScanner,
+    'amass'       => Scanners::AmassScanner
   }.freeze
 
   attr_reader :scan, :profile
