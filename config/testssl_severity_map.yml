@@ -1,0 +1,17 @@
+# testssl.sh severity → Finding severity (#48).
+#
+# Only severities listed here become findings. Everything else is dropped:
+#   OK    — the check passed (secure); a non-finding
+#   DEBUG — diagnostic noise
+#   FATAL — scan could not run (operational, not a target issue)
+# The parser also drops records with ip "/" (engine/cmdline meta, not
+# target-scoped). A missing/unmapped severity therefore DROPS the record — which
+# is why this map is the single control point: to silence INFO noise, delete the
+# INFO line and those records drop; to surface a new band, add it here.
+severity_map:
+  CRITICAL: critical
+  HIGH: high
+  MEDIUM: medium
+  LOW: low
+  WARN: info
+  INFO: info
