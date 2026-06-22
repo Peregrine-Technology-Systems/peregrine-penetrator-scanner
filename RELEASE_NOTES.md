@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- chore: sweep stale `peregrine-ci-infrastructure` → `peregrine-infrastructure` references (#773). The repo was renamed; updated the two live citations — `CLAUDE.md` Deploy Trigger Pattern (`peregrine-ci-infrastructure#1187` → `peregrine-infrastructure#1187`) and `scripts/woodpecker/notify-status.sh` (`ci-infrastructure#1366` → `peregrine-infrastructure#1366`). Historical `## vX` RELEASE_NOTES citations left as-is (immutable history; editing them would dup headings under merge=union). (#773)
+
 - chore: unwind scanner-side production-scan scheduling (#829). Deleted the broken out-of-band `weekly-production-scan` Cloud Scheduler job (it 404'd every Monday — targeted `trigger-production-scan`, the real fn is `trigger-scan-production`; config captured before deletion). Removed the never-deployed legacy Cloud-Run-job model from Pulumi — the `pentest-scanner` `CloudRunV2::Job` + `pentest-scanner-schedule` `CloudScheduler::Job` + their `schedule`/`scan_profile` config (no Cloud Run Job was ever live). Production scan **scheduling is owned by the orchestrator** going forward (function-trigger model per infra ruling peregrine-infrastructure#3939); the `trigger-scan-*` Cloud Functions + `vm-scavenger` are retained (the orchestrator triggers scans via `trigger-scan-production`). #829 closed as superseded (#829)
 
 ## v0.19.3 — 2026-06-22
