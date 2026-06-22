@@ -13,6 +13,8 @@ phases:
       - tool: nikto
         timeout: 300
         pause: 1
+      - tool: testssl
+        timeout: 300
     parallel: true
   - name: active_scan
     tools:
