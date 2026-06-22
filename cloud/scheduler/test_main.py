@@ -590,6 +590,28 @@ class TestTriggerProduction(unittest.TestCase):
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
     @patch('main.compute_v1.InstancesClient')
+    def test_serializes_target_urls_list_to_json_string(self, mock_client_cls):
+        """target_urls passed as a Python list (from JSON body) must be serialized (#883)."""
+        client = MagicMock()
+        mock_client_cls.return_value = client
+        client.insert.return_value = MagicMock()
+
+        urls_list = ['https://a.com', 'https://b.com']
+        main.trigger_production(
+            _build_request('POST', '/', json_body={
+                'target_urls': urls_list,
+                'callback_url': 'https://orchestrator.example.com/callbacks',
+            }))
+
+        instance = client.insert.call_args.kwargs['request']['instance_resource']
+        metadata_dict = {
+            item.key: item.value for item in instance.metadata.items
+        }
+        self.assertIsInstance(metadata_dict['TARGET_URLS'], str)
+        self.assertEqual(metadata_dict['TARGET_URLS'], json.dumps(urls_list))
+
+    @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
+    @patch('main.compute_v1.InstancesClient')
     def test_returns_json_content_type(self, mock_client_cls):
         client = MagicMock()
         mock_client_cls.return_value = client
