@@ -23,14 +23,22 @@ esac
 GCS_BUCKET="${GCP_PROJECT}-pentest-reports"
 RESULTS_PREFIX="gs://${GCS_BUCKET}/scan-results/"
 POLL_INTERVAL=15
-# Budget covers the full ephemeral-VM cycle: boot + scanner image pull (~120s
-# observed on e2-standard-4) + smoke scan + CVE enrichment + GCS/BQ export +
-# self-terminate. The previous 180s left the scan only ~60s after boot/pull, so
-# the observer gave up and cleanup-smoke-vms killed the VM mid-scan — no result
-# ever landed. Size to the real workload, not the symptom (falcon discipline:
-# don't widen tolerance to mask a stall — here the scan wasn't stalling, the
-# budget was simply wrong for unavoidable ephemeral-VM boot overhead).
-MAX_WAIT=480
+# Budget covers the full ephemeral-VM cycle: boot + Docker install + scanner
+# image pull + smoke scan + GCS export + self-terminate. This is a CEILING — the
+# poll loop breaks on the first fresh result, so a warm/fast run still returns in
+# ~150s; raising it slows nothing successful, it only stops the observer giving
+# up on a healthy-but-slow-booting VM.
+#
+# Sized to the real workload, not a masked stall (falcon test: is a stall hidden,
+# or just noticed less?): on a base-image rebuild every layer SHA changes, so the
+# cold VM pulls the ENTIRE ~2GB image — observed 548s boot+pull before the
+# scanner even started, while the scan itself ran in 2s and exported correctly.
+# 480s gave up before that cold-pull finished. The scan is not stalling; the wait
+# is unavoidable infra (boot + Docker install + full cold pull). 900s covers it
+# with margin across the scanner-expansion base rebuilds (#48 et al.). The
+# durable fix — decouple infra-boot from scan-time by waiting on the scan's own
+# control/{uuid}/status.json lifecycle instead of wall-clock — is tracked in #811.
+MAX_WAIT=900
 
 echo "=== Smoke Test: ${BRANCH} ==="
 

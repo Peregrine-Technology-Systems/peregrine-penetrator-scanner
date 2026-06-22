@@ -19,6 +19,13 @@ class HeartbeatSender
       timestamp: Time.current.iso8601
     }.compact
 
+    # No CALLBACK_URL configured (e.g. the CI smoke launched via trigger-scan.sh,
+    # which sets none) → nothing to POST to. Guard against POSTing to a derived
+    # empty/host-less URL, which used to log "connection refused for nil port 80"
+    # noise once #830 removed the smoke-test stub. enabled?/CALLBACK_URL presence
+    # is the real gate; this is its instance-level counterpart.
+    return if @url.to_s.empty?
+
     @connection.post(@url) do |req|
       req.headers['Content-Type'] = 'application/json'
       req.headers['Authorization'] = "Bearer #{@secret}"

@@ -86,6 +86,20 @@ RSpec.describe HeartbeatSender do
     end
   end
 
+  # When no CALLBACK_URL is configured (CI smoke launched via trigger-scan.sh),
+  # the derived URL is host-less; send_heartbeat must no-op rather than POST to
+  # nil:80 (the rescued-but-noisy regression #830 introduced by dropping the stub).
+  describe 'no CALLBACK_URL' do
+    let(:sender) do
+      described_class.new(callback_url: '', scan_uuid: 's', job_id: 'j', callback_secret: 'x')
+    end
+
+    it 'makes no HTTP request' do
+      sender.send_heartbeat(status: 'running')
+      expect(WebMock).not_to have_requested(:post, //)
+    end
+  end
+
   describe '.enabled?' do
     it 'returns true when CALLBACK_URL is set' do
       stub_const('ENV', ENV.to_h.merge('CALLBACK_URL' => 'https://reporter.example.com/callbacks/scan_complete'))
