@@ -8,7 +8,7 @@ Report generation, AI analysis, ticketing, and email notifications have been ext
 
 ## Deploy Trigger Pattern
 
-Production deploy is **decoupled** from main-branch push via the GitHub Deployment API per cross-repo rollout peregrine-ci-infrastructure#1187 (this repo's adoption: #767). Production lives in `.woodpecker/release.yaml` (NOT `deploy.yaml` — that's staging). After main merge: `version-bump.yaml` runs → tag + Release → `version-bump.sh` POSTs `/repos/.../deployments` → GitHub deployment webhook → `release.yaml` fires on `event=deployment` → `deploy.sh` (TARGET=main path) promotes scanner:staging digest to scanner:production + posts in_progress/success/failure status callbacks. Staging deploy still triggers on `event: push, branch: staging`.
+Production deploy is **decoupled** from main-branch push via the GitHub Deployment API per cross-repo rollout peregrine-infrastructure#1187 (this repo's adoption: #767). Production lives in `.woodpecker/release.yaml` (NOT `deploy.yaml` — that's staging). After main merge: `version-bump.yaml` runs → tag + Release → `version-bump.sh` POSTs `/repos/.../deployments` → GitHub deployment webhook → `release.yaml` fires on `event=deployment` → `deploy.sh` (TARGET=main path) promotes scanner:staging digest to scanner:production + posts in_progress/success/failure status callbacks. Staging deploy still triggers on `event: push, branch: staging`.
 
 ## Build & Run Commands
 
