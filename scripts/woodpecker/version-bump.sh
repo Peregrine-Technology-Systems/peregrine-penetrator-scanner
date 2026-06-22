@@ -73,13 +73,38 @@ if [ -z "$UNRELEASED_CONTENT" ]; then
     echo "Skipping — no unreleased content and no untagged content commits"
     exit 0
   fi
-  # Drift detection (MUST): ## Unreleased is empty BUT substantive commits exist
-  # since the last tag. A RELEASE_NOTES write was missed — fail loudly rather
-  # than silently tag an empty release. Silent-OK counterpart to the empty
-  # guard above (global standard: identity version-bump.sh lines 140-152).
-  echo "ERROR: ## Unreleased is empty but ${CONTENT_COMMITS} content commit(s) exist since ${LAST_TAG:-repo start}." >&2
-  echo "       RELEASE_NOTES.md was not updated for shipped work — refusing to tag an empty release." >&2
-  exit 1
+  # Drift detected: ## Unreleased is empty BUT substantive commits exist since
+  # the last tag. The usual cause on this repo is a merge=union MISFILE on the
+  # manual staging→main merge (which has no cleanup pass) — entries pushed out of
+  # ## Unreleased into a versioned section. Attempt a SCOPED self-heal (#850):
+  # reconstruct ## Unreleased from origin/staging's live Unreleased minus the last
+  # tag's released set. This runs ONLY here, on the drift-failure path — never on
+  # the happy path, so a normal release never touches this code. If it can't
+  # recover from a known source it falls through to the original fail-loud below
+  # (never guess a release into existence).
+  echo "## Unreleased empty with ${CONTENT_COMMITS} content commit(s) since ${LAST_TAG:-repo start} — attempting reconstruct from origin/staging (#850)"
+  git fetch origin staging 2>/dev/null || true
+  RECON_OK=0
+  if [ -n "$LAST_TAG" ]; then
+    git show "${LAST_TAG}:RELEASE_NOTES.md" > /tmp/vb-lasttag-rn.md 2>/dev/null || true
+    git show origin/staging:RELEASE_NOTES.md > /tmp/vb-staging-rn.md 2>/dev/null || true
+    if [ -s /tmp/vb-lasttag-rn.md ] && [ -s /tmp/vb-staging-rn.md ]; then
+      if scripts/reconstruct-release-notes.sh RELEASE_NOTES.md /tmp/vb-lasttag-rn.md /tmp/vb-staging-rn.md; then
+        RECON_OK=1
+      fi
+    fi
+  fi
+  if [ "$RECON_OK" = "1" ]; then
+    UNRELEASED_CONTENT=$(sed -n '/^## Unreleased$/,/^## /{/^## /d; /^$/d; p}' RELEASE_NOTES.md 2>/dev/null || echo "")
+    echo "Reconstructed ## Unreleased from origin/staging — proceeding with the recovered entries"
+  fi
+  if [ -z "$UNRELEASED_CONTENT" ]; then
+    # Reconstruct could not recover from a known source — fail loudly rather than
+    # silently tag an empty release (silent-OK counterpart to the empty guard).
+    echo "ERROR: ## Unreleased is empty but ${CONTENT_COMMITS} content commit(s) exist since ${LAST_TAG:-repo start}, and reconstruct could not recover from origin/staging." >&2
+    echo "       RELEASE_NOTES.md was not updated for shipped work — refusing to tag an empty release." >&2
+    exit 1
+  fi
 fi
 
 BUMP_TYPE="patch"
