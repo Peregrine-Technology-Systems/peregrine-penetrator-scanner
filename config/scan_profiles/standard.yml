@@ -1,8 +1,12 @@
 name: standard
-description: "Standard scan - Full ZAP + Nuclei + Nikto + ffuf discovery"
-estimated_duration_minutes: 30
+description: "Standard scan - Subdomain discovery + Full ZAP + Nuclei + Nikto + ffuf + retire.js + trufflehog"
+estimated_duration_minutes: 40
 rate_limit: 8
 phases:
+  - name: subdomain_discovery
+    tools:
+      - tool: amass
+        timeout: 300
   - name: discovery
     tools:
       - tool: ffuf
@@ -30,3 +34,8 @@ phases:
         templates: []
         rate_limit: 8
         bulk_size: 3
+      - tool: retirejs
+        timeout: 300
+      - tool: trufflehog
+        timeout: 300
+    parallel: true

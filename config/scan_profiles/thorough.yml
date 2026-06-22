@@ -1,8 +1,12 @@
 name: thorough
 description: "Comprehensive scan - All tools, all templates, deep crawl"
-estimated_duration_minutes: 120
+estimated_duration_minutes: 150
 rate_limit: 5
 phases:
+  - name: subdomain_discovery
+    tools:
+      - tool: amass
+        timeout: 600
   - name: discovery
     tools:
       - tool: ffuf
@@ -39,4 +43,8 @@ phases:
         timeout: 1200
         delay: 2
         threads: 1
+      - tool: retirejs
+        timeout: 600
+      - tool: trufflehog
+        timeout: 600
     parallel: true
