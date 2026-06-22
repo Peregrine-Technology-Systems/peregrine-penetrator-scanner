@@ -29,15 +29,15 @@ module ResultParsers
       ids = vuln.fetch('identifiers', {})
       {
         source_tool: 'retirejs',
-        severity:    vuln['severity'],
-        title:       ids['summary'].to_s,
-        url:         @target_url,
-        parameter:   nil,
-        cwe_id:      Array(vuln['cwe']).first,
-        cve_id:      Array(ids['CVE']).first,
-        evidence:    {
-          component:           result['component'],
-          version:             result['version'],
+        severity: vuln['severity'],
+        title: ids['summary'].to_s,
+        url: @target_url,
+        parameter: nil,
+        cwe_id: Array(vuln['cwe']).first,
+        cve_id: Array(ids['CVE']).first,
+        evidence: {
+          component: result['component'],
+          version: result['version'],
           identifiers_summary: ids['summary'].to_s
         }.compact
       }
