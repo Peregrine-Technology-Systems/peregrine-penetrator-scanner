@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.21.0 — 2026-06-22
+
 - fix: rubocop autocorrects and Dockerfile.base tool install paths (#51, #50, #47). CI failure on development from PR #874 merge: 53 autocorrectable rubocop offenses across scan_orchestrator + new scanner/parser files. amass v5.1.1 ships as `.tar.gz` not `.zip`; retire.js (NodeSource) installs binary to `/usr/bin/retire` and modules to `/usr/lib/node_modules/` — not `/usr/local/` as originally coded in the COPY stage. (#51, #50, #47)
 
 - feat: add retire.js JavaScript library vulnerability scanner (#51). New `Scanners::RetirejsScanner` + `ResultParsers::RetirejsParser` — fetch-then-scan shape (wget mirrors target HTML+JS to a temp dir, retire.js scans the dir for known-vulnerable library versions). Parser is config-free (retire.js severities are already lowercase strings); `identifiers.CVE[]` and `cwe[]` are arrays — takes first element of each. **Built and tested against real retire.js `--outputformat json` output captured from jQuery 1.12.4** (6 vulnerabilities across 2 CWEs), not a remembered schema. Node.js (v20 LTS via NodeSource) + retire.js added to `Dockerfile.base`. Wired into `SCANNER_MAP` + Phase 3 targeted of standard/thorough/quick profiles. Parser + scanner at 100% per-file coverage; modules 38/38 effective lines (SRP). (#51)
