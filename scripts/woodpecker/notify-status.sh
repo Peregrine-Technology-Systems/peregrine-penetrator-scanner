@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Post pipeline status to the ci-events Pub/Sub topic (bus-only-emit pattern,
-# ci-infrastructure#1366). Slack is deprecated — CI agents no longer call a
+# peregrine-infrastructure#1366). Slack is deprecated — CI agents no longer call a
 # webhook directly. The monitoring droplet's forwarder subscribes to ci-events
 # and routes pipeline.status events downstream. Mirrors
 # peregrine-infrastructure/scripts/woodpecker/notify-status.sh (#780).
