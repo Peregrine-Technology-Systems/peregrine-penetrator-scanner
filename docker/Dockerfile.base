@@ -118,10 +118,9 @@ RUN ln -sf /opt/nikto/program/nikto.pl /usr/local/bin/nikto && \
     ln -sf /opt/nikto/program/nikto.conf /etc/nikto.conf
 COPY --from=tools /opt/testssl /opt/testssl
 RUN ln -sf /opt/testssl/testssl.sh /usr/local/bin/testssl.sh
-# retire.js (Node.js global install)
+# retire.js (Node.js global install — NodeSource puts modules in /usr/lib, binary in /usr/bin)
 COPY --from=tools /usr/lib/node_modules /usr/lib/node_modules
-COPY --from=tools /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=tools /usr/local/bin/retire /usr/local/bin/retire
+COPY --from=tools /usr/bin/retire /usr/bin/retire
 # amass + trufflehog (Go binaries)
 COPY --from=tools /usr/local/bin/amass /usr/local/bin/amass
 COPY --from=tools /usr/local/bin/trufflehog /usr/local/bin/trufflehog
