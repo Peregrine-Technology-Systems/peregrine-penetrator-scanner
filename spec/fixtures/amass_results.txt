@@ -1,0 +1,8 @@
+Session Scope
+
+FQDN:
+
+api.auxscan.app.data-estate.cloud
+www.auxscan.app.data-estate.cloud
+staging.auxscan.app.data-estate.cloud
+mail.data-estate.cloud
