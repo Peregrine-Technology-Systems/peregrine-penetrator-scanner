@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix: serialize `target_urls` list before passing to `compute_v1.Items` in trigger-scan Cloud Functions (#883). When callers pass `"target_urls": [...]` as a JSON array, Flask's `get_json()` returns a Python list; the code only JSON-serialized when building from the singular `target_url` string. The list hit `compute_v1.Items(value=<list>)` and crashed with `TypeError: bad argument type for built-in operation`. Added `elif isinstance(target_urls, list): target_urls = json.dumps(target_urls)` branch + regression test. (#883)
+
 ## v0.21.0 — 2026-06-22
 
 - fix: rubocop autocorrects and Dockerfile.base tool install paths (#51, #50, #47). CI failure on development from PR #874 merge: 53 autocorrectable rubocop offenses across scan_orchestrator + new scanner/parser files. amass v5.1.1 ships as `.tar.gz` not `.zip`; retire.js (NodeSource) installs binary to `/usr/bin/retire` and modules to `/usr/lib/node_modules/` — not `/usr/local/` as originally coded in the COPY stage. (#51, #50, #47)
