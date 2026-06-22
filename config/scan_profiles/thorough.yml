@@ -15,6 +15,8 @@ phases:
         timeout: 600
         tuning: "1234567890abc"
         pause: 2
+      - tool: testssl
+        timeout: 600
     parallel: true
   - name: active_scan
     tools:
