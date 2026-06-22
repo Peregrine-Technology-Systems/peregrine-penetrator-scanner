@@ -19,3 +19,8 @@ phases:
         templates: []
         rate_limit: 10
         bulk_size: 5
+      - tool: retirejs
+        timeout: 180
+      - tool: trufflehog
+        timeout: 180
+    parallel: true

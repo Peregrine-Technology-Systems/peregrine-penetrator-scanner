@@ -16,6 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre-headless perl libnet-ssleay-perl \
     && rm -rf /var/lib/apt/lists/*
 
+# Node.js (LTS) for retire.js
+ARG NODE_MAJOR=20
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
 # OWASP ZAP - copy from official image
 COPY --from=zap-source /zap /opt/zap
 RUN ln -s /opt/zap/zap.sh /usr/local/bin/zap.sh
@@ -52,6 +58,26 @@ RUN git clone --depth 1 https://github.com/sullo/nikto.git /opt/nikto && \
 RUN git clone --depth 1 https://github.com/drwetter/testssl.sh.git /opt/testssl && \
     ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl.sh
 
+# retire.js — JS library vulnerability scanner (#51)
+RUN npm install -g retire@latest --no-audit --no-fund
+
+# amass v5 — subdomain enumeration (#47)
+ARG AMASS_VERSION=5.1.1
+RUN wget -q "https://github.com/owasp-amass/amass/releases/download/v${AMASS_VERSION}/amass_linux_amd64.tar.gz" \
+        -O /tmp/amass.tar.gz && \
+    mkdir -p /tmp/amass_extracted && \
+    tar -xzf /tmp/amass.tar.gz -C /tmp/amass_extracted/ && \
+    find /tmp/amass_extracted -name 'amass' -type f -exec mv {} /usr/local/bin/amass \; && \
+    chmod +x /usr/local/bin/amass && \
+    rm -rf /tmp/amass.tar.gz /tmp/amass_extracted
+
+# trufflehog v3 — secret/credential detection (#50)
+ARG TRUFFLEHOG_VERSION=3.95.6
+RUN wget -q "https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/trufflehog_${TRUFFLEHOG_VERSION}_linux_amd64.tar.gz" \
+        -O /tmp/trufflehog.tar.gz && \
+    tar -xzf /tmp/trufflehog.tar.gz -C /usr/local/bin/ trufflehog && \
+    rm /tmp/trufflehog.tar.gz
+
 # Wordlists
 RUN mkdir -p /usr/share/seclists/Discovery/Web-Content
 COPY docker/wordlists/common.txt /usr/share/seclists/Discovery/Web-Content/common.txt
@@ -62,12 +88,15 @@ FROM --platform=linux/amd64 ruby:3.2.2-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System deps for scanner runtime
+ARG NODE_MAJOR=20
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libsqlite3-dev \
     default-jre-headless python3 perl libnet-ssleay-perl libjson-perl libxml-writer-perl \
     python3-pip \
     curl wget git ca-certificates \
     openssl dnsutils \
+    && curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
@@ -89,6 +118,13 @@ RUN ln -sf /opt/nikto/program/nikto.pl /usr/local/bin/nikto && \
     ln -sf /opt/nikto/program/nikto.conf /etc/nikto.conf
 COPY --from=tools /opt/testssl /opt/testssl
 RUN ln -sf /opt/testssl/testssl.sh /usr/local/bin/testssl.sh
+# retire.js (Node.js global install)
+COPY --from=tools /usr/lib/node_modules /usr/lib/node_modules
+COPY --from=tools /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=tools /usr/local/bin/retire /usr/local/bin/retire
+# amass + trufflehog (Go binaries)
+COPY --from=tools /usr/local/bin/amass /usr/local/bin/amass
+COPY --from=tools /usr/local/bin/trufflehog /usr/local/bin/trufflehog
 COPY --from=tools /usr/share/seclists /usr/share/seclists
 RUN mkdir -p /root/nuclei-templates
 
