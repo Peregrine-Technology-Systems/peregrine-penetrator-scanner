@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.19.3 — 2026-06-22
+
 - fix: version-bump.sh self-heals the staging→main RELEASE_NOTES misfile (#850). The manual staging→main merge runs `merge=union` with no cleanup pass; under interleaved releases it can push entries OUT of `## Unreleased` INTO a versioned section, emptying Unreleased so the drift guard blocks the tag (required a manual repair during the v0.19.1/v0.19.2 release). When (and only when) the drift guard would otherwise fail, version-bump now reconstructs `## Unreleased` from `origin/staging`'s live Unreleased minus the last tag's released set — restoring misfiled entries and stripping them from the versioned section — then proceeds; if it can't recover from that known source it still fails loud (never guesses a release). New `scripts/reconstruct-release-notes.sh` (+ 5-case bats: incident replay, retroactive-untouched, fail-loud, new-entry, missing-input). Scoped to the drift path only — the happy path is untouched. Known limit: a PARTIAL misfile that leaves Unreleased non-empty won't trigger reconstruct (ships slightly-wrong notes, non-blocking). Per ROBUST_PROMOTE_PATTERN.md §reconstruct-beats-dedup (#850)
 
 ## v0.19.2 — 2026-06-21
