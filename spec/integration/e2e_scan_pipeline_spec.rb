@@ -30,6 +30,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
     allow(Scanners::NucleiScanner).to receive(:new).and_return(mock_nuclei)
     allow(mock_nuclei).to receive(:run).and_return({ success: true, findings: mock_findings[2..3] })
 
+    # Mock the additional tools added to the quick profile (testssl, retirejs, trufflehog, nikto)
+    [Scanners::TestsslScanner, Scanners::RetirejsScanner, Scanners::TrufflehogScanner,
+     Scanners::NiktoScanner].each do |klass|
+      mock_tool = instance_double(klass)
+      allow(klass).to receive(:new).and_return(mock_tool)
+      allow(mock_tool).to receive(:run).and_return({ success: true, findings: [] })
+    end
+
     # Mock storage (no GCS in tests)
     allow_any_instance_of(StorageService).to receive(:upload) # rubocop:disable RSpec/AnyInstance
 
