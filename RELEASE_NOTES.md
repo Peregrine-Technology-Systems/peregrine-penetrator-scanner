@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.21.1 — 2026-06-23
+
 - fix: serialize `target_urls` list before passing to `compute_v1.Items` in trigger-scan Cloud Functions (#883). When callers pass `"target_urls": [...]` as a JSON array, Flask's `get_json()` returns a Python list; the code only JSON-serialized when building from the singular `target_url` string. The list hit `compute_v1.Items(value=<list>)` and crashed with `TypeError: bad argument type for built-in operation`. Added `elif isinstance(target_urls, list): target_urls = json.dumps(target_urls)` branch + regression test. (#883)
 
 ## v0.21.0 — 2026-06-22
