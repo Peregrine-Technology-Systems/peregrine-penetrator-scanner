@@ -37,5 +37,15 @@ RSpec.describe Penetrator do
     it 'has the findings table' do
       expect(described_class.db.table_exists?(:findings)).to be true
     end
+
+    it 'runs in WAL journal mode' do
+      mode = described_class.db.fetch('PRAGMA journal_mode').first[:journal_mode]
+      expect(mode).to eq('wal')
+    end
+
+    it 'has a 5-second busy timeout for SQLite-level write retry' do
+      timeout = described_class.db.fetch('PRAGMA busy_timeout').first[:timeout]
+      expect(timeout).to eq(5000)
+    end
   end
 end
