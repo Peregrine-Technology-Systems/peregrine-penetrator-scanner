@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- feat: improve quick scan profile — add testssl (TLS/SSL, 90s) and nikto (misconfig, 90s tuning=123b); move retire.js + trufflehog to parallel phase 1 with testssl; cut Nuclei timeout 300s→150s and raise rate 10→15 req/s to stop burning 5 min with 0 findings; ZAP delay halved 100ms→50ms. Expected wall time ~8 min vs ~6 min previously, but with meaningfully broader coverage. (#889)
 - fix: serialize `target_urls` list before passing to `compute_v1.Items` in trigger-scan Cloud Functions (#883). When callers pass `"target_urls": [...]` as a JSON array, Flask's `get_json()` returns a Python list; the code only JSON-serialized when building from the singular `target_url` string. The list hit `compute_v1.Items(value=<list>)` and crashed with `TypeError: bad argument type for built-in operation`. Added `elif isinstance(target_urls, list): target_urls = json.dumps(target_urls)` branch + regression test. (#883)
 
 ## v0.21.0 — 2026-06-22
