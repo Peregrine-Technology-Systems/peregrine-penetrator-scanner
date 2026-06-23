@@ -1,26 +1,33 @@
 name: quick
-description: "Fast baseline scan - ZAP baseline + Nuclei critical templates only"
+description: "Fast baseline scan - testssl + ZAP baseline + Nuclei + Nikto + retire.js + trufflehog (~10 min)"
 estimated_duration_minutes: 10
 rate_limit: 10
 phases:
   - name: discovery
-    tools: []
+    tools:
+      - tool: testssl
+        timeout: 90
+        severity: HIGH
+      - tool: retirejs
+        timeout: 90
+      - tool: trufflehog
+        timeout: 90
+    parallel: true
   - name: active_scan
     tools:
       - tool: zap
         mode: baseline
-        timeout: 300
-        delay_ms: 100
+        timeout: 240
+        delay_ms: 50
   - name: targeted
     tools:
       - tool: nuclei
         severity_filter: critical,high
-        timeout: 300
+        timeout: 150
         templates: []
-        rate_limit: 10
-        bulk_size: 5
-      - tool: retirejs
-        timeout: 180
-      - tool: trufflehog
-        timeout: 180
+        rate_limit: 15
+        bulk_size: 8
+      - tool: nikto
+        timeout: 90
+        tuning: "123b"
     parallel: true
