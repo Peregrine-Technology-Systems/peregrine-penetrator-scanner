@@ -3,7 +3,7 @@
 RSpec.describe 'vm-startup.sh environment variables' do # rubocop:disable RSpec/DescribeClass
   let(:project_root) { File.expand_path('../..', __dir__) }
 
-  # All env vars that the scanner needs passed through docker run
+  # All env vars that the scanner needs passed through to `bundle exec bin/scan`
   let(:required_env_vars) do
     %w[
       SCAN_PROFILE
@@ -29,11 +29,11 @@ RSpec.describe 'vm-startup.sh environment variables' do # rubocop:disable RSpec/
 
     it 'includes all required env vars' do
       missing = required_env_vars.reject do |var|
-        # Check both inline -e and bash array formats
-        script.include?("-e \"#{var}=") ||
-          script.include?("-e #{var}=") ||
-          script.include?("-e \"#{var}\"") ||
-          script.include?("-e \"#{var}")
+        # Native env command format: KEY="${KEY}" or KEY=value (for APP_ENV=production)
+        script.include?("#{var}=\"${#{var}}\"") ||
+          script.include?("#{var}=\"#{var}\"") ||
+          script.match?(/\b#{Regexp.escape(var)}=[^$\n]/) ||
+          script.include?("#{var}=production")
       end
 
       expect(missing).to be_empty,

@@ -64,7 +64,8 @@ BEFORE=$(gsutil ls -r "${RESULTS_PREFIX}**/scan_results.json" 2>/dev/null | sort
 # trigger-scan.sh's first arg is the ENVIRONMENT (development|staging|production),
 # not the branch. IMAGE_TAG is exactly that (staging|production), so pass it —
 # BRANCH=main would otherwise be "Unknown environment: main" (#808).
-scripts/woodpecker/trigger-scan.sh "${IMAGE_TAG}" smoke-test
+# Capture the SCAN_UUID emitted by trigger-scan.sh (stdout) for version verification (#903).
+SCAN_UUID=$(scripts/woodpecker/trigger-scan.sh "${IMAGE_TAG}" smoke-test)
 
 echo "Waiting up to ${MAX_WAIT}s for the smoke scan to publish a fresh result..."
 # The deploy step launches a long-running *standard* scan whose result may also
@@ -192,6 +193,42 @@ else:
   fi
 
   rm -f "$TMPFILE"
+
+  # Verify Packer-baked tool versions (#903): the VM writes versions.json to GCS
+  # at startup. This proves the Packer image has the right toolchain (not just
+  # that a scan ran — the smoke profile uses canned findings).
+  echo "--- Checking Packer image tool versions ---"
+  GCS_BUCKET="${GCP_PROJECT}-pentest-reports"
+  if [ -n "${SCAN_UUID}" ]; then
+    VTMPFILE=$(mktemp)
+    if gsutil cp "gs://${GCS_BUCKET}/control/${SCAN_UUID}/versions.json" "${VTMPFILE}" 2>/dev/null; then
+      python3 -c "
+import json, sys
+v = json.load(open('${VTMPFILE}'))
+EXPECT_NUCLEI = '3.9.0'
+EXPECT_RUBY   = '4.0.5'
+EXPECT_NODE_MAJOR = '22'
+errors = []
+if v.get('nuclei') != EXPECT_NUCLEI:
+    errors.append(f'nuclei={v.get(\"nuclei\",\"<missing>\")} expected={EXPECT_NUCLEI}')
+if not str(v.get('ruby', '')).startswith(EXPECT_RUBY):
+    errors.append(f'ruby={v.get(\"ruby\",\"<missing>\")} expected={EXPECT_RUBY}')
+node = str(v.get('node', ''))
+if not node.startswith(EXPECT_NODE_MAJOR + '.'):
+    errors.append(f'node={node if node else \"<missing>\"} expected={EXPECT_NODE_MAJOR}.x')
+if errors:
+    print('  FAIL: version mismatch: ' + ', '.join(errors))
+    sys.exit(1)
+print(f'  PASS: nuclei={v[\"nuclei\"]} ruby={v[\"ruby\"]} node={v[\"node\"]}')
+" 2>/dev/null || ERRORS=$((ERRORS + 1))
+      rm -f "${VTMPFILE}"
+    else
+      echo "  FAIL: versions.json not found for SCAN_UUID=${SCAN_UUID} (VM may not have used Packer image)"
+      ERRORS=$((ERRORS + 1))
+    fi
+  else
+    echo "  WARN: no SCAN_UUID captured from trigger-scan.sh — skipping version check"
+  fi
 else
   echo "  FAIL: No JSON results found in ${RESULTS_PREFIX}"
   ERRORS=$((ERRORS + 1))

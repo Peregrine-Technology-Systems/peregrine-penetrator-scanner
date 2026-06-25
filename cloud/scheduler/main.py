@@ -23,11 +23,17 @@ FALLBACK_ZONES = os.environ.get('FALLBACK_ZONES', ','.join([
 ])).split(',')
 MACHINE_TYPE_NAME = 'e2-standard-4'
 SERVICE_ACCOUNT = f'pentest-scanner@{PROJECT}.iam.gserviceaccount.com'
-IMAGE_FAMILY = 'ubuntu-2204-lts'
-IMAGE_PROJECT = 'ubuntu-os-cloud'
+SCANNER_IMAGE_FAMILY = 'scanner-base'
 MAX_AGE_MINUTES = int(os.environ.get('MAX_AGE_MINUTES', '10'))
 HEARTBEAT_STALE_MINUTES = int(os.environ.get('HEARTBEAT_STALE_MINUTES', '5'))
 GCS_BUCKET = os.environ.get('GCS_BUCKET', f'{PROJECT}-pentest-reports')
+
+
+def _get_scanner_image_name():
+    """Resolve the current Packer-baked scanner-base image name from GCE image family."""
+    images_client = compute_v1.ImagesClient()
+    image = images_client.get_from_family(project=PROJECT, family=SCANNER_IMAGE_FAMILY)
+    return image.name
 
 
 def _slack_notify(message):
@@ -68,12 +74,13 @@ def _write_vm_created(scan_uuid, instance_name):
 
 
 def _check_vm_status(instance_name, zone_name):
-    """SSH into VM to check scan container status.
+    """SSH into VM to check if a native scan process is running.
+
+    With the Packer-native model (no Docker), liveness is determined by
+    whether `bundle exec bin/scan` is running on the VM. (#903)
 
     Returns a dict with:
-      - alive: True if a scan container is running
-      - containers: list of running container names
-      - docker_ps: full docker ps output for logging
+      - alive: True if a scan process is running (bundle exec bin/scan)
       - ssh_failed: True if SSH connection failed
     """
     import subprocess
@@ -84,31 +91,21 @@ def _check_vm_status(instance_name, zone_name):
                 f'--zone={zone_name}',
                 f'--project={PROJECT}',
                 '--strict-host-key-checking=no',
-                '--command=docker ps --format "{{.Names}} | {{.Status}} | {{.RunningFor}}"',
+                '--command=pgrep -fa "bundle exec" | grep -q "bin/scan" && echo RUNNING || echo IDLE',
             ],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
-            return {'alive': False, 'containers': [], 'docker_ps': '',
-                    'ssh_failed': True}
+            return {'alive': False, 'ssh_failed': True}
 
-        output = result.stdout.strip()
-        containers = [
-            line for line in output.splitlines()
-            if line.startswith('pentest-scan')
-        ]
         return {
-            'alive': len(containers) > 0,
-            'containers': containers,
-            'docker_ps': output,
+            'alive': 'RUNNING' in result.stdout,
             'ssh_failed': False,
         }
     except subprocess.TimeoutExpired:
-        return {'alive': False, 'containers': [], 'docker_ps': '',
-                'ssh_failed': True}
+        return {'alive': False, 'ssh_failed': True}
     except Exception:
-        return {'alive': False, 'containers': [], 'docker_ps': '',
-                'ssh_failed': True}
+        return {'alive': False, 'ssh_failed': True}
 
 
 def _check_heartbeat(scan_uuid):
@@ -309,15 +306,10 @@ def _scavenge_vms_inner():
                 f'`{instance.name}` ({int(age_minutes)}m, {zone_name})\n'
                 f'  Reason: {reason}'
             )
-            if status['containers']:
-                detail += (
-                    f'\n  Killed containers:\n    '
-                    + '\n    '.join(status['containers'])
-                )
-            elif status['docker_ps']:
-                detail += f'\n  Docker state: {status["docker_ps"]}'
-            elif status['ssh_failed']:
+            if status['ssh_failed']:
                 detail += '\n  Could not SSH — VM unresponsive'
+            elif status['alive']:
+                detail += '\n  Scan process killed (bundle exec bin/scan was running)'
 
             try:
                 operation = client.delete(
@@ -363,34 +355,35 @@ def _scavenge_vms_inner():
 
 
 def trigger_development(request):
-    """Launch a scan VM in development mode (clone at boot)."""
+    """Launch a scan VM in development mode (clones development branch at boot)."""
     return _trigger_scan(request, default_mode='development',
-                         default_tag='development')
+                         default_branch='development')
 
 
 def trigger_staging(request):
-    """Launch a scan VM in staging mode (baked image)."""
+    """Launch a scan VM in staging mode (clones staging branch at boot)."""
     return _trigger_scan(request, default_mode='staging',
-                         default_tag='staging')
+                         default_branch='staging')
 
 
 def trigger_production(request):
-    """Launch a scan VM in production mode (baked image, spot pricing)."""
+    """Launch a scan VM in production mode (clones main branch at boot, SPOT)."""
     return _trigger_scan(request, default_mode='production',
-                         default_tag='production')
+                         default_branch='main')
 
 
-def _trigger_scan(request, default_mode, default_tag):
-    """Internal: launch a scan VM.
+def _trigger_scan(request, default_mode, default_branch):
+    """Internal: launch a scan VM using the Packer-baked scanner-base image.
 
     Accepts JSON body from orchestrator/reporter dispatch:
       - callback_url (REQUIRED) — all heartbeats and completion callbacks go here
       - scan_uuid, profile, target_url, target_name, target_urls
       - job_id, reporter_base_url
-      - scan_mode, image_tag (override defaults from the environment function)
+      - scan_mode, scan_branch (override defaults from the environment function)
 
     The per-environment function sets sensible defaults; the caller can
-    override scan_mode/image_tag if needed (e.g., to control scan depth).
+    override scan_mode/scan_branch if needed (e.g., to control scan depth).
+    The VM clones the specified git branch at boot — no Docker required. (#903)
     """
     print(f'[trigger-scan-{default_mode}] method={request.method} path={request.path}')
 
@@ -405,7 +398,7 @@ def _trigger_scan(request, default_mode, default_tag):
     scan_uuid = data.get('scan_uuid', f'scan-{int(time.time())}')
     profile = data.get('profile', 'standard')
     scan_mode = data.get('scan_mode', default_mode)
-    image_tag = data.get('image_tag', default_tag)
+    scan_branch = data.get('scan_branch', default_branch)
     target_url = data.get('target_url',
                           'https://auxscan.app.data-estate.cloud')
     target_name = data.get('target_name', 'AuxScan Production')
@@ -438,6 +431,9 @@ def _trigger_scan(request, default_mode, default_tag):
     with open(startup_script_path, 'r') as f:
         startup_script = f.read()
 
+    # Resolve Packer-baked image — all scan VMs use the same toolchain image
+    scanner_image_name = _get_scanner_image_name()
+
     client = compute_v1.InstancesClient()
 
     scheduling = compute_v1.Scheduling()
@@ -453,7 +449,7 @@ def _trigger_scan(request, default_mode, default_tag):
                 auto_delete=True,
                 boot=True,
                 initialize_params=compute_v1.AttachedDiskInitializeParams(
-                    source_image=f'projects/{IMAGE_PROJECT}/global/images/family/{IMAGE_FAMILY}',
+                    source_image=f'projects/{PROJECT}/global/images/{scanner_image_name}',
                     disk_size_gb=30,
                     disk_type=f'zones/{zone}/diskTypes/pd-standard',
                 ),
@@ -471,6 +467,7 @@ def _trigger_scan(request, default_mode, default_tag):
             )],
             metadata=compute_v1.Metadata(items=[
                 compute_v1.Items(key='SCAN_MODE', value=scan_mode),
+                compute_v1.Items(key='SCAN_BRANCH', value=scan_branch),
                 compute_v1.Items(key='SCAN_PROFILE', value=profile),
                 compute_v1.Items(key='TARGET_NAME', value=target_name),
                 compute_v1.Items(key='TARGET_URLS', value=target_urls),
@@ -484,11 +481,6 @@ def _trigger_scan(request, default_mode, default_tag):
                     key='GCS_BUCKET',
                     value=f'{PROJECT}-pentest-reports',
                 ),
-                compute_v1.Items(
-                    key='REGISTRY',
-                    value=f'us-central1-docker.pkg.dev/{PROJECT}/pentest',
-                ),
-                compute_v1.Items(key='IMAGE_TAG', value=image_tag),
                 compute_v1.Items(key='startup-script', value=startup_script),
             ]),
             scheduling=scheduling,

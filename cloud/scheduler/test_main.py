@@ -49,25 +49,20 @@ class TestSlackNotify(unittest.TestCase):
 
 class TestCheckVmStatus(unittest.TestCase):
     @patch('subprocess.run')
-    def test_active_scan_container(self, mock_run):
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout='pentest-scan-20260320 | Up 2 hours | 2 hours ago\n'
-        )
+    def test_active_scan_process(self, mock_run):
+        """SSH finds bundle exec bin/scan running → alive."""
+        mock_run.return_value = MagicMock(returncode=0, stdout='RUNNING\n')
         status = main._check_vm_status('vm-1', 'us-central1-a')
         self.assertTrue(status['alive'])
-        self.assertEqual(len(status['containers']), 1)
         self.assertFalse(status['ssh_failed'])
 
     @patch('subprocess.run')
-    def test_no_scan_container(self, mock_run):
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout='buildkit | Up 5 hours | 5 hours ago\n'
-        )
+    def test_no_scan_process(self, mock_run):
+        """SSH succeeds but scan process not found → not alive."""
+        mock_run.return_value = MagicMock(returncode=0, stdout='IDLE\n')
         status = main._check_vm_status('vm-1', 'us-central1-a')
         self.assertFalse(status['alive'])
-        self.assertEqual(len(status['containers']), 0)
+        self.assertFalse(status['ssh_failed'])
 
     @patch('subprocess.run')
     def test_ssh_failure(self, mock_run):
@@ -160,8 +155,10 @@ class TestHealthEndpoints(unittest.TestCase):
         self.assertEqual(json.loads(body)['status'], 'ok')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
+    @patch.object(main, '_get_scanner_image_name', return_value='scanner-base-test')
+    @patch.object(main, '_write_vm_created')
     @patch('main.compute_v1.InstancesClient')
-    def test_trigger_post_root_creates_vm(self, mock_cls):
+    def test_trigger_post_root_creates_vm(self, mock_cls, mock_write, mock_img):
         """POST / triggers scan — verify method guard doesn't block."""
         client = MagicMock()
         mock_cls.return_value = client
@@ -273,10 +270,7 @@ class TestScavengeVms(unittest.TestCase):
         mock_client_cls.return_value = client
         active_vm = self._make_instance('pentest-scan-active', 60)
         client.list.side_effect = self._single_zone_list(active_vm)
-        mock_check.return_value = {
-            'alive': True, 'containers': ['pentest-scan-1'],
-            'docker_ps': '', 'ssh_failed': False
-        }
+        mock_check.return_value = {'alive': True, 'ssh_failed': False}
 
         body, code = main.scavenge_vms(
             _build_request('POST', '/'))
@@ -292,10 +286,7 @@ class TestScavengeVms(unittest.TestCase):
         mock_client_cls.return_value = client
         idle_vm = self._make_instance('pentest-scan-idle', 45)
         client.list.side_effect = self._single_zone_list(idle_vm)
-        mock_check.return_value = {
-            'alive': False, 'containers': [], 'docker_ps': '',
-            'ssh_failed': False
-        }
+        mock_check.return_value = {'alive': False, 'ssh_failed': False}
         op = MagicMock()
         client.delete.return_value = op
 
@@ -313,10 +304,7 @@ class TestScavengeVms(unittest.TestCase):
         mock_client_cls.return_value = client
         old_vm = self._make_instance('pentest-scan-old', 300)
         client.list.side_effect = self._single_zone_list(old_vm)
-        mock_check.return_value = {
-            'alive': True, 'containers': ['pentest-scan-1'],
-            'docker_ps': '', 'ssh_failed': False
-        }
+        mock_check.return_value = {'alive': True, 'ssh_failed': False}
         op = MagicMock()
         client.delete.return_value = op
 
@@ -334,10 +322,7 @@ class TestScavengeVms(unittest.TestCase):
         mock_client_cls.return_value = client
         hung_vm = self._make_instance('pentest-scan-hung', 45)
         client.list.side_effect = self._single_zone_list(hung_vm)
-        mock_check.return_value = {
-            'alive': False, 'containers': [], 'docker_ps': '',
-            'ssh_failed': True
-        }
+        mock_check.return_value = {'alive': False, 'ssh_failed': True}
         op = MagicMock()
         client.delete.return_value = op
 
@@ -350,25 +335,19 @@ class TestScavengeVms(unittest.TestCase):
     @patch.object(main, '_slack_notify')
     @patch.object(main, '_check_vm_status')
     @patch('main.compute_v1.InstancesClient')
-    def test_slack_includes_container_info_on_hard_kill(
+    def test_slack_includes_process_info_on_hard_kill(
             self, mock_client_cls, mock_check, mock_slack):
         client = MagicMock()
         mock_client_cls.return_value = client
         vm = self._make_instance('pentest-scan-busy', 300)
         client.list.side_effect = self._single_zone_list(vm)
-        mock_check.return_value = {
-            'alive': True,
-            'containers': ['pentest-scan-20260320 | Up 5 hours | 5h ago'],
-            'docker_ps': 'pentest-scan-20260320 | Up 5 hours | 5h ago',
-            'ssh_failed': False
-        }
+        mock_check.return_value = {'alive': True, 'ssh_failed': False}
         op = MagicMock()
         client.delete.return_value = op
 
         main.scavenge_vms(_build_request('POST', '/'))
         slack_msg = mock_slack.call_args[0][0]
-        self.assertIn('Killed containers', slack_msg)
-        self.assertIn('pentest-scan-20260320', slack_msg)
+        self.assertIn('Scan process killed', slack_msg)
 
     @patch.object(main, '_slack_notify')
     @patch.object(main, '_check_status')
@@ -384,10 +363,7 @@ class TestScavengeVms(unittest.TestCase):
         vm.metadata = MagicMock()
         vm.metadata.items = [MagicMock(key='SCAN_UUID', value='uuid-up')]
         client.list.side_effect = self._single_zone_list(vm)
-        mock_check.return_value = {
-            'alive': False, 'containers': [], 'docker_ps': '',
-            'ssh_failed': False
-        }
+        mock_check.return_value = {'alive': False, 'ssh_failed': False}
         mock_hb.return_value = {
             'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None
         }
@@ -414,10 +390,7 @@ class TestScavengeVms(unittest.TestCase):
         vm.metadata = MagicMock()
         vm.metadata.items = [MagicMock(key='SCAN_UUID', value='uuid-stuck')]
         client.list.side_effect = self._single_zone_list(vm)
-        mock_check.return_value = {
-            'alive': False, 'containers': [], 'docker_ps': '',
-            'ssh_failed': False
-        }
+        mock_check.return_value = {'alive': False, 'ssh_failed': False}
         mock_hb.return_value = {
             'has_heartbeat': False, 'stale_minutes': None, 'current_tool': None
         }
@@ -451,6 +424,10 @@ class TestTriggerProduction(unittest.TestCase):
         patcher = patch.object(main, '_write_vm_created')
         self._mock_write = patcher.start()
         self.addCleanup(patcher.stop)
+        img_patcher = patch.object(main, '_get_scanner_image_name',
+                                   return_value='scanner-base-test-20260623')
+        img_patcher.start()
+        self.addCleanup(img_patcher.stop)
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash\necho hi'))
     def test_rejects_missing_callback_url(self):
@@ -502,7 +479,7 @@ class TestTriggerProduction(unittest.TestCase):
         self.assertEqual(metadata_dict['SCAN_PROFILE'], 'standard')
         self.assertEqual(metadata_dict['TARGET_NAME'], 'AuxScan Production')
         self.assertEqual(metadata_dict['SCAN_MODE'], 'production')
-        self.assertEqual(metadata_dict['IMAGE_TAG'], 'production')
+        self.assertEqual(metadata_dict['SCAN_BRANCH'], 'main')
         self.assertIn('auxscan.app.data-estate.cloud',
                        metadata_dict['TARGET_URLS'])
         self.assertEqual(metadata_dict['CALLBACK_URL'],
@@ -748,6 +725,10 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         patcher = patch.object(main, '_write_vm_created')
         self._mock_write = patcher.start()
         self.addCleanup(patcher.stop)
+        img_patcher = patch.object(main, '_get_scanner_image_name',
+                                   return_value='scanner-base-test-20260623')
+        img_patcher.start()
+        self.addCleanup(img_patcher.stop)
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
@@ -765,7 +746,7 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'development')
-        self.assertEqual(md['IMAGE_TAG'], 'development')
+        self.assertEqual(md['SCAN_BRANCH'], 'development')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
@@ -783,7 +764,7 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'staging')
-        self.assertEqual(md['IMAGE_TAG'], 'staging')
+        self.assertEqual(md['SCAN_BRANCH'], 'staging')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')
@@ -800,7 +781,7 @@ class TestPerEnvironmentFunctions(unittest.TestCase):
         instance = client.insert.call_args.kwargs['request']['instance_resource']
         md = {i.key: i.value for i in instance.metadata.items}
         self.assertEqual(md['SCAN_MODE'], 'production')
-        self.assertEqual(md['IMAGE_TAG'], 'production')
+        self.assertEqual(md['SCAN_BRANCH'], 'main')
 
     @patch('builtins.open', unittest.mock.mock_open(read_data='#!/bin/bash'))
     @patch('main.compute_v1.InstancesClient')

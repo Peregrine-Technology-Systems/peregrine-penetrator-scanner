@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Unified VM startup script for all environments
+# Unified VM startup script for all environments (Packer-native model).
 # Behavior determined by SCAN_MODE instance metadata: dev | development | staging | production
 #
-# dev:         Mount data disk, start Docker, install idle-shutdown, wait for SSH
-# development: Pull image, run scan, upload results to GCS, self-terminate (smoke test)
-# staging:     Pull image, run scan, upload results to GCS, self-terminate
-# production:  Same as staging but with spot pricing
+# dev:         Wait for SSH (interactive dev VM — no scan run)
+# development: Clone development branch, run scan natively, upload results, self-terminate
+# staging:     Clone staging branch, run scan natively, upload results, self-terminate
+# production:  Clone main branch, run scan natively, upload results, self-terminate (SPOT)
+#
+# All scan environments: toolchain is pre-installed in the Packer image;
+# no Docker required. (#903)
 
 METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
 METADATA_HEADER="Metadata-Flavor: Google"
@@ -72,29 +75,10 @@ fi
 
 echo "=== Pentest VM Startup (mode: ${SCAN_MODE}) ==="
 
-# --- Common: Install Docker if missing ---
-if ! command -v docker &>/dev/null; then
-  echo "Installing Docker..."
-  apt-get update -qq
-  apt-get install -y -qq ca-certificates curl gnupg
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-    | tee /etc/apt/sources.list.d/docker.list > /dev/null
-  apt-get update -qq
-  apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
-fi
-
-# --- Common: Configure Artifact Registry auth ---
-gcloud auth configure-docker us-central1-docker.pkg.dev --quiet 2>/dev/null || true
-
 # --- Mode-specific behavior ---
 case "$SCAN_MODE" in
   dev)
     echo "=== Dev Mode ==="
-    # Mount persistent data disk, configure Docker data-root, install idle-shutdown
-    # This is handled by setup-vm.sh (called from vm-create.sh)
     echo "Dev mode startup complete — waiting for SSH"
     ;;
 
@@ -102,8 +86,7 @@ case "$SCAN_MODE" in
     echo "=== Scan Mode: ${SCAN_MODE} ==="
 
     # Read scan configuration from metadata
-    REGISTRY=$(get_metadata "REGISTRY" "us-central1-docker.pkg.dev/${PROJECT_ID}/pentest")
-    IMAGE_TAG=$(get_metadata "IMAGE_TAG" "latest")
+    SCAN_BRANCH=$(get_metadata "SCAN_BRANCH" "development")
     SCAN_PROFILE=$(get_metadata "SCAN_PROFILE" "standard")
     TARGET_URLS=$(get_metadata "TARGET_URLS" "")
     TARGET_NAME=$(get_metadata "TARGET_NAME" "")
@@ -122,8 +105,20 @@ case "$SCAN_MODE" in
     MACHINE_TYPE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/machine-type" 2>/dev/null | rev | cut -d'/' -f1 | rev || echo "unknown")
     SPOT_INSTANCE=$(curl -sf -H "$METADATA_HEADER" "${METADATA_URL}/instance/scheduling/preemptible" 2>/dev/null || echo "false")
 
+    echo "Branch: ${SCAN_BRANCH}"
     echo "Profile: ${SCAN_PROFILE}"
     echo "Target: ${TARGET_URLS}"
+
+    # Write tool versions to GCS at startup for smoke-test verification (#903)
+    # This proves the Packer-baked toolchain is present and correct.
+    NUCLEI_VER=$(nuclei -version 2>&1 | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "unknown")
+    RUBY_VER=$(ruby -e 'puts RUBY_VERSION' 2>/dev/null || echo "unknown")
+    NODE_VER=$(node --version 2>/dev/null | tr -d 'v' || echo "unknown")
+    VERSIONS_JSON="{\"nuclei\":\"${NUCLEI_VER}\",\"ruby\":\"${RUBY_VER}\",\"node\":\"${NODE_VER}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+    echo "Tool versions: nuclei=${NUCLEI_VER} ruby=${RUBY_VER} node=${NODE_VER}"
+    if [ -n "${SCAN_UUID}" ]; then
+      echo "${VERSIONS_JSON}" | gsutil cp - "gs://${GCS_BUCKET}/control/${SCAN_UUID}/versions.json" 2>/dev/null || true
+    fi
 
     write_status "scanning"
 
@@ -138,88 +133,56 @@ case "$SCAN_MODE" in
     SMTP_PASSWORD=$(fetch_secret "pentest-smtp-password")
     SCAN_CALLBACK_SECRET=$(fetch_secret "pentest-scan-callback-secret")
 
-    # Common env vars for docker run
-    SCAN_ENV=(
-      -e SCAN_PROFILE="${SCAN_PROFILE}"
-      -e "SCAN_MODE=${SCAN_MODE}"
-      -e APP_ENV=production
-      -e "TARGET_NAME=${TARGET_NAME}"
-      -e "TARGET_URLS=${TARGET_URLS}"
-      -e "NVD_API_KEY=${NVD_API_KEY}"
-      -e "SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}"
-      -e "GCS_BUCKET=${GCS_BUCKET}"
-      -e "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
-      -e "VERSION=${VERSION}"
-      -e "VM_MACHINE_TYPE=${MACHINE_TYPE}"
-      -e "SPOT_INSTANCE=${SPOT_INSTANCE}"
-      -e "SCAN_UUID=${SCAN_UUID}"
-      -e "CALLBACK_URL=${CALLBACK_URL}"
-      -e "SCAN_CALLBACK_SECRET=${SCAN_CALLBACK_SECRET}"
-      -e "JOB_ID=${JOB_ID}"
-      -e "REPORTER_BASE_URL=${REPORTER_BASE_URL}"
-    )
+    REPO_URL="https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner.git"
+    APP_DIR="/opt/scanner"
 
+    SCAN_LOG="/tmp/scan.log"
     RESULTS_DIR="/tmp/scan-results"
     mkdir -p "${RESULTS_DIR}"
 
     # Max scan duration — prevents hung scans from blocking self-termination
     SCAN_TIMEOUT="${SCAN_TIMEOUT:-3600}"  # 1 hour default
 
+    echo "Cloning repo (branch: ${SCAN_BRANCH})..."
+    git clone --depth 1 --branch "${SCAN_BRANCH}" "${REPO_URL}" "${APP_DIR}"
+
+    echo "Installing gems..."
+    cd "${APP_DIR}"
+    bundle install --deployment --without development test --jobs 4 --quiet
+
     SCAN_EXIT=0
 
-    # Dual-mode execution:
-    #   development = clone code + volume mount into base image (fast iteration)
-    #   staging/production = pull baked image (immutable, tested)
-    if [ "${IMAGE_TAG}" = "development" ]; then
-      # --- Clone mode: git clone + bundle install at boot ---
-      BASE_IMAGE="${REGISTRY}/scanner-base:latest"
-      REPO_URL="https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner.git"
-
-      echo "Mode: clone (development)"
-      echo "Base image: ${BASE_IMAGE}"
-
-      docker pull "${BASE_IMAGE}"
-
-      APP_DIR="/tmp/scanner-app"
-      echo "Cloning repo (branch: development)..."
-      git clone --depth 1 --branch development "${REPO_URL}" "${APP_DIR}"
-
-      # Redirect docker output to log file — GCE startup script runner crashes
-      # on long stdout lines (bufio.Scanner buffer overflow), killing the EXIT
-      # trap and orphaning the VM. See scanner#631.
-      SCAN_LOG="/tmp/scan.log"
-
-      echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
-      timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
-        docker run --rm \
-          "${SCAN_ENV[@]}" \
-          -v "${APP_DIR}:/app" \
-          -v "${RESULTS_DIR}:/app/storage/reports" \
-          --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
-          "${BASE_IMAGE}" \
-          bash -c "cd /app && bundle install --deployment --without development test --jobs 4 --quiet && bundle exec bin/scan" \
-          > "${SCAN_LOG}" 2>&1 || SCAN_EXIT=$?
-    else
-      # --- Image mode: pull baked image (staging or production) ---
-      FULL_IMAGE="${REGISTRY}/scanner:${IMAGE_TAG}"
-
-      echo "Mode: baked image (${IMAGE_TAG})"
-      echo "Image: ${FULL_IMAGE}"
-
-      docker pull "${FULL_IMAGE}"
-
-      SCAN_LOG="/tmp/scan.log"
-
-      echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
-      timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
-        docker run --rm \
-          "${SCAN_ENV[@]}" \
-          -v "${RESULTS_DIR}:/app/storage/reports" \
-          --name "pentest-scan-$(date +%Y%m%d-%H%M%S)" \
-          "${FULL_IMAGE}" \
-          bundle exec bin/scan \
-          > "${SCAN_LOG}" 2>&1 || SCAN_EXIT=$?
-    fi
+    echo "Running ${SCAN_PROFILE} scan (timeout: ${SCAN_TIMEOUT}s)..."
+    # Redirect output to log file — GCE startup script runner crashes on long
+    # stdout lines (bufio.Scanner buffer overflow), killing the EXIT trap and
+    # orphaning the VM. See scanner#631.
+    timeout --signal=TERM --kill-after=60 "${SCAN_TIMEOUT}" \
+      env \
+        SCAN_PROFILE="${SCAN_PROFILE}" \
+        SCAN_MODE="${SCAN_MODE}" \
+        APP_ENV=production \
+        TARGET_NAME="${TARGET_NAME}" \
+        TARGET_URLS="${TARGET_URLS}" \
+        NVD_API_KEY="${NVD_API_KEY}" \
+        SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL}" \
+        GCS_BUCKET="${GCS_BUCKET}" \
+        GOOGLE_CLOUD_PROJECT="${PROJECT_ID}" \
+        VERSION="${VERSION}" \
+        VM_MACHINE_TYPE="${MACHINE_TYPE}" \
+        SPOT_INSTANCE="${SPOT_INSTANCE}" \
+        SCAN_UUID="${SCAN_UUID}" \
+        CALLBACK_URL="${CALLBACK_URL}" \
+        SCAN_CALLBACK_SECRET="${SCAN_CALLBACK_SECRET}" \
+        JOB_ID="${JOB_ID}" \
+        REPORTER_BASE_URL="${REPORTER_BASE_URL}" \
+        ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
+        SMTP_HOST="${SMTP_HOST}" \
+        SMTP_PORT="${SMTP_PORT}" \
+        SMTP_USERNAME="${SMTP_USERNAME}" \
+        SMTP_PASSWORD="${SMTP_PASSWORD}" \
+        NOTIFICATION_EMAIL="${NOTIFICATION_EMAIL}" \
+      bundle exec bin/scan \
+      > "${SCAN_LOG}" 2>&1 || SCAN_EXIT=$?
 
     echo "--- Scan Log (last 20 lines) ---"
     tail -20 "${SCAN_LOG}" 2>/dev/null || true
@@ -229,7 +192,7 @@ case "$SCAN_MODE" in
       write_status "completed" ",\"scan_exit_code\":0"
       send_slack ":white_check_mark: Scan completed: ${TARGET_NAME} (${SCAN_PROFILE}) — uploading results"
     elif [ "$SCAN_EXIT" -eq 124 ]; then
-      echo "ERROR: Scan timed out after ${SCAN_TIMEOUT}s — docker run killed"
+      echo "ERROR: Scan timed out after ${SCAN_TIMEOUT}s"
       write_status "failed" ",\"scan_exit_code\":124,\"error\":\"timeout after ${SCAN_TIMEOUT}s\""
       send_slack ":warning: Scan timed out: ${TARGET_NAME} (${SCAN_PROFILE}) after ${SCAN_TIMEOUT}s"
     else
@@ -240,8 +203,7 @@ case "$SCAN_MODE" in
 
     # Always upload the scan log to GCS for post-mortem — the serial console is
     # unreliable for long output (#631) and the VM self-destructs, so a failed
-    # scan otherwise leaves no trace. The host's gsutil uses the VM SA, so this
-    # works even when the container's own GCS writes fail. (#784)
+    # scan otherwise leaves no trace. (#784)
     if [ -f "${SCAN_LOG}" ]; then
       timeout 60 gsutil cp "${SCAN_LOG}" "gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/scan.log" 2>/dev/null \
         && echo "Scan log → gs://${GCS_BUCKET}/vm-results/${INSTANCE_NAME}/scan.log" \

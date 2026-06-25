@@ -48,13 +48,13 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
       expect(script).to include('def _check_vm_status(instance_name, zone_name):')
     end
 
-    it 'SSHs into VM to check docker containers' do
+    it 'SSHs into VM to check native scan process' do
       expect(script).to include('gcloud', 'compute', 'ssh')
-      expect(script).to include('docker ps')
+      expect(script).to include('pgrep')
     end
 
-    it 'identifies pentest-scan containers as alive' do
-      expect(script).to include("line.startswith('pentest-scan')")
+    it 'identifies running scan process as alive' do
+      expect(script).to include('RUNNING')
     end
 
     it 'handles SSH timeout gracefully' do
@@ -65,9 +65,10 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
       expect(script).to include("'ssh_failed': True")
     end
 
-    it 'returns container details for Slack reporting' do
-      expect(script).to include("'containers'")
-      expect(script).to include("'docker_ps'")
+    it 'returns alive flag without docker-specific fields' do
+      expect(script).to include("'alive'")
+      expect(script).not_to include("'containers'")
+      expect(script).not_to include("'docker_ps'")
     end
   end
 
@@ -105,8 +106,8 @@ RSpec.describe 'Cloud Function scavenger (main.py)' do # rubocop:disable RSpec/D
       expect(script).to include(':hourglass:')
     end
 
-    it 'includes killed container info in notification' do
-      expect(script).to include('Killed containers')
+    it 'includes killed scan process info in notification' do
+      expect(script).to include('Scan process killed')
     end
 
     it 'includes deletion reason in notification' do

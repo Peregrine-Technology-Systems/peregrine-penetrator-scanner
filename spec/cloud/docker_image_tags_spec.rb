@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe 'Docker image environment tagging' do # rubocop:disable RSpec/DescribeClass
+RSpec.describe 'Scan VM git branch mapping' do # rubocop:disable RSpec/DescribeClass
   let(:project_root) { File.expand_path('../..', __dir__) }
 
   describe 'scan-vm.sh' do
@@ -15,22 +15,32 @@ RSpec.describe 'Docker image environment tagging' do # rubocop:disable RSpec/Des
   describe 'trigger-scan.sh' do
     let(:script) { File.read(File.join(project_root, 'scripts/woodpecker/trigger-scan.sh')) }
 
-    it 'maps each environment to a specific image tag' do
-      expect(script).to include('IMAGE_TAG="development"')
-      expect(script).to include('IMAGE_TAG="staging"')
-      expect(script).to include('IMAGE_TAG="production"')
+    it 'maps each environment to a specific git branch' do
+      expect(script).to include('SCAN_BRANCH="development"')
+      expect(script).to include('SCAN_BRANCH="staging"')
+      expect(script).to include('SCAN_BRANCH="main"')
     end
 
-    it 'does not default to latest' do
-      expect(script).not_to match(/IMAGE_TAG=.*latest/)
+    it 'does not use IMAGE_TAG or Docker registry' do
+      expect(script).not_to include('IMAGE_TAG=')
+      expect(script).not_to include('REGISTRY=')
+    end
+
+    it 'resolves Packer image from SM pointer' do
+      expect(script).to include('scanner-base--vm-base-image')
     end
   end
 
   describe 'cloud/scheduler/main.py' do
     let(:script) { File.read(File.join(project_root, 'cloud/scheduler/main.py')) }
 
-    it 'defaults image tag to production' do
-      expect(script).to include("default_tag='production'")
+    it 'uses default_branch for production' do
+      expect(script).to include("default_branch='main'")
+    end
+
+    it 'does not use default_tag or IMAGE_TAG' do
+      expect(script).not_to include('default_tag=')
+      expect(script).not_to include("'IMAGE_TAG'")
     end
   end
 end
