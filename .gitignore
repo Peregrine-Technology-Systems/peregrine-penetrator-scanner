@@ -62,3 +62,6 @@ Thumbs.db
 
 # RSpec persistence (only-failures/next-failure) — churns every run
 spec/examples.txt
+
+# Claude Code project instructions — local only, not published (public repo)
+CLAUDE.md
