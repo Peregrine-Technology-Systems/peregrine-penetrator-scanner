@@ -45,7 +45,7 @@ module Scanners
       # Shell timeout ensures the Node.js process tree is killed even if the
       # Ruby-level process group kill doesn't reach all grandchildren.
       "timeout -k 10 #{scan_timeout - 5} " \
-      "retire --path #{js_dir} --outputformat json --outputpath #{output_file} --nocache --quiet"
+        "retire --path #{js_dir} --outputformat json --outputpath #{output_file} --nocache --quiet"
     end
 
     def parse_results(output_file, url)
