@@ -65,3 +65,6 @@ spec/examples.txt
 
 # Claude Code project instructions — local only, not published (public repo)
 CLAUDE.md
+
+# Pre-publish lint: local internal-specifics denylist (never published)
+.sensitive-extra-patterns
