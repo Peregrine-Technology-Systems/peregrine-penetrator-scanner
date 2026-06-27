@@ -66,8 +66,8 @@ end
 # model (a `pentest-scanner` Cloud Run Job + a `pentest-scanner-schedule` Cloud
 # Scheduler job) was removed here — it was never the live mechanism (no Cloud Run
 # Job was ever deployed), and the broken out-of-band `weekly-production-scan`
-# scheduler that 404'd for weeks has been deleted (scanner #829, infra ruling
-# peregrine-infrastructure#3939). Scans are launched via the `trigger-scan-*`
+# scheduler that 404'd for weeks has been deleted (scanner #829, per an internal
+# infra ruling). Scans are launched via the `trigger-scan-*`
 # Cloud Functions (deployed by scripts/deploy-cloud-functions.sh); the
 # orchestrator will drive the cron + dispatch.
 
