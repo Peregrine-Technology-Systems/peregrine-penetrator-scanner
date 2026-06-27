@@ -1,7 +1,7 @@
 # Peregrine Penetrator Scanner
 
 <!-- Badges -->
-[![Woodpecker CI](https://d3ci42.peregrinetechsys.net/api/badges/5/status.svg)](https://d3ci42.peregrinetechsys.net/repos/5)
+[![Woodpecker CI](https://d3ci42.peregrinetechsys.net/api/badges/5/status.svg)](https://d3ci42.peregrinetechsys.net/repos/5) <!-- allow-sensitive: public Woodpecker CI server (serves the status badge) -->
 ![Ruby](https://img.shields.io/badge/ruby-3.2.2-CC342D?logo=ruby&logoColor=white)
 ![Sequel](https://img.shields.io/badge/ORM-Sequel-blue)
 ![Coverage](https://img.shields.io/badge/coverage-93%25+-brightgreen)
@@ -246,7 +246,7 @@ Hybrid model — development is fast (no build), staging/production use immutabl
 
 ## CI/CD
 
-CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted).
+CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). <!-- allow-sensitive: public Woodpecker CI server -->
 
 | Pipeline | Trigger | Purpose |
 |----------|---------|---------|

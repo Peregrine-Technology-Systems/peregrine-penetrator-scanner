@@ -50,7 +50,7 @@ echo "=== Smoke Test: ${BRANCH} ==="
 if ! gsutil ls "gs://${GCS_BUCKET}/" >/dev/null 2>&1; then
   echo "ERROR: smoke observer cannot list gs://${GCS_BUCKET}/ as $(gcloud config get-value account 2>/dev/null || echo '<unknown SA>')."
   echo "       Cannot verify scan results — failing loudly rather than reporting a false 'no results found'."
-  echo "       Likely cause: ci-agent@ci-runners-de lacks roles/storage.objectViewer on the bucket (infra#3502)."
+  echo "       Likely cause: the CI agent lacks roles/storage.objectViewer on the bucket (grant tracked internally)."
   exit 1
 fi
 
