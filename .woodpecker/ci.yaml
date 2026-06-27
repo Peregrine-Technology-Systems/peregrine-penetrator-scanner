@@ -15,6 +15,26 @@ steps:
     commands:
       - scripts/woodpecker/check-release-notes.sh
 
+  - name: check-sensitive
+    image: bash
+    commands:
+      # Pre-publish lint: block infra hostnames / SA emails / private IPs /
+      # internal buckets / cross-repo issue refs from entering this PUBLIC repo.
+      # Scans ADDED lines only (pre-existing exposure is a separate cleanup).
+      - |
+        BASE=""
+        if [ -n "${CI_PREV_COMMIT_SHA:-}" ] && git cat-file -e "${CI_PREV_COMMIT_SHA}^{commit}" 2>/dev/null; then
+          BASE="${CI_PREV_COMMIT_SHA}"
+        elif git cat-file -e "HEAD~1^{commit}" 2>/dev/null; then
+          BASE="HEAD~1"
+        fi
+        if [ -n "$BASE" ]; then
+          scripts/woodpecker/check-sensitive-content.sh --range "${BASE}..HEAD"
+        else
+          echo "check-sensitive: no parent commit available (shallow/first commit); skipping diff scan"
+        fi
+    depends_on: []
+
   - name: test
     image: bash
     commands:
@@ -39,4 +59,4 @@ steps:
       - scripts/woodpecker/notify-status.sh
     when:
       - status: [success, failure]
-    depends_on: [check-release-notes, test, lint, test-cloud-functions]
+    depends_on: [check-release-notes, check-sensitive, test, lint, test-cloud-functions]
