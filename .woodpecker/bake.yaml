@@ -1,8 +1,7 @@
 # Bake the gem-complete txn-scanner-app GCE image via infra's keyless TP baker.
 # Fires on release tags (after the release is cut). Scanner stays on Woodpecker
-# and holds no org identity — this only POSTs a workflow_dispatch to the infra
-# baker, which federates (GitHub OIDC -> tp-baker@peregrine-production) and bakes
-# txn-scanner-app FROM txn-scanner-base inside GCP. (scanner#927 / infra#4094)
+# and holds no org identity — this only POSTs a repository_dispatch to the infra
+# baker, which federates (GitHub OIDC -> tp-baker@peregrine-production) and bakes txn-scanner-app FROM txn-scanner-base inside GCP via repository_dispatch (event_type=bake-tp). (scanner#927 / infra#4094)
 when:
   - event: tag
     ref: refs/tags/v*
