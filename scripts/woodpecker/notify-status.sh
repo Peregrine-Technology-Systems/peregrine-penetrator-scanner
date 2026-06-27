@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Post pipeline status to the ci-events Pub/Sub topic (bus-only-emit pattern,
-# peregrine-infrastructure#1366). Slack is deprecated — CI agents no longer call a
+# per an internal infra decision). Slack is deprecated — CI agents no longer call a
 # webhook directly. The monitoring droplet's forwarder subscribes to ci-events
 # and routes pipeline.status events downstream. Mirrors
 # peregrine-infrastructure/scripts/woodpecker/notify-status.sh (#780).
@@ -19,7 +19,7 @@ FULL_SHA="${CI_COMMIT_SHA:-}"
 AUTHOR="${CI_COMMIT_AUTHOR:-unknown}"
 MESSAGE="${CI_COMMIT_MESSAGE:-no message}"
 STATUS="${CI_PIPELINE_STATUS:-unknown}"
-PIPELINE_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"
+PIPELINE_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"  # allow-sensitive: public Woodpecker CI server
 COMMIT_URL="https://github.com/${REPO_FULL}/commit/${FULL_SHA}"
 
 # Truncate commit message to the first line
