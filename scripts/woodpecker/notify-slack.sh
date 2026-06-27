@@ -14,7 +14,7 @@ BRANCH="${CI_COMMIT_BRANCH:-${CI_COMMIT_TAG:-unknown}}"
 COMMIT="${CI_COMMIT_SHA:0:7}"
 AUTHOR="${CI_COMMIT_AUTHOR:-unknown}"
 MESSAGE="${CI_COMMIT_MESSAGE:-no message}"
-WOODPECKER_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"
+WOODPECKER_URL="https://d3ci42.peregrinetechsys.net/repos/${CI_REPO_ID:-0}/pipeline/${CI_PIPELINE_NUMBER:-0}"  # allow-sensitive: public Woodpecker CI server
 
 MESSAGE=$(echo "$MESSAGE" | head -1 | cut -c1-80)
 
