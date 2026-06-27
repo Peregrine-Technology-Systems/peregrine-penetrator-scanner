@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- feat: scanner self-bake contract + Woodpecker dispatch to the infra keyless TP baker (#927). Adds `.bake/install.sh` (bake-time `bundle install --deployment` — vendors gems into the image; runs before the baker's scrub) + `.bake/verify.sh` (post-scrub: ruby + `bin/scan` + `bundle check`, never installs) + `scripts/woodpecker/bake-dispatch.sh` + `.woodpecker/bake.yaml` (on release tag, mints the peregrine-ci-app token and POSTs `workflow_dispatch` to infra's `bake-tp.yml`). Produces the gem-complete `txn-scanner-app` GCE image `FROM txn-scanner-base` via GitHub OIDC→`tp-baker` federation — scanner stays on Woodpecker with zero org access, no Docker. Unblocks org-native pilot scans (#916). (#927)
 - chore: bump Ruby 3.2.2→4.0.5, Nuclei 3.7.1→3.9.0, Node 20→22 LTS, sqlite3 ~>1.4→~>2.0, activesupport ~>7.1→~>8.1, rubocop ~>1.62→~>1.75; update Gemfile and base-versions.txt (#901).
 
 - chore: untrack `CLAUDE.md` and add it to `.gitignore` (#908). The project Claude Code instructions carry internal operating context (architecture, infra references, conventions) and should not be published in this public repo. Removed from git tracking via `git rm --cached` (working-tree file retained so local sessions still read it); `.gitignore` now keeps it untracked.

@@ -1,0 +1,22 @@
+# Bake the gem-complete txn-scanner-app GCE image via infra's keyless TP baker.
+# Fires on release tags (after the release is cut). Scanner stays on Woodpecker
+# and holds no org identity — this only POSTs a workflow_dispatch to the infra
+# baker, which federates (GitHub OIDC -> tp-baker@peregrine-production) and bakes
+# txn-scanner-app FROM txn-scanner-base inside GCP. (scanner#927 / infra#4094)
+when:
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  platform: linux
+
+steps:
+  - name: dispatch-bake
+    image: bash
+    commands:
+      # peregrine-ci-app installation token (same pattern as release.yaml) —
+      # needs actions:write on peregrine-infrastructure (granted app-side).
+      - gsutil cp gs://ci-runners-de-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
+      - chmod +x /tmp/get-gh-token.sh
+      - eval "$(/tmp/get-gh-token.sh)"
+      - scripts/woodpecker/bake-dispatch.sh
