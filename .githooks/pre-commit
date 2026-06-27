@@ -32,6 +32,19 @@ if [ -n "$CODE_CHANGED" ] && [ -z "$NOTES_CHANGED" ]; then
 fi
 
 # ============================================================
+# 1b. Pre-publish sensitive-content lint (PUBLIC repo)
+#     Block infra hostnames / SA emails / private IPs / internal buckets /
+#     internal cross-repo issue refs in ADDED lines. Runs for docs too —
+#     docs are the main exposure risk. Pre-existing exposure is not re-flagged
+#     (diff-scoped); the historical cleanup is a separate pass.
+# ============================================================
+if [ -x scripts/woodpecker/check-sensitive-content.sh ]; then
+  if ! scripts/woodpecker/check-sensitive-content.sh; then
+    FAILED=1
+  fi
+fi
+
+# ============================================================
 # 2. All tests must pass (skip for docs-only)
 # ============================================================
 if [ "$DOCS_ONLY" = false ]; then
