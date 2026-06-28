@@ -385,7 +385,9 @@ Four Cloud Functions in `cloud/scheduler/main.py` manage VM lifecycle.
 | `vm-scavenger` | `scavenge_vms` | Cloud Scheduler (every 5 min) | Delete orphaned scan VMs |
 | `trigger-scan-development` | `trigger_development` | Reporter / Cloud Scheduler | Launch dev VM (clone at boot) |
 | `trigger-scan-staging` | `trigger_staging` | Reporter / Cloud Scheduler | Launch staging VM (baked image) |
-| `trigger-scan-production` | `trigger_production` | Reporter / Cloud Scheduler | Launch production VM (baked image, SPOT pricing) |
+| `trigger-scan-production` | `trigger_production` | Reporter / Cloud Scheduler | Launch production VM (baked image, on-demand) |
+
+> **On-demand, not SPOT** — a scan is non-recoverable work, so production scan VMs use standard (on-demand) provisioning; a mid-run preemption is not acceptable. (This is the current Cloud Function launch path; see "Execution model" below — the launch is migrating to a dispatched, org-native model.)
 
 ### Health Guard Pattern
 
@@ -417,7 +419,7 @@ sequenceDiagram
     CF->>CF: Configure VM: metadata, disk, network, SA
 
     alt Production mode
-        CF->>CF: Set SPOT pricing (60% savings)
+        CF->>CF: Standard (on-demand) provisioning
     end
 
     CF->>GCE: Insert instance with startup-script in metadata
@@ -443,7 +445,7 @@ The trigger function creates a VM with these specifications:
 | Network | Default VPC with external NAT |
 | Labels | `env`, `project=pentest`, `scan=true`, `profile` |
 | Tags | `pentest-scan` |
-| Scheduling (prod) | SPOT with instance_termination_action=DELETE |
+| Scheduling (prod) | On-demand (standard) with instance_termination_action=DELETE |
 | Metadata | SCAN_MODE, SCAN_PROFILE, TARGET_URLS, SCAN_UUID, CALLBACK_URL, JOB_ID, REGISTRY, IMAGE_TAG, GCS_BUCKET, startup-script |
 
 ### Scavenger Operation
@@ -692,6 +694,19 @@ flowchart TD
 | **scanner** (app) | Base + bundled gems + application code | Every staging build |
 
 **Key design decision**: `VERSION` is a runtime environment variable, not baked into the Docker image. This allows the same image bytes to serve multiple tagged releases. Read via `Penetrator::VERSION`.
+
+### Execution Model (migrating to native VMs)
+
+> The Docker model above is the **current** mechanism; it is being **retired** in favour of native VM execution. The `docker/` assets and `Dockerfile*` are legacy. This section describes the target model at a posture level; operational specifics (identities, project layout, image names) are intentionally omitted from this public repo.
+
+The scan runtime is moving from "boot a generic VM → `docker pull` → `docker run`" to **native execution on a single-use VM booted from a pre-baked, gem-complete image**:
+
+- **Baked, vetted image.** A build pipeline produces an image with the runtime, the security tools, **and the application's gems already placed** — every tool/dependency pinned and content-verified, build tooling (compilers, package managers) stripped from the result. **Nothing is installed or compiled at scan time** — the VM boots ready to run.
+- **Native, non-container, non-root.** The scanner runs as a process under a dedicated, least-privilege (non-root) service identity — no container layer.
+- **Single-use & self-deleting.** Each scan gets a fresh VM that holds no standing state and deletes itself on success *and* failure (exit-trap teardown), with an independent backstop for orphans.
+- **Dispatched, not self-served.** The VM is launched on behalf of the engine by the **orchestration layer**, which has already authorized the target/scope before dispatch (the engine is a worker; see `SECURITY_ARCHITECTURE.md` → Scope & Authorization). The launch and image-build paths use **short-lived, federated credentials** — no static service-account keys are issued or held for them.
+
+Net effect on this repo: the scan-runner image is **consumed**, not built here as a container; `bin/scan` runs against tools and gems that are already present; the runtime never reaches out to install dependencies.
 
 ### Deploy Verification (Smoke Test)
 
