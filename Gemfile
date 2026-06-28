@@ -23,8 +23,16 @@ gem "faraday", "~> 2.7"
 # UUID support
 gem "uuidtools", "~> 2.2"
 
-group :development, :test do
+# Local-dev-only tools. CI excludes the development group (BUNDLE_WITHOUT) so it
+# does NOT pull `debug` — which transitively drags in irb -> rdoc -> psych, and
+# psych has no precompiled linux gem so it builds from source (needs libyaml,
+# absent on the CI agent). The production bake already excludes dev/test for the
+# same reason; runtime YAML uses ruby's built-in psych. (#945)
+group :development do
   gem "debug", platforms: %i[mri windows]
+end
+
+group :development, :test do
   gem "rspec", "~> 3.13"
   gem "factory_bot", "~> 6.4"
   gem "faker", "~> 3.2"

@@ -21,17 +21,13 @@ for TARGET in development staging main; do
   fi
 done
 
-# Activate ruby 4.0.5 (see test.sh — the step shell doesn't auto-switch chruby).
-for cs in /opt/chruby/share/chruby/chruby.sh /usr/local/share/chruby/chruby.sh /etc/profile.d/chruby.sh; do
-  if [ -f "$cs" ]; then
-    # shellcheck disable=SC1090
-    . "$cs"; chruby ruby-4.0.5 2>/dev/null || chruby 4.0.5 2>/dev/null || true
-    break
-  fi
-done
-for rd in /opt/rubies/4.0.5/bin /opt/rubies/ruby-4.0.5/bin; do
-  if [ -x "$rd/ruby" ]; then export PATH="$rd:$PATH"; break; fi
-done
+# Ruby is auto-selected by the agent via BASH_ENV (/etc/chruby-ci.sh runs
+# `chruby "$(cat .ruby-version)"`); .ruby-version=4.0.5 → no explicit activation
+# needed (infra #927, see test.sh). Echo for diagnostics.
 echo "==> Ruby: $(ruby -v)"
+# Exclude the development group (debug) — see test.sh: debug transitively pulls
+# psych which builds from source and needs libyaml (absent on the agent).
+# Exported so both `bundle install` and `bundle exec` honor it. (#945)
+export BUNDLE_WITHOUT="development"
 bundle install --jobs 4 --retry 3
 bundle exec rubocop --parallel

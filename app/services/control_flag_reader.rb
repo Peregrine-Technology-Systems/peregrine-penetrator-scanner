@@ -18,7 +18,10 @@ class ControlFlagReader
   end
 
   def self.enabled?
-    ENV['GCS_BUCKET'].present? && ENV['GOOGLE_CLOUD_PROJECT'].present?
+    # Cancellation reads come from GCS — gate on GCS_BUCKET alone, not on
+    # GOOGLE_CLOUD_PROJECT (which gates BigQuery). Coupling them meant a
+    # "BigQuery off" scan could not be cancelled via control.json (#942).
+    ENV['GCS_BUCKET'].present?
   end
 
   private
