@@ -3,7 +3,7 @@
 class Finding < Sequel::Model
   plugin :timestamps, update_on_create: true
   plugin :validation_helpers
-  plugin :serialization, :json, :evidence, :ai_assessment
+  plugin :serialization, :json, :evidence
 
   many_to_one :scan
 

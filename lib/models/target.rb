@@ -3,7 +3,7 @@
 class Target < Sequel::Model
   plugin :timestamps, update_on_create: true
   plugin :validation_helpers
-  plugin :serialization, :json, :urls, :auth_config, :scope_config, :brand_config, :ticket_config
+  plugin :serialization, :json, :urls, :auth_config, :scope_config, :brand_config
 
   one_to_many :scans
 
@@ -22,17 +22,12 @@ class Target < Sequel::Model
     validates_presence :name
     validates_presence :urls
     validates_includes %w[none basic bearer cookie], :auth_type
-    validates_includes %w[github linear jira], :ticket_tracker, allow_nil: true
   end
 
   dataset_module do
     def active
       where(active: true)
     end
-  end
-
-  def ticketing_enabled?
-    ticket_tracker.present? && ticket_config.present?
   end
 
   def url_list
