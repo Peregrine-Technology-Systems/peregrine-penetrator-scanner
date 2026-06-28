@@ -25,5 +25,7 @@ done
 # `chruby "$(cat .ruby-version)"`); .ruby-version=4.0.5 → no explicit activation
 # needed (infra #927, see test.sh). Echo for diagnostics.
 echo "==> Ruby: $(ruby -v)"
-bundle install --jobs 4 --retry 3
+# Exclude the development group (debug) — see test.sh: debug transitively pulls
+# psych which builds from source and needs libyaml (absent on the agent). (#945)
+BUNDLE_WITHOUT="development" bundle install --jobs 4 --retry 3
 bundle exec rubocop --parallel

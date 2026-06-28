@@ -32,7 +32,10 @@ done
 # checkout root. We ship .ruby-version=4.0.5, so 4.0.5 + bundler are already on
 # PATH here — no explicit activation needed (infra #927). Echo for diagnostics.
 echo "==> Ruby: $(ruby -v)"
-bundle install --jobs 4 --retry 3
+# Exclude the development group (debug) — CI needs test + lint gems, not the
+# debugger, and debug transitively pulls psych (no precompiled linux gem → builds
+# from source → needs libyaml). Mirrors the production bake's --without. (#945)
+BUNDLE_WITHOUT="development" bundle install --jobs 4 --retry 3
 APP_ENV=test bundle exec rspec --format documentation
 
 # Enforce minimum coverage

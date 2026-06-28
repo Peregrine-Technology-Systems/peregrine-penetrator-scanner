@@ -23,18 +23,16 @@ gem "faraday", "~> 2.7"
 # UUID support
 gem "uuidtools", "~> 2.2"
 
-# Pin psych to the version ruby 4.0.5 ships as a precompiled default gem.
-# psych is only a transitive dep (rdoc, >= 4.0.0); without this pin bundler
-# resolves it to the newest rubygems version (5.4.0), which has no precompiled
-# linux binary and is built from source — needing libyaml (yaml.h) at install
-# time, which fails on a CI agent without libyaml-dev. The built-in 5.3.1 is
-# already compiled into ruby, so no source build is needed. Bump alongside the
-# `ruby "4.0.5"` pin above. (#945; the agent-image libyaml class-fix is tracked
-# in the infrastructure repo)
-gem "psych", "5.3.1"
+# Local-dev-only tools. CI excludes the development group (BUNDLE_WITHOUT) so it
+# does NOT pull `debug` — which transitively drags in irb -> rdoc -> psych, and
+# psych has no precompiled linux gem so it builds from source (needs libyaml,
+# absent on the CI agent). The production bake already excludes dev/test for the
+# same reason; runtime YAML uses ruby's built-in psych. (#945)
+group :development do
+  gem "debug", platforms: %i[mri windows]
+end
 
 group :development, :test do
-  gem "debug", platforms: %i[mri windows]
   gem "rspec", "~> 3.13"
   gem "factory_bot", "~> 6.4"
   gem "faker", "~> 3.2"

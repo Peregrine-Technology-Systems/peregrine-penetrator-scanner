@@ -248,7 +248,6 @@ DEPENDENCIES
   faraday (~> 2.7)
   google-cloud-bigquery (~> 1.49)
   google-cloud-storage (~> 1.44)
-  psych (= 5.3.1)
   rspec (~> 3.13)
   rubocop (~> 1.75)
   rubocop-factory_bot
