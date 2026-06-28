@@ -31,7 +31,13 @@ class StorageService
   private
 
   def gcs_configured?
-    ENV['GOOGLE_CLOUD_PROJECT'].present? && ENV['GCS_BUCKET'].present?
+    # GCS object writes depend ONLY on GCS_BUCKET — the google-cloud-storage
+    # client resolves the project from ADC / VM metadata, so GOOGLE_CLOUD_PROJECT
+    # is NOT required to upload. Coupling GCS to GOOGLE_CLOUD_PROJECT (which gates
+    # BigQuery) meant a "BigQuery off" scan (GOOGLE_CLOUD_PROJECT unset) silently
+    # fell back to local disk and lost its results on the ephemeral VM's exit,
+    # while still reporting completed (#942 — same silent-OK class as #784).
+    ENV['GCS_BUCKET'].present?
   end
 
   def upload_to_gcs(local_path, remote_path, content_type)
