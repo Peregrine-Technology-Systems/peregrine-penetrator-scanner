@@ -51,8 +51,16 @@ RSpec.describe ControlFlagReader do
   end
 
   describe '.enabled?' do
-    it 'returns true when GCS_BUCKET and GOOGLE_CLOUD_PROJECT are set' do
+    it 'returns true when GCS_BUCKET is set' do
       stub_const('ENV', ENV.to_h.merge('GCS_BUCKET' => 'bucket', 'GOOGLE_CLOUD_PROJECT' => 'project'))
+      expect(described_class.enabled?).to be true
+    end
+
+    # #942: cancellation reads GCS — gate on GCS_BUCKET alone, NOT on
+    # GOOGLE_CLOUD_PROJECT (which gates BigQuery). A "BigQuery off" scan must
+    # still be cancellable via control.json.
+    it 'returns true when GCS_BUCKET is set even if GOOGLE_CLOUD_PROJECT is unset' do
+      stub_const('ENV', ENV.to_h.merge('GCS_BUCKET' => 'bucket').except('GOOGLE_CLOUD_PROJECT'))
       expect(described_class.enabled?).to be true
     end
 
