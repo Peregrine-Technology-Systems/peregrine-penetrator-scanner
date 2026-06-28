@@ -4,8 +4,8 @@
 |---|---|
 | **Document** | Peregrine Penetrator Scanner — Schema Versioning |
 | **Classification** | CONFIDENTIAL |
-| **Version** | 1.0 |
-| **Date** | 2026-03-22 |
+| **Version** | 1.1 |
+| **Date** | 2026-06-28 |
 | **Author** | Peregrine Technology Systems |
 
 ## Version History
@@ -13,6 +13,7 @@
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-03-22 | Peregrine Technology Systems | Initial document |
+| 1.1 | 2026-06-28 | Peregrine Technology Systems | Envelope **1.3 → 1.4**: removed `findings[].ai_assessment` (monolith leftover, never populated — AI moved to the reporter). Classified MINOR per the always-null clarification below. (#960) |
 
 ---
 
@@ -26,8 +27,10 @@ The schema follows **MAJOR.MINOR** semantic versioning:
 
 | Version Component | When to Bump | Example |
 |---|---|---|
-| **MAJOR** | Breaking changes: removing fields, renaming fields, changing field types, restructuring the JSON | 1.0 -> 2.0 |
-| **MINOR** | Additive changes: new optional fields, new enum values for existing fields | 1.0 -> 1.1 |
+| **MAJOR** | Breaking changes: removing a **populated** field, renaming fields, changing field types, restructuring the JSON | 1.0 -> 2.0 |
+| **MINOR** | Additive changes (new optional fields, new enum values) **and** removing a field that was always `null` / never populated (no consumer impact) | 1.0 -> 1.1 |
+
+> **Always-null removal is MINOR (clarification, 2026-06-28).** Removing a field the scanner *never populated* cannot break a consumer — a missing key and an always-`null` key deserialize identically. Such a removal is therefore a MINOR bump, not MAJOR. This is the only field-removal case that is not breaking; removing a field that ever carried data remains MAJOR. Applied to `ai_assessment` (envelope 1.4, #960).
 
 ### Compatibility Rules
 
