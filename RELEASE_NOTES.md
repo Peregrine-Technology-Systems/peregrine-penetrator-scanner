@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+- chore: drop never-populated monolith columns `findings.ai_assessment` + `targets.ticket_tracker`/`ticket_config` (#960, PR B). Adds Sequel migration `005_drop_dead_columns`; removes the fields from the `Finding`/`Target` models, the target factory, and the v1.x result envelope (`ScanResultsExporter`). **Envelope bumped 1.3 → 1.4** — classified MINOR per a new `schema_versioning.md` clarification: removing an *always-null / never-populated* field cannot break a consumer (a missing key and an always-`null` key deserialize identically), so it is a MINOR, not a MAJOR. `ai_assessment` was never populated (AI moved to the reporter in v0.3.0). Reporter given a heads-up (peregrine-penetrator-reporter#760); shipped without gating per operator (downstream contract changing anyway). (#960)
+- chore: remove monolith/Rails-era dead code + document the real retention policy (#960). The scanner cannot and does not retain or purge scan data — downstream components delete the specific records once delivered to the customer — so the monolith-era retention machinery was dead code. Removes `DataRetentionPurger` (+ spec), `lib/tasks/retention.rake`, `app/services/ticketing_service/` (ticketing extracted to the reporter), `app/views/` (orphaned Rails mailer layouts; no mailers exist), the entire Rails-era `db/migrate/` (superseded by `db/sequel_migrations/`), and the now-unused `retention_purge_completed` audit action. Adds the previously-missing `docs/data_retention_policy.md` stating the policy: scanner retains nothing; downstream deletes post-delivery; only a minimal audit record (site scanned, start/end, scan type) is kept 18 months for SOC 2 — vulnerability data is explicitly excluded. (#960)
 
 ## v1.1.0 — 2026-06-28
 

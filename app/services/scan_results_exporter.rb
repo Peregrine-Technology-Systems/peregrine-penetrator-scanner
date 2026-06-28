@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ScanResultsExporter
-  SCHEMA_VERSION = '1.3'
+  SCHEMA_VERSION = '1.4'
 
   def initialize(scan, cost_logger: nil)
     @scan = scan
@@ -124,8 +124,7 @@ class ScanResultsExporter
       cvss_vector: finding.cvss_vector,
       epss_score: finding.epss_score,
       kev_known_exploited: finding.kev_known_exploited,
-      evidence: finding.evidence,
-      ai_assessment: finding.ai_assessment
+      evidence: finding.evidence
     }
   end
 

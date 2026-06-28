@@ -8,7 +8,6 @@ class AuditLogger
     scan_started scan_completed scan_failed
     json_exported bq_loaded
     cve_enrichment_completed
-    retention_purge_completed
   ].freeze
 
   def initialize
