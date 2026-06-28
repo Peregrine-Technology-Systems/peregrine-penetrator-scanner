@@ -76,6 +76,49 @@ RSpec.describe StorageService do
       end
     end
 
+    context 'when GCS_BUCKET is set but GOOGLE_CLOUD_PROJECT is unset (BigQuery off)' do
+      let(:gcs_storage_class) { Class.new }
+      let(:mock_storage) { instance_double(gcs_storage_class) }
+      let(:mock_bucket) { instance_double(gcs_storage_class) }
+      let(:mock_file) { instance_double(gcs_storage_class, public_url: 'https://storage.googleapis.com/bucket/file') }
+
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:[]).with('GOOGLE_CLOUD_PROJECT').and_return(nil)
+        allow(ENV).to receive(:[]).with('GCS_BUCKET').and_return('my-bucket')
+        allow(ENV).to receive(:fetch).with('GCS_BUCKET', 'pentest-reports').and_return('my-bucket')
+
+        allow(service).to receive(:require).with('google/cloud/storage').and_return(true)
+        stub_const('Google::Cloud::Storage', gcs_storage_class)
+        allow(Google::Cloud::Storage).to receive(:new).and_return(mock_storage)
+        allow(mock_storage).to receive(:bucket).and_return(mock_bucket)
+        allow(mock_bucket).to receive(:create_file).and_return(mock_file)
+      end
+
+      # Silent-OK positive counterpart for #942: GCS upload must depend on
+      # GCS_BUCKET alone. Without GOOGLE_CLOUD_PROJECT (BigQuery off), a scan
+      # must STILL export to GCS — never silently to local disk that the
+      # ephemeral VM loses on exit while reporting completed.
+      it 'uploads to GCS and does NOT fall back to local storage' do
+        source = Tempfile.new(['test', '.json'])
+        source.write('content')
+        source.close
+
+        result = service.upload(source.path, 'scans/bqoff.json')
+
+        expect(mock_bucket).to have_received(:create_file)
+          .with(source.path, 'scans/bqoff.json', content_type: 'application/octet-stream')
+        expect(result[:url]).to eq('https://storage.googleapis.com/bucket/file')
+
+        dest_path = Penetrator.root.join('storage/reports/scans/bqoff.json').to_s
+        expect(File.exist?(dest_path)).to be false
+      ensure
+        source&.unlink
+        FileUtils.rm_f(dest_path)
+      end
+    end
+
     context 'when GCS is configured but the upload fails' do
       let(:gcs_storage_class) { Class.new }
       let(:mock_storage) { instance_double(gcs_storage_class) }
