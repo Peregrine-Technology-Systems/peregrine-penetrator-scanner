@@ -87,7 +87,11 @@ class AuditLogger
     {
       vm_name: ENV['VM_NAME'] || ENV['HOSTNAME'] || Socket.gethostname,
       service_account: ENV.fetch('GOOGLE_SERVICE_ACCOUNT', nil),
-      scan_mode: ENV.fetch('SCAN_MODE', 'dev')
+      scan_mode: ENV.fetch('SCAN_MODE', 'dev'),
+      # Boot image of the scan VM, for version traceability (#951). bin/scan
+      # stamps BOOT_IMAGE from the GCE metadata server at startup; absent off-GCE
+      # (compact drops it), so non-VM runs are unaffected.
+      boot_image: ENV.fetch('BOOT_IMAGE', nil)
     }.compact
   end
 end
