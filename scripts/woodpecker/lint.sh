@@ -4,14 +4,20 @@ set -euo pipefail
 # Run RuboCop natively on the agent (ruby 4.0.5 via chruby + .ruby-version; no Docker)
 BRANCH="${CI_COMMIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 
-# Skip lint when code tree is identical to a target branch (promotion/sync-back)
+# Skip lint when code tree is identical to a target branch (promotion/sync-back).
+# #944: tree-identity skip is only safe for promotion artifacts (see test.sh) —
+# on a feature branch it was a green-by-deferral silent-OK. Feature branches lint.
+case "$BRANCH" in
+  sync/*|merge/*|release/*) PROMO_ARTIFACT=yes ;;
+  *) PROMO_ARTIFACT=no ;;
+esac
 git fetch origin development staging main --quiet 2>/dev/null || true
 HEAD_TREE=$(git rev-parse HEAD^{tree} 2>/dev/null || echo "")
 for TARGET in development staging main; do
   if [ "$BRANCH" = "$TARGET" ]; then continue; fi
   TARGET_TREE=$(git rev-parse "origin/${TARGET}^{tree}" 2>/dev/null || echo "")
-  if [ -n "$HEAD_TREE" ] && [ "$HEAD_TREE" = "$TARGET_TREE" ]; then
-    echo "==> Skipping lint: file content identical to ${TARGET} (already tested)"
+  if [ "$PROMO_ARTIFACT" = "yes" ] && [ -n "$HEAD_TREE" ] && [ "$HEAD_TREE" = "$TARGET_TREE" ]; then
+    echo "==> Skipping lint: identical to ${TARGET} (already tested; promotion artifact)"
     exit 0
   fi
   CODE_CHANGES=$(git diff --name-only "origin/${TARGET}" HEAD 2>/dev/null | grep -cvE '\.(md|txt)$' || true)
