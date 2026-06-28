@@ -2,10 +2,12 @@
 
 <!-- Badges -->
 [![Woodpecker CI](https://d3ci42.peregrinetechsys.net/api/badges/5/status.svg)](https://d3ci42.peregrinetechsys.net/repos/5) <!-- allow-sensitive: public Woodpecker CI server (serves the status badge) -->
+![Release](https://img.shields.io/badge/release-v1.0.0-blue)
 ![Ruby](https://img.shields.io/badge/ruby-4.0.5-CC342D?logo=ruby&logoColor=white)
 ![Sequel](https://img.shields.io/badge/ORM-Sequel-blue)
-![Coverage](https://img.shields.io/badge/coverage-93%25+-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-94%25+-brightgreen)
 ![RuboCop](https://img.shields.io/badge/rubocop-0%20offenses-brightgreen)
+![Image](https://img.shields.io/badge/image-txn--scanner--app%20(baked%20GCE)-success)
 ![License](https://img.shields.io/badge/license-BSL%201.1-blue)
 ![Platform](https://img.shields.io/badge/platform-GCP-4285F4?logo=googlecloud&logoColor=white)
 
@@ -86,13 +88,19 @@ For the full architecture reference, see [docs/ARCHITECTURE.md](docs/ARCHITECTUR
 
 ## Security Tool Stack
 
-| Tool | Phase | Purpose |
-|------|-------|---------|
-| **OWASP ZAP** | Active | Full DAST scanning |
-| **Nuclei** | Targeted | Template-based CVE scanning (11,000+ templates) |
-| **sqlmap** | Targeted | SQL injection detection |
-| **ffuf** | Discovery | Directory/endpoint enumeration |
-| **Nikto** | Discovery | Server misconfiguration detection |
+| Tool | Phase | Purpose | Baked in `txn-scanner-app` |
+|------|-------|---------|:--:|
+| **OWASP ZAP** | Active | Full DAST scanning | ✅ |
+| **Nuclei** | Targeted | Template-based CVE scanning (11,000+ templates) | ✅ |
+| **testssl.sh** | Discovery | TLS/SSL configuration analysis | ✅ |
+| **trufflehog** | Targeted | Hardcoded secret / credential detection | ✅ |
+| **sqlmap** | Targeted | SQL injection detection | — |
+| **ffuf** | Discovery | Directory/endpoint enumeration | — |
+| **Nikto** | Discovery | Server misconfiguration detection | — |
+| **retire.js** | Targeted | Vulnerable JS library detection | — |
+| **amass** | Discovery | Subdomain enumeration | — |
+
+> The **`reduced`** profile (below) is the org-native production profile today: it uses **only the baked tool set** (testssl + ZAP baseline + Nuclei + trufflehog). The remaining tools (`—`) are wired into the codebase and the fuller profiles, pending the bakery vendoring their apt/npm dependencies into the image.
 
 ---
 
@@ -127,12 +135,15 @@ SCAN_PROFILE=standard TARGET_NAME="My App" TARGET_URLS='["https://example.com"]'
 
 | Profile | Duration | Discovery | Active | Targeted |
 |---------|----------|-----------|--------|----------|
+| `reduced` | ~25 min | testssl | ZAP baseline | Nuclei + trufflehog | 
 | `quick` | ~10 min | -- | ZAP baseline | Nuclei critical/high |
 | `standard` | ~30 min | ffuf + Nikto | ZAP full | Nuclei + sqlmap |
 | `thorough` | ~2 hr | ffuf + Nikto | ZAP full (deep) | All tools |
 | `deep` | ~2 hr | (alias for `thorough`) | Same | Same |
 | `smoke` | <30s | -- | -- | Infra validation (tools, GCS, secrets) |
 | `smoke-test` | <30s | -- | -- | Canned findings for deploy verification |
+
+> **`reduced` is the current org-native production profile** — its tool set matches exactly what is baked into `txn-scanner-app` (see [Security Tool Stack](#security-tool-stack)). The other profiles describe the full design intent; they become runnable on the baked image as the remaining tools are vendored in.
 
 ---
 
