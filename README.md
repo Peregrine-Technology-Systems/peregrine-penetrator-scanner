@@ -2,11 +2,9 @@
 
 <!-- Badges -->
 [![Woodpecker CI](https://d3ci42.peregrinetechsys.net/api/badges/5/status.svg)](https://d3ci42.peregrinetechsys.net/repos/5) <!-- allow-sensitive: public Woodpecker CI server (serves the status badge) -->
-![Release](https://img.shields.io/badge/release-v1.0.0-blue)
+[![Release](https://img.shields.io/github/v/release/Peregrine-Technology-Systems/peregrine-penetrator-scanner)](https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner/releases)
 ![Ruby](https://img.shields.io/badge/ruby-4.0.5-CC342D?logo=ruby&logoColor=white)
 ![Sequel](https://img.shields.io/badge/ORM-Sequel-blue)
-![Coverage](https://img.shields.io/badge/coverage-94%25+-brightgreen)
-![RuboCop](https://img.shields.io/badge/rubocop-0%20offenses-brightgreen)
 ![Image](https://img.shields.io/badge/image-txn--scanner--app%20(baked%20GCE)-success)
 ![License](https://img.shields.io/badge/license-BSL%201.1-blue)
 ![Platform](https://img.shields.io/badge/platform-GCP-4285F4?logo=googlecloud&logoColor=white)

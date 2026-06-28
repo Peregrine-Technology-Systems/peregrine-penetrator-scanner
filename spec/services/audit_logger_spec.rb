@@ -46,6 +46,24 @@ RSpec.describe AuditLogger do
       end
     end
 
+    it 'includes boot_image in the actor when BOOT_IMAGE is set (#951)' do
+      allow(ENV).to receive(:fetch).and_call_original
+      allow(ENV).to receive(:fetch).with('BOOT_IMAGE', nil).and_return('txn-scanner-app-20260628-v1-0-1')
+      audit.log(action: 'test', scan_id: 'x')
+
+      expect(Penetrator.logger).to have_received(:info) do |msg|
+        expect(JSON.parse(msg)['actor']['boot_image']).to eq('txn-scanner-app-20260628-v1-0-1')
+      end
+    end
+
+    it 'omits boot_image from the actor when BOOT_IMAGE is unset (off-GCE)' do
+      audit.log(action: 'test', scan_id: 'x')
+
+      expect(Penetrator.logger).to have_received(:info) do |msg|
+        expect(JSON.parse(msg)['actor']).not_to have_key('boot_image')
+      end
+    end
+
     it 'includes schema_version' do
       audit.log(action: 'test', scan_id: 'x')
 
