@@ -221,7 +221,7 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). <
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full architecture with Mermaid diagrams — scan flow, control plane, VM lifecycle, data model, reliability |
 | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | Threat model, secrets management, container/network/control plane security |
 | [docs/schema_versioning.md](docs/schema_versioning.md) | v1.0 JSON envelope contract between scanner and reporter |
-| [docs/data_retention_policy.md](docs/data_retention_policy.md) | 18-month BigQuery/GCS retention policy |
+| [docs/data_retention_policy.md](docs/data_retention_policy.md) | Data retention: scanner retains nothing; downstream deletes scan records post-delivery; only a minimal audit record (18mo, SOC 2) is kept |
 | [docs/audit_logging.md](docs/audit_logging.md) | Audit event types, chain of custody, compliance (SOC 2, ISO 27001) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup, testing, environment variables |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md) | Version history |
