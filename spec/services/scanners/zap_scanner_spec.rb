@@ -92,7 +92,7 @@ RSpec.describe Scanners::ZapScanner do
       # Stub ZAP wrk dir existence and FileUtils.cp to create the output file
       allow(File).to receive(:exist?).and_call_original
       allow(File).to receive(:exist?).with(anything).and_wrap_original do |m, path|
-        path.to_s.include?('/zap/wrk/') ? true : m.call(path)
+        path.to_s.include?('/zap/wrk/') || m.call(path)
       end
       allow(FileUtils).to receive(:cp) do |_src, dest|
         FileUtils.touch(dest)

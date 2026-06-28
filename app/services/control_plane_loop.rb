@@ -2,7 +2,7 @@ class ControlPlaneLoop
   INTERVAL = 30
   TICK_TIMEOUT = 10
 
-  # rubocop:disable Metrics/ParameterLists — cost_logger added for comprehensive cost tracking (#651)
+  # rubocop:disable Metrics/ParameterLists -- cost_logger added for comprehensive cost tracking (#651)
   def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:, cost_logger: nil)
     # rubocop:enable Metrics/ParameterLists
     @scan_uuid = scan_uuid

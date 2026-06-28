@@ -2,14 +2,14 @@
 
 source "https://rubygems.org"
 
-ruby "3.2.2"
+ruby "4.0.5"
 
 # ORM and database
 gem "sequel", "~> 5.78"
-gem "sqlite3", "~> 1.4"
+gem "sqlite3", "~> 2.0"
 
 # ActiveSupport core extensions (standalone, no Rails)
-gem "activesupport", "~> 7.1"
+gem "activesupport", "~> 8.1"
 
 # Cloud storage
 gem "google-cloud-storage", "~> 1.44"
@@ -29,9 +29,10 @@ group :development, :test do
   gem "factory_bot", "~> 6.4"
   gem "faker", "~> 3.2"
   gem "simplecov", "~> 0.22", require: false
-  gem "rubocop", "~> 1.62.0", require: false
+  gem "rubocop", "~> 1.75", require: false
   gem "rubocop-sequel", require: false
-  gem "rubocop-rspec", "~> 2.27.0", require: false
+  gem "rubocop-rspec", "~> 3.0", require: false
+  gem "rubocop-factory_bot", require: false
   gem "webmock", "~> 3.19"
 end
 

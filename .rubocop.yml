@@ -1,6 +1,7 @@
-require:
+plugins:
   - rubocop-sequel
   - rubocop-rspec
+  - rubocop-factory_bot
 
 AllCops:
   TargetRubyVersion: 3.2

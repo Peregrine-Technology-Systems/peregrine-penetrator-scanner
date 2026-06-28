@@ -26,7 +26,7 @@ module Notifiers
         ENV.fetch('SLACK_WEBHOOK_URL', nil).present?
       end
 
-      def debounce(scan_id, tool)
+      def debounce(scan_id, tool) # rubocop:disable Naming/PredicateMethod -- command that records the alert and returns whether already-sent; not a pure predicate
         key = "#{scan_id}:#{tool}"
         return true if @sent_alerts[key]
 

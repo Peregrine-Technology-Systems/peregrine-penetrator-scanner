@@ -3,7 +3,7 @@ module ResultParsers
   # and "Session Scope" preamble). Returns discovered_urls (not findings) — amass
   # is a subdomain discovery tool, not a vulnerability scanner. See #47.
   class AmassParser
-    SKIP_PATTERNS = /\A(Session Scope|FQDN:|[\s]*\z)/i
+    SKIP_PATTERNS = /\A(Session Scope|FQDN:|\s*\z)/i
 
     def initialize(output_file)
       @output_file = output_file

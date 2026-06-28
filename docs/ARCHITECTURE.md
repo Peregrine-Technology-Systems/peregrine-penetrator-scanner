@@ -1,6 +1,6 @@
 # Architecture
 
-Comprehensive architecture documentation for the Peregrine Penetrator Scanner -- the security scanning engine of the Peregrine pentest platform. This document covers the three-service platform, scan lifecycle, VM safety system, Cloud Functions, control plane, CI/CD pipeline, data flow, and reliability patterns.
+Architecture documentation for the Peregrine Penetrator Scanner — the **scanning engine** component of the Peregrine Penetrator product. This document covers the **scanner only**: its scan lifecycle, VM safety system, Cloud Functions, control plane, CI/CD pipeline, data flow, and reliability patterns. Other components of the product (orchestration, reporting, delivery) and how the product is wired together are out of scope.
 
 ## Table of Contents
 
@@ -17,47 +17,15 @@ Comprehensive architecture documentation for the Peregrine Penetrator Scanner --
 
 ## 1. System Architecture
 
-### Platform Context (C4 Level 1)
+### This component in context
 
-The Peregrine Penetrator platform is a three-service system for automated web application security scanning. Each service owns a distinct responsibility.
+The scanner is **one component** of the Peregrine Penetrator product. Its job is bounded: it runs security tools against an **authorized** target, normalizes and deduplicates the findings, enriches them with CVE intelligence, and **exports structured results** (a JSON envelope to object storage; rows to the data warehouse).
 
-```mermaid
-C4Context
-    title Peregrine Penetrator Platform -- System Context
+Those results are **consumed by other components of the Penetrator product** (orchestration, reporting, and delivery). Those components — and how the product is wired together — are intentionally **out of scope for this document**; this file covers the scanner only.
 
-    Person(user, "Security Team", "Requests scans, reviews reports")
+The rest of this document describes the scanner's own internals: scan lifecycle, VM safety system, control surface, data handling, and supply chain.
 
-    System_Boundary(platform, "Peregrine Penetrator Platform") {
-        System(backend, "Backend API", "Orchestration, scheduling, billing")
-        System(reporter, "Reporter", "AI analysis, PDF reports, ticketing, email")
-        System(scanner, "Scanner", "Run security tools, normalize findings, export JSON")
-    }
-
-    System_Ext(gcp, "Google Cloud Platform", "Compute Engine, GCS, BigQuery, Artifact Registry, Cloud Functions, Cloud Scheduler, Secret Manager")
-    System_Ext(slack, "Slack", "Notifications")
-    System_Ext(nvd, "NVD / CISA / EPSS / OSV", "CVE intelligence APIs")
-
-    Rel(user, backend, "Schedule scans, view results")
-    Rel(backend, reporter, "Dispatch scan jobs")
-    Rel(reporter, scanner, "Trigger scan VMs")
-    Rel(scanner, reporter, "Heartbeats, completion callbacks")
-    Rel(scanner, gcp, "GCS artifacts, BigQuery rows, VM lifecycle")
-    Rel(scanner, nvd, "CVE enrichment")
-    Rel(reporter, gcp, "Fetch scan JSON, store reports")
-    Rel(reporter, user, "Email reports, Slack alerts")
-    Rel(reporter, slack, "Notifications")
-    Rel(scanner, slack, "Scan start/complete alerts")
-```
-
-### Service Responsibilities
-
-| Service | Repository | Stack | Responsibility |
-|---------|-----------|-------|---------------|
-| **Scanner** | `peregrine-penetrator-scanner` | Ruby + Sequel ORM, CLI | Run security tools on ephemeral GCP VMs, normalize findings, enrich with CVE data, export JSON to GCS and BigQuery |
-| **Reporter** | `peregrine-penetrator-reporter` | Sinatra + Cloud Run | AI-powered analysis, PDF report generation, ticketing (GitHub/Linear/Jira), email notifications |
-| **Backend** | `peregrine-penetrator-backend` | API | Orchestration, scan scheduling, billing, user management |
-
-### GCP Infrastructure
+### Scanner Infrastructure
 
 ```mermaid
 graph TB
@@ -106,11 +74,13 @@ graph TB
 
 ## 2. Scan Lifecycle
 
+> **Note (org-native cutover):** the diagrams in §2–§4 below depict the **retired** containerized launch model (generic VM → `docker pull`/`docker run`, the legacy GCP Cloud Functions, the in-repo scavenger). That entire launch path has been **removed from this repository**. Scans now run **natively** on a single-use VM booted from the pre-baked `txn-scanner-app` image, **launched by a separate org-native launcher** (an infrastructure component, not in this repo). The scan *phases, normalization, enrichment, export, and self-delete* still apply; only the launch/packaging mechanism changed. See §6 → Image Model / Execution Model for the current model.
+
 ### End-to-End Sequence
 
 ```mermaid
 sequenceDiagram
-    participant R as Reporter / Scheduler
+    participant R as Orchestration / Scheduler
     participant CF as Cloud Function
     participant GCE as Compute Engine API
     participant VM as Scan VM
@@ -221,7 +191,7 @@ flowchart TD
 
     P --> Q["ScanResultsExporter<br/>v1.1 JSON to GCS"]
     Q --> R["BigQueryLogger<br/>findings + metadata + costs"]
-    R --> S["ScanCallbackService<br/>POST to reporter"]
+    R --> S["ScanCallbackService<br/>POST to consuming component"]
     S --> T["NotificationService<br/>Slack + email"]
 
     F --> Q
@@ -383,9 +353,11 @@ Four Cloud Functions in `cloud/scheduler/main.py` manage VM lifecycle.
 | Function | Entry Point | Trigger | Purpose |
 |----------|------------|---------|---------|
 | `vm-scavenger` | `scavenge_vms` | Cloud Scheduler (every 5 min) | Delete orphaned scan VMs |
-| `trigger-scan-development` | `trigger_development` | Reporter / Cloud Scheduler | Launch dev VM (clone at boot) |
-| `trigger-scan-staging` | `trigger_staging` | Reporter / Cloud Scheduler | Launch staging VM (baked image) |
-| `trigger-scan-production` | `trigger_production` | Reporter / Cloud Scheduler | Launch production VM (baked image, SPOT pricing) |
+| `trigger-scan-development` | `trigger_development` | Orchestration / Scheduler | Launch dev VM (clone at boot) |
+| `trigger-scan-staging` | `trigger_staging` | Orchestration / Scheduler | Launch staging VM (baked image) |
+| `trigger-scan-production` | `trigger_production` | Orchestration / Scheduler | Launch production VM (baked image, on-demand) |
+
+> **On-demand, not SPOT** — a scan is non-recoverable work, so scan VMs use standard (on-demand) provisioning; a mid-run preemption is not acceptable. (The legacy Cloud Function launch shown here is retired — see the §2 note and §6 Execution Model; the org-native launcher applies the same on-demand principle.)
 
 ### Health Guard Pattern
 
@@ -406,7 +378,7 @@ This guard prevents Cloud Scheduler health probes (which use GET) from accidenta
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Reporter / Cloud Scheduler
+    participant Caller as Orchestration / Scheduler
     participant CF as trigger_scan_* Function
     participant GCE as Compute Engine API
     participant SM as Secret Manager
@@ -417,7 +389,7 @@ sequenceDiagram
     CF->>CF: Configure VM: metadata, disk, network, SA
 
     alt Production mode
-        CF->>CF: Set SPOT pricing (60% savings)
+        CF->>CF: Standard (on-demand) provisioning
     end
 
     CF->>GCE: Insert instance with startup-script in metadata
@@ -443,7 +415,7 @@ The trigger function creates a VM with these specifications:
 | Network | Default VPC with external NAT |
 | Labels | `env`, `project=pentest`, `scan=true`, `profile` |
 | Tags | `pentest-scan` |
-| Scheduling (prod) | SPOT with instance_termination_action=DELETE |
+| Scheduling (prod) | On-demand (standard) with instance_termination_action=DELETE |
 | Metadata | SCAN_MODE, SCAN_PROFILE, TARGET_URLS, SCAN_UUID, CALLBACK_URL, JOB_ID, REGISTRY, IMAGE_TAG, GCS_BUCKET, startup-script |
 
 ### Scavenger Operation
@@ -482,7 +454,7 @@ The control plane enables real-time monitoring and cancellation of running scans
 graph TB
     subgraph "Scanner VM"
         CPL["ControlPlaneLoop<br/>(30s interval thread)"]
-        HBS["HeartbeatSender<br/>(POST to reporter)"]
+        HBS["HeartbeatSender<br/>(POST to consuming component)"]
         CFR["ControlFlagReader<br/>(check GCS cancel)"]
         SS["StorageService<br/>(write GCS heartbeat)"]
     end
@@ -495,7 +467,7 @@ graph TB
         DL["callback_pending.json<br/>(dead letter)"]
     end
 
-    subgraph "Reporter"
+    subgraph "Consuming component"
         API["Heartbeat endpoint<br/>/callbacks/heartbeat"]
         Cancel["Cancel API<br/>(writes control.json)"]
     end
@@ -512,7 +484,7 @@ graph TB
 sequenceDiagram
     participant VM as Scanner VM
     participant G as GCS
-    participant R as Reporter
+    participant R as Consuming component
 
     Note over VM: ControlPlaneLoop starts
 
@@ -550,7 +522,7 @@ sequenceDiagram
 
 ### Cancel Signal
 
-The reporter can cancel a running scan by writing a control flag to GCS:
+The orchestration/control plane can cancel a running scan by writing a control flag to GCS:
 
 ```json
 // GCS: control/{scan_uuid}/control.json
@@ -567,11 +539,11 @@ All control artifacts live under `control/{scan_uuid}/` in the GCS bucket:
 
 | Artifact | Writer | Reader | Purpose |
 |----------|--------|--------|---------|
-| `scan_started.json` | ScanOrchestrator | Reporter | Detect started-but-never-completed scans |
-| `heartbeat.json` | ControlPlaneLoop | Scavenger, Reporter | Track scan liveness and progress |
-| `control.json` | Reporter (cancel API) | ControlFlagReader | Signal scan cancellation |
+| `scan_started.json` | ScanOrchestrator | Consumer | Detect started-but-never-completed scans |
+| `heartbeat.json` | ControlPlaneLoop | Scavenger, consumer | Track scan liveness and progress |
+| `control.json` | Control plane (cancel) | ControlFlagReader | Signal scan cancellation |
 | `status.json` | vm-startup.sh | Scavenger | Track post-scan lifecycle (uploading, terminating) |
-| `callback_pending.json` | ScanCallbackService | Reporter (recovery) | Dead letter when callback fails |
+| `callback_pending.json` | ScanCallbackService | Consumer (recovery) | Dead letter when callback fails |
 
 ### Lifecycle Status Phases
 
@@ -610,88 +582,60 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    subgraph "Feature Branch"
-        CI_F["ci.yaml<br/>RSpec + RuboCop +<br/>check-release-notes +<br/>test-cloud-functions"]
-    end
-
-    subgraph "Development Branch"
-        CI_D["ci.yaml"]
-        P_D["promote.yaml<br/>(auto PR to staging)"]
-        BB["build-base.yaml<br/>(if Dockerfile.base changes)"]
-    end
-
-    subgraph "Staging Branch"
-        CI_S["ci.yaml"]
-        BUILD["build.yaml<br/>(bake scanner:staging)"]
-        DEPLOY["deploy.yaml<br/>(trigger smoke scan)"]
-        SMOKE["smoke-test.yaml<br/>(verify GCS artifacts)"]
-        P_S["promote.yaml<br/>(PR to main, manual)"]
+    subgraph "Feature / Development / Staging"
+        CI["ci.yaml<br/>RSpec + RuboCop +<br/>check-release-notes + check-sensitive<br/>(native on agent, ruby 4.0.5)"]
+        PROM["promote.yaml<br/>(auto PR dev→staging;<br/>manual staging→main)"]
     end
 
     subgraph "Main Branch"
-        VB["version-bump.yaml<br/>(bump VERSION, tag)"]
-        REL["release.yaml<br/>(retag Docker image)"]
+        VB["version-bump.yaml<br/>(bump VERSION, git tag, GitHub Release)"]
     end
 
     subgraph "Tag v*"
+        BAKE["bake.yaml<br/>(repository_dispatch → infra TP baker<br/>→ txn-scanner-app GCE image)"]
         SB["sync-back.yaml<br/>(RELEASE_NOTES to dev+staging)"]
     end
 
-    CI_F -->|"merge"| CI_D
-    CI_D --> P_D
-    P_D -->|"auto-merge PR"| CI_S
-    CI_S --> BUILD
-    BUILD --> DEPLOY
-    DEPLOY --> SMOKE
-    SMOKE --> P_S
-    P_S -->|"manual merge"| VB
-    VB --> REL
-    REL --> SB
+    CI --> PROM
+    PROM -->|"manual merge to main"| VB
+    VB -->|"git tag v*"| BAKE
+    VB --> SB
 ```
 
 ### Workflow Details
 
 | Pipeline | File | Trigger | Steps | Depends On |
 |----------|------|---------|-------|------------|
-| **CI** | `ci.yaml` | Push (exclude main) | RSpec, RuboCop, check-release-notes, test-cloud-functions (parallel) | -- |
-| **Build Base** | `build-base.yaml` | Push to development (Dockerfile.base changes) | Build + push scanner-base image | -- |
-| **Build** | `build.yaml` | Push to staging | Build baked scanner:staging image | ci |
-| **Deploy** | `deploy.yaml` | Push to staging | Trigger scan VM with baked image | build |
-| **Smoke Test** | `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS | deploy |
-| **Promote** | `promote.yaml` | Push to dev/staging | Local merge branch, create PR, auto-merge (dev) or manual (staging) | -- |
-| **Version Bump** | `version-bump.yaml` | Push to main | Bump VERSION, update RELEASE_NOTES, create git tag, tag Docker image | -- |
-| **Release** | `release.yaml` | Push to main | Retag staging Docker image as production | version-bump |
+| **CI** | `ci.yaml` | Push (exclude main + promotion artifacts) | RSpec, RuboCop, check-release-notes, check-sensitive — **native on the agent (ruby 4.0.5)** | -- |
+| **Promote** | `promote.yaml` | Push to dev/staging | Local merge branch, create PR, auto-merge (dev) or manual (staging→main) | -- |
+| **Version Bump** | `version-bump.yaml` | Push to main | Bump VERSION, update RELEASE_NOTES, create git tag + GitHub Release | -- |
+| **Bake** | `bake.yaml` | Tag v* | `repository_dispatch` → infra TP baker → bake `txn-scanner-app` FROM `txn-scanner-base` | -- |
 | **Sync Back** | `sync-back.yaml` | Tag v* | Sync RELEASE_NOTES back to development/staging | -- |
 
-### Docker Image Model
+### Image Model (org-native)
+
+The scanner is **not packaged as a Docker image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` the vetted `txn-scanner-base` base via the infra TP baker — with the runtime, security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). The launcher boots a single-use VM from the `txn-scanner-app` family.
 
 ```mermaid
-flowchart TD
-    subgraph "Development (clone at boot)"
-        DEV_BASE["scanner-base:latest<br/>(Ubuntu + ZAP + Nuclei + sqlmap<br/>+ ffuf + Nikto + Ruby)"]
-        DEV_CODE["git clone + bundle install<br/>(volume mount into base)"]
-        DEV_BASE --> DEV_CODE
-    end
-
-    subgraph "Staging (baked image)"
-        STG_BASE["scanner-base:latest"]
-        STG_APP["scanner:staging<br/>(base + app code + gems)"]
-        STG_BASE --> STG_APP
-    end
-
-    subgraph "Production (retag)"
-        PROD["scanner:production<br/>(identical bytes to staging)"]
-    end
-
-    STG_APP -->|"docker tag<br/>(zero rebuild)"| PROD
+flowchart LR
+    SRC["scanner repo<br/>(.bake/ + app + Gemfile.lock)"] -->|"tag v* → bake.yaml<br/>repository_dispatch"| BAKER["infra TP baker<br/>(keyless WIF)"]
+    BASE["txn-scanner-base<br/>(vetted tools + ruby, baked by infra)"] --> BAKER
+    BAKER -->|"bundle install + place app,<br/>strip build tooling"| APP["txn-scanner-app<br/>(gem-complete GCE image)"]
+    APP -->|"launcher boots single-use VM"| VM["scan VM (native, non-root,<br/>self-deleting)"]
 ```
 
-| Layer | Contents | Rebuild Frequency |
-|-------|----------|------------------|
-| **scanner-base** | Ubuntu + ZAP + Nuclei + sqlmap + ffuf + Nikto + Python + Ruby 3.2.2 | Monthly (or on tool updates) |
-| **scanner** (app) | Base + bundled gems + application code | Every staging build |
+**Key design decision**: `VERSION` is a runtime environment variable, not baked into the image — the same image serves multiple tagged releases. Read via `Penetrator::VERSION`.
 
-**Key design decision**: `VERSION` is a runtime environment variable, not baked into the Docker image. This allows the same image bytes to serve multiple tagged releases. Read via `Penetrator::VERSION`.
+### Execution Model (native VMs)
+
+Scans run via **native execution on a single-use VM booted from the pre-baked, gem-complete `txn-scanner-app` image** (the prior containerized model has been removed):
+
+- **Baked, vetted image.** A build pipeline produces an image with the runtime, the security tools, **and the application's gems already placed** — every tool/dependency pinned and content-verified, build tooling (compilers, package managers) stripped from the result. **Nothing is installed or compiled at scan time** — the VM boots ready to run.
+- **Native, non-container, non-root.** The scanner runs as a process under a dedicated, least-privilege (non-root) service identity — no container layer.
+- **Single-use & self-deleting.** Each scan gets a fresh VM that holds no standing state and deletes itself on success *and* failure (exit-trap teardown), with an independent backstop for orphans.
+- **Dispatched, not self-served.** The VM is launched on behalf of the engine by the **orchestration layer**, which has already authorized the target/scope before dispatch (the engine is a worker; see `SECURITY_ARCHITECTURE.md` → Scope & Authorization). The launch and image-build paths use **short-lived, federated credentials** — no static service-account keys are issued or held for them.
+
+Net effect on this repo: the scan-runner image is **consumed**, not built here as a container; `bin/scan` runs against tools and gems that are already present; the runtime never reaches out to install dependencies.
 
 ### Deploy Verification (Smoke Test)
 
@@ -712,7 +656,7 @@ flowchart TD
     VM --> Term["VM self-terminates<br/>(EXIT trap)"]
 ```
 
-**Stub mode**: During smoke tests (`SCAN_PROFILE=smoke-test`), `HeartbeatSender` and `ScanCallbackService` log their payloads at INFO level but do not make HTTP calls. The reporter did not dispatch the scan, so there is no matching job record. GCS writes proceed normally -- that is the real verification.
+**Stub mode**: During smoke tests (`SCAN_PROFILE=smoke-test`), `HeartbeatSender` and `ScanCallbackService` log their payloads at INFO level but do not make HTTP calls. The orchestration layer did not dispatch the scan, so there is no matching job record. GCS writes proceed normally -- that is the real verification.
 
 ---
 
@@ -780,7 +724,7 @@ gs://{project}-pentest-reports/
   control/{scan_uuid}/
     scan_started.json          # Written at scan start
     heartbeat.json             # Updated every 30s
-    control.json               # Cancel signal (written by reporter)
+    control.json               # Cancel signal (written by the control plane)
     status.json                # VM lifecycle phase
     callback_pending.json      # Dead letter (if callback fails)
   scan-results/{target_id}/{scan_id}/
@@ -944,12 +888,12 @@ flowchart LR
 
 ### Dead Letter to GCS
 
-When the completion callback to the reporter fails after 3 retries (with exponential backoff), the payload is written to GCS as a dead letter. The reporter can recover these on its next sweep.
+When the completion callback to the consuming component fails after 3 retries (with exponential backoff), the payload is written to GCS as a dead letter. The consuming component can recover these on its next sweep.
 
 ```mermaid
 sequenceDiagram
     participant VM as Scanner VM
-    participant R as Reporter
+    participant R as Consuming component
     participant G as GCS
 
     VM->>R: POST callback (attempt 1)
