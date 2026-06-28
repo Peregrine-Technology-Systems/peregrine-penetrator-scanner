@@ -62,15 +62,15 @@ namespace :scan do
       end
     end
 
-    # Callback to backend API (now includes GCS scan results path)
-    if ScanCallbackService.enabled?
-      puts "\n--- Backend Callback ---"
-      if ScanCallbackService.new(scan, cost_logger, gcs_scan_results_path:).notify
-        puts "  Callback sent to #{ENV.fetch('CALLBACK_URL', 'unknown')}"
-      else
-        puts '  Callback failed (scan still succeeded)'
-      end
-    end
+    # Write completion status to GCS — orchestrator polls this to detect scan completion
+    scan_uuid = ENV.fetch('SCAN_UUID', scan.id)
+    StorageService.new.upload_json("control/#{scan_uuid}/status.json", {
+      phase: 'completed',
+      timestamp: Time.current.iso8601,
+      results_path: gcs_scan_results_path
+    })
+    puts "\n--- Completion Status ---"
+    puts "  Written control/#{scan_uuid}/status.json (results_path: #{gcs_scan_results_path})"
 
     # Audit: scan completed
     audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
