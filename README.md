@@ -2,7 +2,7 @@
 
 <!-- Badges -->
 [![Woodpecker CI](https://d3ci42.peregrinetechsys.net/api/badges/5/status.svg)](https://d3ci42.peregrinetechsys.net/repos/5) <!-- allow-sensitive: public Woodpecker CI server (serves the status badge) -->
-![Ruby](https://img.shields.io/badge/ruby-3.2.2-CC342D?logo=ruby&logoColor=white)
+![Ruby](https://img.shields.io/badge/ruby-4.0.5-CC342D?logo=ruby&logoColor=white)
 ![Sequel](https://img.shields.io/badge/ORM-Sequel-blue)
 ![Coverage](https://img.shields.io/badge/coverage-93%25+-brightgreen)
 ![RuboCop](https://img.shields.io/badge/rubocop-0%20offenses-brightgreen)
@@ -11,6 +11,8 @@
 
 Automated security scanning engine that orchestrates open-source penetration testing tools against target web applications, normalizes and deduplicates findings, enriches with CVE intelligence, and exports structured results to GCS and BigQuery.
 
+> **Part of the Peregrine Penetrator product line at Peregrine Technology Systems.** This repo is **one component** — the scanning engine — of the Penetrator product. The product as a whole is built to Peregrine Technology Systems' standards for **SOC 2 Type II** compliance (a product-level property, not inferable from this component alone). Penetrator is **cloud-agnostic**; the scanner currently happens to deploy on GCP — a deployment detail, not a platform coupling.
+>
 > See [RELEASE_NOTES.md](RELEASE_NOTES.md) for version history.
 
 ---
@@ -23,28 +25,15 @@ All tools in this repository are for **authorized testing only**. Explicit writt
 
 ## Architecture
 
-The scanner is one component of a three-service platform:
-
-| Service | Repo | Responsibility |
-|---------|------|---------------|
-| **Scanner** (this repo) | `peregrine-penetrator-scanner` | Run security tools, normalize findings, export JSON to GCS |
-| **Reporter** | [`peregrine-penetrator-reporter`](https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-reporter) | AI analysis, report generation (HTML/PDF), ticketing, email |
-| **Backend** | `peregrine-penetrator-backend` | Orchestration API, scheduling, billing |
+The scanner is **one component** of the **Peregrine Penetrator** product. Its job is bounded: run security tools against an **authorized** target, normalize and deduplicate findings, enrich them with CVE intelligence, and **export structured results** to GCS (and BigQuery). Those results are **consumed by other components of the product** (orchestration, reporting, delivery) — which are intentionally **out of scope for this repository**.
 
 ```mermaid
 graph LR
-    subgraph Platform
-        Reporter["Reporter<br/>(Sinatra + Cloud Run)"]
-        Scanner["Scanner<br/>(Ruby CLI + GCP VMs)"]
-        Backend["Backend<br/>(API + Scheduling)"]
-    end
-
-    Reporter -->|Trigger scan| Scanner
-    Scanner -->|Heartbeats + Callback| Reporter
-    Scanner -->|JSON| GCS[(GCS)]
-    Scanner -->|Findings + Costs| BQ[(BigQuery)]
-    Reporter -->|Fetch JSON| GCS
-    Backend -->|Schedule| Reporter
+    Orchestration["Orchestration<br/>(dispatches scans —<br/>separate component)"] -->|scan request| Scanner["Scanner<br/>(this repo · Ruby, native VM)"]
+    Scanner -->|JSON results| GCS[(GCS)]
+    Scanner -->|findings + costs| BQ[(BigQuery)]
+    Scanner -->|CVE enrichment| CVE[(NVD / KEV / EPSS / OSV)]
+    GCS -->|consumed by| Other["other Penetrator components"]
 ```
 
 ### Scan Pipeline
@@ -67,34 +56,28 @@ flowchart TD
     I --> J[CVE Enrichment<br/>NVD + KEV + EPSS + OSV]
     J --> K[JSON Export to GCS]
     K --> L[BigQuery Logging]
-    L --> M[Callback to Reporter]
+    L --> M[Write status.json<br/>GCS-only completion]
 ```
 
 ### Control Plane
 
-The scanner communicates with the reporter in real-time during scans:
+A scan is dispatched by an orchestration component (separate, out of scope). During the run the scanner writes liveness and completion signals to GCS — there is **no inbound callback** (#906) — and the single-use VM self-deletes:
 
 ```mermaid
 sequenceDiagram
-    participant R as Reporter
     participant S as Scanner VM
     participant G as GCS
 
-    R->>S: Trigger scan (job_id, callback_url)
     S->>G: Write scan_started.json
-    S->>R: Heartbeat (ack)
 
     loop Every 30s
-        S->>R: Heartbeat (progress, tool, findings)
         S->>G: Write heartbeat.json (progress)
         S->>G: Check control.json for cancel
     end
 
-    Note over S: Scavenger checks heartbeat.json<br/>staleness every 5-10 min
-
     S->>G: Write scan_results.json
-    S->>R: Callback (completed)
-    S->>S: Self-terminate VM
+    S->>G: Write control/<uuid>/status.json (completed)
+    S->>S: Self-delete VM (EXIT trap + watchdog)
 ```
 
 For the full architecture reference, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -116,8 +99,7 @@ For the full architecture reference, see [docs/ARCHITECTURE.md](docs/ARCHITECTUR
 ## Quick Start
 
 ### Prerequisites
-- Ruby 3.2+ and Bundler
-- Docker & Docker Compose (for running against DVWA)
+- Ruby 4.0.5 and Bundler (managed via `chruby`/`rbenv`; see `.ruby-version`)
 
 ### Local Development
 ```bash
@@ -133,29 +115,11 @@ bundle exec rubocop         # Lint
 # CLI with flags
 bin/scan --profile quick --name "My App" --urls '["https://example.com"]'
 
-# Environment variables (Docker/VM pattern)
+# Environment variables (the pattern the scan VM uses)
 SCAN_PROFILE=standard TARGET_NAME="My App" TARGET_URLS='["https://example.com"]' bin/scan
 ```
 
-### Docker (with DVWA target)
-```bash
-docker-compose -f docker/docker-compose.yml up -d dvwa
-docker build --platform linux/amd64 -f docker/Dockerfile -t scanner .
-docker run --platform linux/amd64 --network pentest-net \
-  -e SCAN_PROFILE=quick \
-  -e TARGET_NAME="DVWA" \
-  -e TARGET_URLS='["http://dvwa:80"]' \
-  scanner
-```
-
-### Cloud Development
-```bash
-./cloud/dev start          # Create/start GCP dev VM
-./cloud/dev build          # Sync code + Docker build on VM
-./cloud/dev scan quick     # Run scan, stream output
-./cloud/dev results        # Download results locally
-./cloud/dev stop           # Stop VM (preserves Docker cache)
-```
+> The scanner runs **natively — no Docker**. In production it executes on a **single-use VM booted from a pre-baked image** (`txn-scanner-app`); see [Image Model](#image-model) and [CI/CD](#cicd).
 
 ---
 
@@ -177,9 +141,9 @@ docker run --platform linux/amd64 --network pentest-net \
 | Decision | Rationale |
 |----------|-----------|
 | **Sequel ORM** over Rails | 80MB RAM, <1s boot, 15 gems (was 300MB, 5s, 38 gems under Rails) |
-| **Ephemeral VMs** | Each scan on a fresh spot VM that self-terminates |
-| **JSON-first pipeline** | Canonical v1.0 JSON envelope to GCS, then BigQuery |
-| **Separation of duties** | Scanner scans, reporter reports, backend orchestrates |
+| **Single-use VMs** | Each scan on a fresh on-demand VM (booted from the baked image) that self-deletes |
+| **JSON-first pipeline** | Canonical JSON envelope to GCS, then BigQuery |
+| **One component** | The scanner scans and exports results; other components of the Penetrator product consume them (out of scope here) |
 | **Heartbeat protocol** | Real-time progress, stale scan detection, cooperative cancellation |
 | **Dead letter to GCS** | No scan results lost even if reporter is down |
 
@@ -204,9 +168,9 @@ This project followed **stepwise refinement** — building a working monolith fi
 |-------|-----------|---------|---------|
 | **Preflight** | HTTP HEAD each target URL | 10s | Bad URLs, DNS failures, unreachable hosts |
 | **Critical failure** | First tool or connection errors abort scan | Immediate | Target goes down mid-scan |
-| **GCS heartbeat** | `heartbeat.json` every 30s, scavenger checks staleness | 5m stale | Hung scans with live containers |
+| **GCS heartbeat** | `heartbeat.json` every 30s; staleness observable | 5m stale | Hung scans |
 | **Timeout** | Ruby `Timeout.timeout` + shell `timeout` wrapper | 3600s | Scans exceeding global limit |
-| **Scavenger** | SSH + heartbeat check, Cloud Scheduler every 5m | 10m soft / 240m hard | All orphaned VMs |
+| **Self-delete + reaper** | Bootstrap EXIT-trap self-deletes the VM (success *and* failure) + a background watchdog; an infra-side TTL reaper is the backstop | trap / watchdog | Orphaned VMs |
 
 ### Additional Reliability
 
@@ -215,32 +179,15 @@ This project followed **stepwise refinement** — building a working monolith fi
 | Per-tool timeout (default 600s) | Individual tool hangs |
 | Scan-start Slack notification | Silent scan launches |
 | `scan_started.json` marker | Detect started-but-never-completed scans |
-| `callback_pending.json` dead letter | Recover when callback fails |
+| `control/<uuid>/status.json` completion (#906) | GCS-only completion signal (no callback) |
 | Cancel via GCS `control.json` | Stop stale/runaway scans |
-| Deploy smoke test (validates status + results) | Broken baked images |
 | Health endpoint method guard (GET = health) | Health polls creating VMs |
-
-### Deploy Verification
-
-Every staging and production deployment triggers a smoke test that launches an ephemeral scan VM with the `smoke-test` profile. The VM boots, pulls the baked image, creates canned findings, writes to GCS, and self-terminates. Reporter calls are stubbed (logged but not POSTed) since the reporter didn't dispatch the scan. Development is excluded (uses interactive VM).
 
 ---
 
-## Docker Architecture
+## Image Model
 
-Hybrid model — development is fast (no build), staging/production use immutable images:
-
-| Environment | How | Docker build? |
-|-------------|-----|---------------|
-| **Development** | Clone + `bundle install` at boot | No |
-| **Staging** | Baked `scanner:staging` image | Yes |
-| **Production** | Re-tag staging as `scanner:production` | No (identical bytes) |
-
-| Image | Contents | Rebuilt |
-|-------|----------|--------|
-| `scanner-base` | Security tools + Ruby runtime | Monthly |
-| `scanner:staging` | Base + gems + app code | Every staging merge |
-| `scanner:production` | Same as staging (re-tagged) | Main merge |
+The scanner is **not a Docker image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` a vetted base image via the infrastructure image-build pipeline — with the runtime, the security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). A scan boots a **single-use VM from the `txn-scanner-app` family**, runs natively as a dedicated non-root identity, and self-deletes. There is no per-environment image — environment is selected per scan via `SCAN_MODE`.
 
 ---
 
@@ -250,13 +197,10 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). <
 
 | Pipeline | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yaml` | Push (not main) | RSpec + RuboCop + RELEASE_NOTES check + Python Cloud Function tests |
-| `build-base.yaml` | Dockerfile.base changes | Build scanner-base image |
-| `build.yaml` | Staging push | Build baked scanner:staging |
-| `deploy.yaml` | Staging/main push | Tag image, trigger scan VM |
-| `promote.yaml` | Dev/staging push | Auto-promote to next branch |
-| `smoke-test.yaml` | Staging push | Verify GCS outputs |
-| `version-bump.yaml` | Main push | Bump VERSION, tag, update RELEASE_NOTES |
+| `ci.yaml` | Push (not main + promotion artifacts) | RSpec + RuboCop + RELEASE_NOTES + pre-publish lint — **native on the agent (ruby 4.0.5)** |
+| `promote.yaml` | Dev/staging push | Local merge branch → PR → auto-merge (dev) / manual (staging→main) |
+| `version-bump.yaml` | Main push | Bump VERSION, update RELEASE_NOTES, git tag + GitHub Release |
+| `bake.yaml` | Tag v* | `repository_dispatch` → infra TP baker → bake the `txn-scanner-app` GCE image |
 | `sync-back.yaml` | Tag v* | Sync RELEASE_NOTES to dev/staging |
 
 ---

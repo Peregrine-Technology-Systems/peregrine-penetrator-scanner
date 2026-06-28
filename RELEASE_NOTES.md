@@ -1,6 +1,7 @@
 # Release Notes
 
 ## Unreleased
+- docs: update README for the org-native cutover (#932) — drop Docker/DVWA/`cloud/dev` quickstart, ruby 3.2→4.0.5, replace the Docker Architecture + CI/CD sections with the org-native image model (baked `txn-scanner-app`, bake-on-tag, native CI) and the self-delete/reaper safety model, remove the reporter/backend system-context (one-component framing), drop the removed callback (#906), and add product context (Penetrator product line, SOC 2 Type II, cloud-agnostic). (#932)
 
 ## v1.0.0 — 2026-06-28
 - fix: activate ruby 4.0.5 explicitly in `test.sh`/`lint.sh` for native CI — the non-interactive Woodpecker step shell doesn't auto-switch chruby on `.ruby-version` (chruby source + `/opt/rubies` PATH fallback, set -e-safe). (#916)
