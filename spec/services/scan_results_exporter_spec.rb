@@ -1,0 +1,287 @@
+# frozen_string_literal: true
+
+require 'sequel_helper'
+
+RSpec.describe ScanResultsExporter do
+  subject(:exporter) { described_class.new(scan) }
+
+  let(:target) { create(:target, name: 'Acme Corp', urls: '["https://acme.com"]') }
+  let(:scan) do
+    create(:scan, :completed, target:,
+                              tool_statuses: { 'zap' => { 'status' => 'completed' }, 'nuclei' => { 'status' => 'completed' } },
+                              summary: {
+                                'total_findings' => 2,
+                                'by_severity' => { 'high' => 1, 'medium' => 1 },
+                                'tools_run' => %w[zap nuclei],
+                                'duration_seconds' => 300,
+                                'executive_summary' => 'Two vulnerabilities identified.'
+                              })
+  end
+
+  let!(:high_finding) do
+    create(:finding,
+           scan:,
+           source_tool: 'zap',
+           severity: 'high',
+           title: 'SQL Injection',
+           url: 'https://acme.com/login',
+           parameter: 'username',
+           cwe_id: 'CWE-89',
+           cve_id: 'CVE-2024-1234',
+           cvss_score: 9.8,
+           cvss_vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H',
+           epss_score: 0.95,
+           kev_known_exploited: true,
+           evidence: { 'description' => 'Injection in login form' },
+           duplicate: false)
+  end
+
+  let!(:medium_finding) do
+    create(:finding,
+           scan:,
+           source_tool: 'nuclei',
+           severity: 'medium',
+           title: 'Missing Security Headers',
+           url: 'https://acme.com/',
+           cwe_id: 'CWE-693',
+           duplicate: false)
+  end
+
+  let!(:duplicate_finding) do
+    create(:finding,
+           scan:,
+           source_tool: 'nikto',
+           severity: 'medium',
+           title: 'Duplicate Finding',
+           url: 'https://acme.com/',
+           duplicate: true)
+  end
+
+  let(:storage_service) { instance_double(StorageService) }
+
+  before do
+    allow(StorageService).to receive(:new).and_return(storage_service)
+    allow(storage_service).to receive(:upload).and_return(true)
+  end
+
+  describe '#build_envelope' do
+    let(:envelope) { exporter.build_envelope }
+
+    it 'includes schema_version' do
+      expect(envelope[:schema_version]).to eq('1.4')
+    end
+
+    describe 'tool_chain' do
+      let(:tool_chain) { envelope[:tool_chain] }
+
+      it 'includes profile metadata' do
+        expect(tool_chain[:profile][:name]).to eq('standard')
+        expect(tool_chain[:profile][:description]).to be_present
+        expect(tool_chain[:profile][:estimated_duration_minutes]).to eq(40)
+      end
+
+      it 'includes planned tools from profile YAML' do
+        tool_names = tool_chain[:planned].pluck(:tool)
+        expect(tool_names).to include('zap', 'nuclei')
+      end
+
+      it 'includes phase and config for planned tools' do
+        zap = tool_chain[:planned].find { |t| t[:tool] == 'zap' }
+        expect(zap[:phase]).to eq('active_scan')
+        expect(zap[:config]).to include(mode: 'full')
+      end
+
+      it 'includes executed tools from tool_statuses' do
+        executed_names = tool_chain[:executed].map { |t| t[:tool] }
+        expect(executed_names).to contain_exactly('zap', 'nuclei')
+      end
+
+      it 'includes status for each executed tool' do
+        zap = tool_chain[:executed].find { |t| t[:tool] == 'zap' }
+        expect(zap[:status]).to eq('completed')
+      end
+    end
+
+    describe 'metadata' do
+      let(:metadata) { envelope[:metadata] }
+
+      it 'includes scan identification' do
+        expect(metadata[:scan_id]).to eq(scan.id)
+        expect(metadata[:target_name]).to eq('Acme Corp')
+        expect(metadata[:target_urls]).to eq(['https://acme.com'])
+        expect(metadata[:profile]).to eq('standard')
+      end
+
+      it 'includes build provenance for deployed-bits verification' do
+        expect(metadata[:scanner_version]).to eq(Penetrator::VERSION)
+        expect(metadata[:scanner_commit]).to eq('unknown')
+      end
+
+      it 'emits the baked GIT_COMMIT as scanner_commit when set' do
+        original = ENV.fetch('GIT_COMMIT', nil)
+        ENV['GIT_COMMIT'] = 'abc1234'
+        commit = ScanResultsExporter.new(scan).build_envelope[:metadata][:scanner_commit]
+        expect(commit).to eq('abc1234')
+      ensure
+        original.nil? ? ENV.delete('GIT_COMMIT') : ENV['GIT_COMMIT'] = original
+      end
+
+      it 'includes timing data' do
+        expect(metadata[:started_at]).to be_present
+        expect(metadata[:completed_at]).to be_present
+        expect(metadata[:duration_seconds]).to be_a(Integer)
+        expect(metadata[:generated_at]).to be_present
+      end
+
+      it 'includes tool statuses' do
+        expect(metadata[:tool_statuses]).to eq(
+          'zap' => { 'status' => 'completed' },
+          'nuclei' => { 'status' => 'completed' }
+        )
+      end
+    end
+
+    describe 'summary' do
+      let(:summary) { envelope[:summary] }
+
+      it 'includes finding counts' do
+        expect(summary[:total_findings]).to eq(2)
+        expect(summary[:by_severity]).to eq('high' => 1, 'medium' => 1)
+      end
+
+      it 'includes tools and duration' do
+        expect(summary[:tools_run]).to eq(%w[zap nuclei])
+        expect(summary[:duration_seconds]).to eq(300)
+      end
+
+      it 'includes executive summary' do
+        expect(summary[:executive_summary]).to eq('Two vulnerabilities identified.')
+      end
+
+      context 'with cms_inventory on the scan' do
+        let(:inventory) { { 'cms' => 'wordpress', 'confidence' => 0.85, 'components' => [], 'core_version' => '6.4.2' } }
+
+        before do
+          scan.summary = scan.summary.merge('cms_inventory' => inventory)
+          scan.save_changes
+        end
+
+        it 'surfaces cms_inventory in the envelope summary' do
+          expect(exporter.build_envelope[:summary][:cms_inventory]).to eq(inventory)
+        end
+      end
+
+      it 'returns nil cms_inventory when none was captured' do
+        expect(summary).to have_key(:cms_inventory)
+        expect(summary[:cms_inventory]).to be_nil
+      end
+    end
+
+    describe 'findings' do
+      it 'excludes duplicate findings' do
+        titles = envelope[:findings].pluck(:title)
+        expect(titles).to include('SQL Injection', 'Missing Security Headers')
+        expect(titles).not_to include('Duplicate Finding')
+      end
+
+      it 'includes core finding fields' do
+        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
+
+        expect(sql_finding[:source_tool]).to eq('zap')
+        expect(sql_finding[:severity]).to eq('high')
+        expect(sql_finding[:parameter]).to eq('username')
+        expect(sql_finding[:cwe_id]).to eq('CWE-89')
+        expect(sql_finding[:cve_id]).to eq('CVE-2024-1234')
+      end
+
+      it 'includes CVSS/EPSS/KEV enrichment fields' do
+        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
+
+        expect(sql_finding[:cvss_score]).to eq(9.8)
+        expect(sql_finding[:cvss_vector]).to eq('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')
+        expect(sql_finding[:epss_score]).to eq(0.95)
+        expect(sql_finding[:kev_known_exploited]).to be(true)
+      end
+
+      it 'includes evidence' do
+        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
+
+        expect(sql_finding[:evidence]).to eq('description' => 'Injection in login form')
+        expect(sql_finding).not_to have_key(:ai_assessment)
+      end
+    end
+  end
+
+  describe '#export' do
+    it 'returns the GCS path' do
+      gcs_path = exporter.export
+
+      expect(gcs_path).to eq("scan-results/#{target.id}/#{scan.id}/scan_results.json")
+    end
+
+    it 'uploads JSON to storage' do
+      exporter.export
+
+      expect(storage_service).to have_received(:upload).with(
+        anything,
+        "scan-results/#{target.id}/#{scan.id}/scan_results.json",
+        content_type: 'application/json'
+      )
+    end
+
+    it 'produces valid JSON' do
+      allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
+        content = File.read(local_path)
+        parsed = JSON.parse(content)
+        expect(parsed['schema_version']).to eq('1.4')
+        expect(parsed['findings'].size).to eq(2)
+        true
+      end
+
+      exporter.export
+    end
+
+    it 'cleans up temp files' do
+      exporter.export
+
+      tmp_dir = Penetrator.root.join('tmp', 'scan_results', scan.id)
+      expect(File.directory?(tmp_dir)).to be(false)
+    end
+  end
+
+  describe 'SCHEMA_VERSION' do
+    it 'is a semantic version string' do
+      expect(described_class::SCHEMA_VERSION).to match(/\A\d+\.\d+\z/)
+    end
+  end
+
+  describe 'cost tracking' do
+    let(:cost_logger) { instance_double(ScanCostLogger) }
+
+    before { allow(cost_logger).to receive(:track_gcs_upload) }
+
+    it 'tracks GCS upload bytes when cost_logger provided' do
+      exporter_with_cost = described_class.new(scan, cost_logger:)
+      exporter_with_cost.export
+
+      expect(cost_logger).to have_received(:track_gcs_upload).with(a_value > 0)
+    end
+
+    it 'works without cost_logger (default nil)' do
+      expect { exporter.export }.not_to raise_error
+    end
+  end
+
+  describe 'with missing summary' do
+    let(:scan) do
+      create(:scan, :completed, target:, summary: nil, tool_statuses: {})
+    end
+
+    it 'falls back to computed values' do
+      envelope = exporter.build_envelope
+
+      expect(envelope[:summary][:total_findings]).to eq(2)
+      expect(envelope[:summary][:executive_summary]).to be_nil
+    end
+  end
+end

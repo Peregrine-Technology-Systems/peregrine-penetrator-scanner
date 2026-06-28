@@ -1,0 +1,23 @@
+# Nikto severity lookup — maps stable Nikto identifiers to a severity, so a
+# genuine critical can't silently drop to `info` when upstream reword a message
+# (#823). Nikto's JSON carries no native severity field; the keyword heuristic in
+# NiktoParser#infer_severity_from_message is a fragile fallback used ONLY when a
+# finding is not mapped here. Drive severity from the stable key whenever possible.
+#
+# Precedence at parse time: by_id (Nikto test id) → by_osvdb (OSVDB id) → keyword
+# inference → `info` (logged as an unmapped fall-through so mis-maps are visible).
+#
+# Maintenance: this map starts empty and is grown deliberately. When a Nikto
+# finding's severity matters and its message wording is not reliably matched by
+# the keyword rules, pin it here by its stable id. Keys are strings (Nikto JSON
+# emits them as strings). Allowed severities: critical, high, medium, low, info.
+# Do NOT map OSVDB "0" — it means "no OSVDB assigned" and is shared across
+# unrelated findings.
+
+# Nikto test id (the "id" field) → severity. Example (commented; uncomment +
+# replace with a real id when seeding):
+#   "999992": critical
+by_id: {}
+
+# OSVDB id (the "OSVDB" field) → severity.
+by_osvdb: {}

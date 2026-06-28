@@ -1,0 +1,224 @@
+require 'net/http'
+require 'open3'
+
+class ScanOrchestrator
+  SCANNER_MAP = {
+    'zap' => Scanners::ZapScanner,
+    'nuclei' => Scanners::NucleiScanner,
+    'sqlmap' => Scanners::SqlmapScanner,
+    'ffuf' => Scanners::FfufScanner,
+    'nikto' => Scanners::NiktoScanner,
+    'testssl' => Scanners::TestsslScanner,
+    'retirejs' => Scanners::RetirejsScanner,
+    'trufflehog' => Scanners::TrufflehogScanner,
+    'amass' => Scanners::AmassScanner
+  }.freeze
+
+  attr_reader :scan, :profile
+
+  def initialize(scan, cost_logger: nil)
+    @scan = scan
+    @profile = ScanProfile.load(scan.profile)
+    @discovered_urls = []
+    @cost_logger = cost_logger
+  end
+
+  def execute
+    scan_timeout = ENV.fetch('SCAN_TIMEOUT', '3600').to_i
+
+    Timeout.timeout(scan_timeout) do
+      prepare_scan
+      route_scan
+    end
+
+    scan
+  rescue Timeout::Error
+    scan.update(status: 'failed', completed_at: Time.current, error_message: "Scan timed out after #{scan_timeout}s")
+    Penetrator.logger.error("[ScanOrchestrator] Hard timeout after #{scan_timeout}s")
+    scan
+  rescue StandardError => e
+    scan.update(status: 'failed', completed_at: Time.current, error_message: e.message)
+    Penetrator.logger.error("[ScanOrchestrator] Scan failed: #{e.message}")
+    raise
+  ensure
+    @control_plane&.stop
+  end
+
+  private
+
+  def prepare_scan
+    mark_running
+    write_started_marker
+    Notifiers::SlackNotifier.send_started(scan)
+    @control_plane = start_control_plane
+    Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
+  end
+
+  def route_scan
+    if profile.smoke_test
+      SmokeTestRunner.new(scan).run
+    elsif profile.smoke
+      run_smoke_checks
+    else
+      preflight_check
+      fingerprint_target
+      run_scan_phases
+    end
+  end
+
+  def fingerprint_target
+    result = Fingerprinters::FingerprinterRegistry.new(scan).detect
+    scan.summary = (scan.summary || {}).merge('cms_inventory' => result.transform_keys(&:to_s))
+    scan.save_changes
+    Penetrator.logger.info("[Fingerprint] CMS: #{result[:cms]} (confidence: #{result[:confidence]})")
+  rescue StandardError => e
+    Penetrator.logger.warn("[Fingerprint] Failed: #{e.message}")
+  end
+
+  def start_control_plane
+    ControlPlaneLoop.new(
+      scan_uuid: ENV.fetch('SCAN_UUID', '').then { |v| v.present? ? v : scan.id },
+      job_id: ENV.fetch('JOB_ID', nil),
+      callback_url: ENV.fetch('CALLBACK_URL', ''),
+      gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
+      callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', ''),
+      cost_logger: @cost_logger
+    ).start
+  end
+
+  def preflight_check
+    scan.target.url_list.each do |url|
+      uri = URI.parse(url)
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 10, read_timeout: 10) do |http|
+        http.head(uri.path.empty? ? '/' : uri.path)
+      end
+      Penetrator.logger.info("[Preflight] Reachable: #{url}")
+    rescue StandardError => e
+      raise "Target unreachable: #{url} — #{e.message}"
+    end
+  end
+
+  def run_scan_phases
+    @phase_index = 0
+    profile.phases.each do |phase|
+      break mark_cancelled if @control_plane&.cancelled?
+
+      Penetrator.logger.info("[ScanOrchestrator] Phase: #{phase.name}")
+      @tool_index = 0
+      run_phase(phase)
+      @phase_index += 1
+    end
+
+    return if @control_plane&.cancelled?
+
+    FindingNormalizer.new(scan).normalize
+    mark_completed
+    Penetrator.logger.info("[ScanOrchestrator] Scan completed: #{scan.findings_dataset.count} findings")
+  end
+
+  def run_smoke_checks
+    checker = SmokeChecker.new(scan)
+    summary = checker.run
+
+    scan.status = checker.passed? ? 'completed' : 'failed'
+    scan.completed_at = Time.current
+    scan.summary = summary
+    scan.save_changes
+
+    status = checker.passed? ? 'PASSED' : 'FAILED'
+    Penetrator.logger.info("[ScanOrchestrator] Smoke test #{status}")
+    checker.results.each do |check, result|
+      Penetrator.logger.info("[SmokeChecker] #{check}: #{result[:status]} — #{result[:detail]}")
+    end
+  end
+
+  def mark_running
+    scan.update(status: 'running', started_at: Time.current)
+  end
+
+  def write_started_marker
+    scan_uuid = ENV.fetch('SCAN_UUID', '').then { |v| v.present? ? v : scan.id }
+    marker = {
+      scan_uuid:,
+      job_id: ENV.fetch('JOB_ID', nil),
+      started_at: Time.current.iso8601,
+      vm_name: ENV.fetch('HOSTNAME', `hostname`.strip)
+    }.compact
+
+    @cost_logger&.track_gcs_upload(marker.to_json.bytesize)
+    StorageService.new.upload_json("control/#{scan_uuid}/scan_started.json", marker)
+  rescue StandardError => e
+    Penetrator.logger.warn("[ScanOrchestrator] Started marker write failed: #{e.message}")
+  end
+
+  def mark_completed
+    scan.status = 'completed'
+    scan.completed_at = Time.current
+    scan.summary = (scan.summary || {}).merge(ScanSummaryBuilder.new(scan).build)
+    scan.save_changes
+  end
+
+  def mark_cancelled
+    scan.status = 'cancelled'
+    scan.completed_at = Time.current
+    scan.summary = (scan.summary || {}).merge(ScanSummaryBuilder.new(scan).build)
+    scan.save_changes
+    Penetrator.logger.info('[ScanOrchestrator] Scan cancelled by control plane')
+  end
+
+  def run_phase(phase)
+    if phase.parallel && phase.tools.length > 1
+      phase.tools.map { |tc| Thread.new { run_tool(tc) } }.each(&:join)
+    else
+      phase.tools.each { |tool_config| run_tool(tool_config) }
+    end
+  end
+
+  def run_tool(tool_config)
+    return if @control_plane&.cancelled?
+
+    scanner_class = SCANNER_MAP[tool_config.tool]
+    return log_unknown_tool(tool_config.tool) unless scanner_class
+
+    @control_plane&.update_progress(current_tool: tool_config.tool, last_tool_started_at: Time.current.iso8601)
+    feed_discovered_urls(tool_config)
+    result = scanner_class.new(scan, tool_config.config.dup).run
+
+    @control_plane&.update_progress(findings_count: scan.findings_dataset.count)
+    @discovered_urls.concat(result[:discovered_urls]) if result[:discovered_urls]
+    save_findings(result[:findings]) if result[:findings]&.any?
+    @tool_index = (@tool_index || 0) + 1
+  rescue StandardError => e
+    raise "Critical tool failure (#{tool_config.tool}): #{e.message}" if critical_failure?(e)
+
+    Penetrator.logger.error("[ScanOrchestrator] Tool #{tool_config.tool} failed: #{e.message}")
+  end
+
+  def critical_failure?(error)
+    # First tool in first phase failing = likely target issue
+    return true if @phase_index&.zero? && (@tool_index || 0) <= 1
+
+    # Connection-related errors are always critical
+    error.message.match?(/unreachable|connection refused|name.*resolution|ECONNREFUSED|EHOSTUNREACH/i)
+  end
+
+  def feed_discovered_urls(tool_config)
+    return unless @discovered_urls.any? && tool_config.tool != 'ffuf'
+
+    all_urls = (scan.target.url_list + @discovered_urls).uniq
+    scan.target.urls = all_urls
+    scan.target.save_changes
+  end
+
+  def log_unknown_tool(tool)
+    Penetrator.logger.warn("[ScanOrchestrator] Unknown tool: #{tool}")
+  end
+
+  def save_findings(findings)
+    findings.each do |finding_attrs|
+      Finding.create(finding_attrs.merge(scan_id: scan.id))
+    rescue Sequel::ValidationFailed => e
+      Penetrator.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
+    end
+  end
+end

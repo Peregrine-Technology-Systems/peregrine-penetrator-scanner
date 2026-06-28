@@ -1,0 +1,27 @@
+# Version bump on main merge — tag release, update RELEASE_NOTES, create GitHub
+# Release. The tag fires bake.yaml (org-native txn-scanner-app bake) — no Docker.
+when:
+  - event: push
+    branch: main
+
+labels:
+  platform: linux
+
+steps:
+  - name: version-bump
+    image: bash
+    commands:
+      # GitHub App token (replaces static gh_token PAT) — peregrine-ci-app,
+      # see peregrine-infrastructure/docs/operations/gh-app.md (#779)
+      - gsutil cp gs://ci-runners-de-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
+      - chmod +x /tmp/get-gh-token.sh
+      - eval "$(/tmp/get-gh-token.sh)"
+      - scripts/woodpecker/version-bump.sh
+
+  - name: notify-status
+    image: bash
+    commands:
+      - scripts/woodpecker/notify-status.sh
+    when:
+      - status: [success, failure]
+    depends_on: [version-bump]

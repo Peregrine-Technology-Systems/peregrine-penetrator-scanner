@@ -1,0 +1,50 @@
+name: thorough
+description: "Comprehensive scan - All tools, all templates, deep crawl"
+estimated_duration_minutes: 150
+rate_limit: 5
+phases:
+  - name: subdomain_discovery
+    tools:
+      - tool: amass
+        timeout: 600
+  - name: discovery
+    tools:
+      - tool: ffuf
+        wordlist: /usr/share/seclists/Discovery/Web-Content/common.txt
+        timeout: 600
+        threads: 1
+        rate: 5
+        extensions: ".php,.asp,.aspx,.jsp,.html,.js,.json,.xml,.txt,.bak,.old,.conf,.sql,.log"
+      - tool: nikto
+        timeout: 600
+        tuning: "1234567890abc"
+        pause: 2
+      - tool: testssl
+        timeout: 600
+    parallel: true
+  - name: active_scan
+    tools:
+      - tool: zap
+        mode: full
+        timeout: 1800
+        ajax_spider: true
+        delay_ms: 500
+  - name: targeted
+    tools:
+      - tool: nuclei
+        severity_filter: critical,high,medium,low
+        timeout: 1200
+        templates: []
+        rate_limit: 5
+        bulk_size: 2
+      - tool: sqlmap
+        level: 3
+        risk: 2
+        timeout: 1200
+        delay: 2
+        threads: 1
+      - tool: retirejs
+        timeout: 600
+      - tool: trufflehog
+        timeout: 600
+    parallel: true

@@ -1,0 +1,41 @@
+name: standard
+description: "Standard scan - Subdomain discovery + Full ZAP + Nuclei + Nikto + ffuf + retire.js + trufflehog"
+estimated_duration_minutes: 40
+rate_limit: 8
+phases:
+  - name: subdomain_discovery
+    tools:
+      - tool: amass
+        timeout: 300
+  - name: discovery
+    tools:
+      - tool: ffuf
+        wordlist: /usr/share/seclists/Discovery/Web-Content/common.txt
+        timeout: 300
+        threads: 2
+        rate: 8
+      - tool: nikto
+        timeout: 300
+        pause: 1
+      - tool: testssl
+        timeout: 300
+    parallel: true
+  - name: active_scan
+    tools:
+      - tool: zap
+        mode: full
+        timeout: 900
+        delay_ms: 200
+  - name: targeted
+    tools:
+      - tool: nuclei
+        severity_filter: critical,high,medium
+        timeout: 600
+        templates: []
+        rate_limit: 8
+        bulk_size: 3
+      - tool: retirejs
+        timeout: 300
+      - tool: trufflehog
+        timeout: 300
+    parallel: true

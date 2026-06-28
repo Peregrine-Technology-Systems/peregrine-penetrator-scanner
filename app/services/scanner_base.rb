@@ -1,0 +1,176 @@
+require 'open3'
+require 'shellwords'
+
+class ScannerBase
+  attr_reader :scan, :tool_config, :logger
+
+  def initialize(scan, tool_config = {})
+    @scan = scan
+    @tool_config = tool_config
+    @logger = Penetrator.logger
+  end
+
+  def run
+    update_status('running', started_at: Time.current.iso8601)
+    logger.info("[#{tool_name}] Starting scan for #{scan.target.name}")
+
+    result = execute
+
+    if result[:success]
+      findings_count = Array(result[:findings]).length
+      update_status('completed', nil, findings_count:, exit_code: 0)
+      logger.info("[#{tool_name}] Completed successfully")
+    else
+      update_status('failed', result[:error], exit_code: result[:exit_code])
+      logger.error("[#{tool_name}] Failed: #{result[:error]}")
+      alert_on_failure(result)
+    end
+
+    result
+  rescue StandardError => e
+    update_status('failed', e.message, exit_code: -1)
+    logger.error("[#{tool_name}] Exception: #{e.message}")
+    { success: false, error: e.message, findings: [] }
+  end
+
+  def tool_name
+    raise NotImplementedError, 'Subclass must implement #tool_name'
+  end
+
+  protected
+
+  def execute
+    raise NotImplementedError, 'Subclass must implement #execute'
+  end
+
+  def run_command(command, timeout: nil)
+    timeout ||= tool_config[:timeout] || 600
+    logger.info("[#{tool_name}] Running: #{command}")
+
+    pid = nil
+    stdout = ''
+    stderr = ''
+    status = nil
+
+    # pgroup: 0 puts the child in its own process group (PGID == child PID).
+    # kill_process then kills the entire group, reaching Node/Python/shell
+    # grandchildren that survive a bare PID kill.
+    Open3.popen3(command, pgroup: 0) do |stdin_stream, out, err, wait_thr|
+      pid = wait_thr.pid
+      stdin_stream.close
+
+      heartbeat = start_heartbeat(pid)
+
+      begin
+        Timeout.timeout(timeout) do
+          stdout = read_stream_yielding(out)
+          stderr = err.read
+          status = wait_thr.value
+        end
+      rescue Timeout::Error
+        kill_process(pid)
+        return { stdout:, stderr: "Command timed out after #{timeout}s", exit_code: -1, success: false }
+      ensure
+        heartbeat&.kill
+      end
+    end
+
+    detect_rate_limiting(stderr)
+
+    {
+      stdout:,
+      stderr:,
+      exit_code: status&.exitstatus,
+      success: status&.success? || false
+    }
+  rescue Errno::ENOENT => e
+    { stdout: '', stderr: "Command not found: #{e.message}", exit_code: 127, success: false }
+  end
+
+  def target_urls
+    scan.target.url_list
+  end
+
+  def output_dir
+    dir = Penetrator.root.join('tmp', 'scans', scan.id, tool_name)
+    FileUtils.mkdir_p(dir)
+    dir
+  end
+
+  private
+
+  def read_stream_yielding(io)
+    chunks = []
+    loop do
+      result = io.read_nonblock(65_536, exception: false)
+      case result
+      when nil then break # EOF
+      when :wait_readable then io.wait_readable(0.1) # Releases GIL during wait
+      else chunks << result
+      end
+    end
+    chunks.join
+  rescue EOFError
+    chunks.join
+  end
+
+  def kill_process(pid)
+    # Negative PID kills the entire process group, reaching grandchildren
+    # (e.g. node spawned by the retire npm wrapper, python subprocesses).
+    Process.kill('-TERM', pid)
+  rescue StandardError
+    nil
+  ensure
+    sleep(1)
+    begin
+      Process.kill('-KILL', pid)
+    rescue StandardError
+      nil
+    end
+  end
+
+  def start_heartbeat(pid)
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    Thread.new do
+      loop do
+        sleep(60)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+        minutes = (elapsed / 60).floor
+        seconds = (elapsed % 60).floor
+        begin
+          Process.kill(0, pid)
+          logger.info("[#{tool_name}] Still running... (elapsed: #{minutes}m #{seconds}s)")
+        rescue Errno::ESRCH
+          break
+        end
+      end
+    end
+  end
+
+  def detect_rate_limiting(stderr)
+    return if stderr.nil? || stderr.empty?
+    return unless stderr.match?(/429|rate.limit|too many requests/i)
+
+    Notifiers::SlackAlert.send_alert(
+      scan:, tool: tool_name, severity: :warning,
+      message: 'Receiving HTTP 429 responses — target rate limit exceeded',
+      action: 'Consider reducing rate_limit in scan profile'
+    )
+  end
+
+  def alert_on_failure(result)
+    Notifiers::SlackAlert.send_alert(
+      scan:, tool: tool_name, severity: :error,
+      message: result[:error] || 'Tool execution failed',
+      action: 'Check tool installation and configuration'
+    )
+  end
+
+  def update_status(status, error = nil, findings_count: nil, exit_code: nil, started_at: nil)
+    existing = (scan.tool_statuses || {}).fetch(tool_name, {})
+    entry = existing.merge({ status:, updated_at: Time.current.iso8601, error:,
+                             findings_count:, exit_code:, started_at: }.compact)
+    scan.tool_statuses = (scan.tool_statuses || {}).merge(tool_name => entry)
+    scan.save_changes
+  end
+end

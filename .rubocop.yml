@@ -1,0 +1,92 @@
+plugins:
+  - rubocop-sequel
+  - rubocop-rspec
+  - rubocop-factory_bot
+
+AllCops:
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'db/**/*'
+    - 'bin/**/*'
+    - 'vendor/**/*'
+    - 'config/**/*'
+    - 'Gemfile'
+    - 'infra/**/*'
+
+Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 35
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ClassLength:
+  Max: 200
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'lib/tasks/**/*'
+    - 'Rakefile'
+
+Metrics/AbcSize:
+  Max: 40
+  Exclude:
+    - 'spec/**/*'
+    - 'app/services/big_query_logger.rb'
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+  Exclude:
+    - 'app/services/big_query_logger.rb'
+
+Metrics/PerceivedComplexity:
+  Max: 15
+  Exclude:
+    - 'app/services/big_query_logger.rb'
+
+Layout/LineLength:
+  Max: 160
+  Exclude:
+    - 'spec/**/*'
+
+RSpec/ExampleLength:
+  Max: 15
+
+RSpec/MultipleExpectations:
+  Max: 8
+
+RSpec/NestedGroups:
+  Max: 4
+
+RSpec/MessageSpies:
+  Enabled: false
+
+RSpec/StubbedMock:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/DescribedClass:
+  Enabled: false
+
+FactoryBot/AssociationStyle:
+  Enabled: false
+
+Style/HashSyntax:
+  Exclude:
+    - 'spec/**/*'
+
+Lint/DuplicateBranch:
+  Exclude:
+    - 'app/services/result_parsers/**/*'

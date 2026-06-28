@@ -1,0 +1,16 @@
+# Extra sensitive-content patterns for the pre-publish lint (check-sensitive-content.sh).
+#
+# WHY THIS FILE: the committed lint ships only GENERIC patterns (hostname domains,
+# service-account emails, private IPs, internal issue refs, report buckets) — because
+# this repo is PUBLIC, hard-coding our specific internal GCP project names, SA names,
+# or client/engagement identifiers in the committed script would itself publish them.
+#
+# HOW TO USE: copy this file to `.sensitive-extra-patterns` (which is gitignored) and
+# add the specific strings you want blocked, one extended-regex (grep -E) per line.
+# The lint loads it automatically if present. CI provides it from a private source.
+#
+# Examples (uncomment / adapt in your local .sensitive-extra-patterns — NOT here):
+# <internal-gcp-project-name>
+# <org-native-project-name>
+# <service-account-shortname>
+# <client-domain-being-onboarded>

@@ -1,0 +1,3 @@
+config:
+  gcp:project: pentest-dev
+  gcp:region: us-central1

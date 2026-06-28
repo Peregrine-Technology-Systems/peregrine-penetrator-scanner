@@ -1,0 +1,32 @@
+# Sync RELEASE_NOTES.md + VERSION from main back to development/staging after tag
+when:
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  platform: linux
+
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      depth: 0
+
+steps:
+  - name: sync-back
+    image: bash
+    commands:
+      # GitHub App token (replaces static gh_token PAT) — peregrine-ci-app,
+      # see peregrine-infrastructure/docs/operations/gh-app.md (#779)
+      - gsutil cp gs://ci-runners-de-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
+      - chmod +x /tmp/get-gh-token.sh
+      - eval "$(/tmp/get-gh-token.sh)"
+      - scripts/woodpecker/sync-back.sh
+
+  - name: notify-status
+    image: bash
+    commands:
+      - scripts/woodpecker/notify-status.sh
+    when:
+      - status: [success, failure]
+    depends_on: [sync-back]
