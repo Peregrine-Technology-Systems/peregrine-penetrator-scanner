@@ -1,4 +1,5 @@
-# Version bump on main merge — tag release, update RELEASE_NOTES, tag Docker image
+# Version bump on main merge — tag release, update RELEASE_NOTES, create GitHub
+# Release. The tag fires bake.yaml (org-native txn-scanner-app bake) — no Docker.
 when:
   - event: push
     branch: main
@@ -9,9 +10,6 @@ labels:
 steps:
   - name: version-bump
     image: bash
-    environment:
-      DOCKER_REGISTRY:
-        from_secret: docker_registry
     commands:
       # GitHub App token (replaces static gh_token PAT) — peregrine-ci-app,
       # see peregrine-infrastructure/docs/operations/gh-app.md (#779)

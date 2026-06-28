@@ -149,7 +149,7 @@ RSpec.describe ScanCostLogger do
   describe '#log_to_bigquery' do
     let(:schema_fields) do
       ScanCostLogger::SCHEMA_FIELDS.map do |f|
-        double(name: f[:name]) # rubocop:disable RSpec/VerifiedDoubles
+        double(name: f[:name])
       end
     end
     let(:schema_double) do
