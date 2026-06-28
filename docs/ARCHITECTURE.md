@@ -74,6 +74,8 @@ graph TB
 
 ## 2. Scan Lifecycle
 
+> **Note (org-native cutover):** the diagrams in §2–§4 below depict the **retired** containerized launch model (generic VM → `docker pull`/`docker run`, the legacy GCP Cloud Functions, the in-repo scavenger). That entire launch path has been **removed from this repository**. Scans now run **natively** on a single-use VM booted from the pre-baked `txn-scanner-app` image, **launched by a separate org-native launcher** (an infrastructure component, not in this repo). The scan *phases, normalization, enrichment, export, and self-delete* still apply; only the launch/packaging mechanism changed. See §6 → Image Model / Execution Model for the current model.
+
 ### End-to-End Sequence
 
 ```mermaid
@@ -355,7 +357,7 @@ Four Cloud Functions in `cloud/scheduler/main.py` manage VM lifecycle.
 | `trigger-scan-staging` | `trigger_staging` | Orchestration / Scheduler | Launch staging VM (baked image) |
 | `trigger-scan-production` | `trigger_production` | Orchestration / Scheduler | Launch production VM (baked image, on-demand) |
 
-> **On-demand, not SPOT** — a scan is non-recoverable work, so production scan VMs use standard (on-demand) provisioning; a mid-run preemption is not acceptable. (This is the current Cloud Function launch path; see "Execution model" below — the launch is migrating to a dispatched, org-native model.)
+> **On-demand, not SPOT** — a scan is non-recoverable work, so scan VMs use standard (on-demand) provisioning; a mid-run preemption is not acceptable. (The legacy Cloud Function launch shown here is retired — see the §2 note and §6 Execution Model; the org-native launcher applies the same on-demand principle.)
 
 ### Health Guard Pattern
 
@@ -580,94 +582,53 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    subgraph "Feature Branch"
-        CI_F["ci.yaml<br/>RSpec + RuboCop +<br/>check-release-notes +<br/>test-cloud-functions"]
-    end
-
-    subgraph "Development Branch"
-        CI_D["ci.yaml"]
-        P_D["promote.yaml<br/>(auto PR to staging)"]
-        BB["build-base.yaml<br/>(if Dockerfile.base changes)"]
-    end
-
-    subgraph "Staging Branch"
-        CI_S["ci.yaml"]
-        BUILD["build.yaml<br/>(bake scanner:staging)"]
-        DEPLOY["deploy.yaml<br/>(trigger smoke scan)"]
-        SMOKE["smoke-test.yaml<br/>(verify GCS artifacts)"]
-        P_S["promote.yaml<br/>(PR to main, manual)"]
+    subgraph "Feature / Development / Staging"
+        CI["ci.yaml<br/>RSpec + RuboCop +<br/>check-release-notes + check-sensitive<br/>(native on agent, ruby 4.0.5)"]
+        PROM["promote.yaml<br/>(auto PR dev→staging;<br/>manual staging→main)"]
     end
 
     subgraph "Main Branch"
-        VB["version-bump.yaml<br/>(bump VERSION, tag)"]
-        REL["release.yaml<br/>(retag Docker image)"]
+        VB["version-bump.yaml<br/>(bump VERSION, git tag, GitHub Release)"]
     end
 
     subgraph "Tag v*"
+        BAKE["bake.yaml<br/>(repository_dispatch → infra TP baker<br/>→ txn-scanner-app GCE image)"]
         SB["sync-back.yaml<br/>(RELEASE_NOTES to dev+staging)"]
     end
 
-    CI_F -->|"merge"| CI_D
-    CI_D --> P_D
-    P_D -->|"auto-merge PR"| CI_S
-    CI_S --> BUILD
-    BUILD --> DEPLOY
-    DEPLOY --> SMOKE
-    SMOKE --> P_S
-    P_S -->|"manual merge"| VB
-    VB --> REL
-    REL --> SB
+    CI --> PROM
+    PROM -->|"manual merge to main"| VB
+    VB -->|"git tag v*"| BAKE
+    VB --> SB
 ```
 
 ### Workflow Details
 
 | Pipeline | File | Trigger | Steps | Depends On |
 |----------|------|---------|-------|------------|
-| **CI** | `ci.yaml` | Push (exclude main) | RSpec, RuboCop, check-release-notes, test-cloud-functions (parallel) | -- |
-| **Build Base** | `build-base.yaml` | Push to development (Dockerfile.base changes) | Build + push scanner-base image | -- |
-| **Build** | `build.yaml` | Push to staging | Build baked scanner:staging image | ci |
-| **Deploy** | `deploy.yaml` | Push to staging | Trigger scan VM with baked image | build |
-| **Smoke Test** | `smoke-test.yaml` | Push to staging | Validate scan outputs in GCS | deploy |
-| **Promote** | `promote.yaml` | Push to dev/staging | Local merge branch, create PR, auto-merge (dev) or manual (staging) | -- |
-| **Version Bump** | `version-bump.yaml` | Push to main | Bump VERSION, update RELEASE_NOTES, create git tag, tag Docker image | -- |
-| **Release** | `release.yaml` | Push to main | Retag staging Docker image as production | version-bump |
+| **CI** | `ci.yaml` | Push (exclude main + promotion artifacts) | RSpec, RuboCop, check-release-notes, check-sensitive — **native on the agent (ruby 4.0.5)** | -- |
+| **Promote** | `promote.yaml` | Push to dev/staging | Local merge branch, create PR, auto-merge (dev) or manual (staging→main) | -- |
+| **Version Bump** | `version-bump.yaml` | Push to main | Bump VERSION, update RELEASE_NOTES, create git tag + GitHub Release | -- |
+| **Bake** | `bake.yaml` | Tag v* | `repository_dispatch` → infra TP baker → bake `txn-scanner-app` FROM `txn-scanner-base` | -- |
 | **Sync Back** | `sync-back.yaml` | Tag v* | Sync RELEASE_NOTES back to development/staging | -- |
 
-### Docker Image Model
+### Image Model (org-native)
+
+The scanner is **not packaged as a Docker image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` the vetted `txn-scanner-base` base via the infra TP baker — with the runtime, security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). The launcher boots a single-use VM from the `txn-scanner-app` family.
 
 ```mermaid
-flowchart TD
-    subgraph "Development (clone at boot)"
-        DEV_BASE["scanner-base:latest<br/>(Ubuntu + ZAP + Nuclei + sqlmap<br/>+ ffuf + Nikto + Ruby)"]
-        DEV_CODE["git clone + bundle install<br/>(volume mount into base)"]
-        DEV_BASE --> DEV_CODE
-    end
-
-    subgraph "Staging (baked image)"
-        STG_BASE["scanner-base:latest"]
-        STG_APP["scanner:staging<br/>(base + app code + gems)"]
-        STG_BASE --> STG_APP
-    end
-
-    subgraph "Production (retag)"
-        PROD["scanner:production<br/>(identical bytes to staging)"]
-    end
-
-    STG_APP -->|"docker tag<br/>(zero rebuild)"| PROD
+flowchart LR
+    SRC["scanner repo<br/>(.bake/ + app + Gemfile.lock)"] -->|"tag v* → bake.yaml<br/>repository_dispatch"| BAKER["infra TP baker<br/>(keyless WIF)"]
+    BASE["txn-scanner-base<br/>(vetted tools + ruby, baked by infra)"] --> BAKER
+    BAKER -->|"bundle install + place app,<br/>strip build tooling"| APP["txn-scanner-app<br/>(gem-complete GCE image)"]
+    APP -->|"launcher boots single-use VM"| VM["scan VM (native, non-root,<br/>self-deleting)"]
 ```
 
-| Layer | Contents | Rebuild Frequency |
-|-------|----------|------------------|
-| **scanner-base** | Ubuntu + ZAP + Nuclei + sqlmap + ffuf + Nikto + Python + Ruby 3.2.2 | Monthly (or on tool updates) |
-| **scanner** (app) | Base + bundled gems + application code | Every staging build |
+**Key design decision**: `VERSION` is a runtime environment variable, not baked into the image — the same image serves multiple tagged releases. Read via `Penetrator::VERSION`.
 
-**Key design decision**: `VERSION` is a runtime environment variable, not baked into the Docker image. This allows the same image bytes to serve multiple tagged releases. Read via `Penetrator::VERSION`.
+### Execution Model (native VMs)
 
-### Execution Model (migrating to native VMs)
-
-> The Docker model above is the **current** mechanism; it is being **retired** in favour of native VM execution. The `docker/` assets and `Dockerfile*` are legacy. This section describes the target model at a posture level; operational specifics (identities, project layout, image names) are intentionally omitted from this public repo.
-
-The scan runtime is moving from "boot a generic VM → `docker pull` → `docker run`" to **native execution on a single-use VM booted from a pre-baked, gem-complete image**:
+Scans run via **native execution on a single-use VM booted from the pre-baked, gem-complete `txn-scanner-app` image** (the prior containerized model has been removed):
 
 - **Baked, vetted image.** A build pipeline produces an image with the runtime, the security tools, **and the application's gems already placed** — every tool/dependency pinned and content-verified, build tooling (compilers, package managers) stripped from the result. **Nothing is installed or compiled at scan time** — the VM boots ready to run.
 - **Native, non-container, non-root.** The scanner runs as a process under a dedicated, least-privilege (non-root) service identity — no container layer.

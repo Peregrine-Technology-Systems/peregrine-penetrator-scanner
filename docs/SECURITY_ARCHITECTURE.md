@@ -23,7 +23,7 @@ This addresses risks to the scanning engine. The engine executes offensive secur
 | Asset | Sensitivity | Notes |
 |-------|------------|-------|
 | Scan findings (vulnerability details) | High | The primary sensitive asset. Ephemeral on the VM; retained in managed object storage / warehouse under the documented retention policy. |
-| Control-plane completion token | Medium | Bearer token for the engine→consumer handoff; held in a managed secret store, never in request bodies or images. Being retired in favour of a storage-only completion signal. |
+| Control-plane completion token | Medium | Bearer token for the engine→consumer handoff; held in a managed secret store, never in request bodies or images. The legacy callback was removed (#906); completion is now storage-only (a `status.json` the consumer polls). |
 | Source code | Low/Medium | Public repository (intentionally — see below). |
 
 **Not assets for this engine (common misconceptions):**
@@ -48,7 +48,7 @@ This addresses risks to the scanning engine. The engine executes offensive secur
 
 ## Secrets Management
 
-The engine's secret surface is deliberately small. Secrets are held in a **managed secret store**, fetched at boot, and **never baked into images or placed in request bodies / VM metadata payloads**. CVE enrichment is keyless; the engine holds no target credentials. The only runtime secret is the control-plane completion token (being retired with the move to a storage-only completion signal).
+The engine's secret surface is deliberately small. Secrets are held in a **managed secret store**, fetched at boot, and **never baked into images or placed in request bodies / VM metadata payloads**. CVE enrichment is keyless; the engine holds no target credentials. The only runtime secret is the control-plane completion token (its callback was removed in #906; completion is storage-only via a `status.json`).
 
 ---
 
@@ -57,7 +57,7 @@ The engine's secret surface is deliberately small. Secrets are held in a **manag
 Scans run on **single-use, ephemeral VMs** that exist only for the scan's duration:
 
 - **No standing compute and no state between scans.** The VM self-deletes on completion *and* on failure (an exit trap owns teardown); orphans are reaped by an independent backstop.
-- **Native (non-container) execution.** The runtime executes the scanner natively; the prior containerized model is **legacy and being retired** (the `docker/` assets and `Dockerfile*` in this repo are not the current runtime path — do not assess current posture from them).
+- **Native (non-container) execution.** The runtime executes the scanner natively; the containerized model has been **removed** (there are no `docker/` assets or `Dockerfile*` in the repo).
 - **Dedicated, non-root service identity.** The scan process runs as a purpose-scoped, least-privilege identity — not root, and not a broad/shared identity.
 - **Vetted, content-addressed base image.** The VM image is produced by a build pipeline that pins and content-verifies every tool and dependency before placement, and **strips build tooling (compilers, package managers) from the runtime image**. The runtime never installs or compiles anything at boot.
 
@@ -114,7 +114,7 @@ All outbound connections are TLS. The VM exposes no inbound listeners.
 
 - **Ruby dependencies** are pinned via `Gemfile.lock` and **vendored into the image at build time** — the runtime never runs `bundle install` or compiles gems.
 - **Tool binaries** are sourced from a **vetted, content-addressed build pipeline** (pinned + content-verified before placement), not ad-hoc runtime downloads. Build tooling is stripped from the runtime image.
-- The legacy per-tool download model visible in `Dockerfile*` is **being retired** in favour of the above; it is not the production path.
+- The legacy per-tool download model has been **removed** (no `Dockerfile*`); tools come only from the vetted baked image.
 
 ---
 
