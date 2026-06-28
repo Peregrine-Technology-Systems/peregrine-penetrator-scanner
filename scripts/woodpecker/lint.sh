@@ -23,11 +23,14 @@ done
 
 # Activate ruby 4.0.5 (see test.sh — the step shell doesn't auto-switch chruby).
 for cs in /opt/chruby/share/chruby/chruby.sh /usr/local/share/chruby/chruby.sh /etc/profile.d/chruby.sh; do
-  # shellcheck disable=SC1090
-  [ -f "$cs" ] && { . "$cs"; chruby ruby-4.0.5 2>/dev/null || chruby 4.0.5 2>/dev/null || true; break; }
+  if [ -f "$cs" ]; then
+    # shellcheck disable=SC1090
+    . "$cs"; chruby ruby-4.0.5 2>/dev/null || chruby 4.0.5 2>/dev/null || true
+    break
+  fi
 done
 for rd in /opt/rubies/4.0.5/bin /opt/rubies/ruby-4.0.5/bin; do
-  [ -x "$rd/ruby" ] && { export PATH="$rd:$PATH"; break; }
+  if [ -x "$rd/ruby" ]; then export PATH="$rd:$PATH"; break; fi
 done
 echo "==> Ruby: $(ruby -v)"
 bundle install --jobs 4 --retry 3

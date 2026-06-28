@@ -1,7 +1,7 @@
 # Release Notes
 
 ## Unreleased
-- fix: activate ruby 4.0.5 explicitly in `test.sh`/`lint.sh` for native CI — the non-interactive Woodpecker step shell doesn't auto-switch chruby on `.ruby-version` (chruby source + `/opt/rubies` PATH fallback). (#916)
+- fix: activate ruby 4.0.5 explicitly in `test.sh`/`lint.sh` for native CI — the non-interactive Woodpecker step shell doesn't auto-switch chruby on `.ruby-version` (chruby source + `/opt/rubies` PATH fallback, set -e-safe). (#916)
 - feat!: org-native cutover — remove Docker entirely (#916). Deletes the Docker image build (`docker/`, `build.yaml`/`build-base.yaml`), the legacy GCP Cloud Function launch (`cloud/`), and the Docker-based deploy/release/smoke workflows; CI now runs **native on the agent** (ruby 4.0.5 via chruby/`.ruby-version`, no `docker run`). Production release is org-native: the version tag fires `bake.yaml` → infra TP baker → `txn-scanner-app` GCE image. Also bumps `rubocop-rspec`→3.x (+`rubocop-factory_bot`, plugins config) for ruby-4.0.5 gem compatibility. (#916)
 - fix: complete #906 GCS-only completion in `bin/scan` — drop the two `ScanCallbackService` calls (the service was deleted in #906 but `bin/scan` still referenced it → would `NameError` on the baked image) and write `control/<scan_uuid>/status.json` with `results_path` so the consumer can detect completion (mirrors the rake task). (#906)
 
