@@ -23,6 +23,11 @@ target_urls = JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://lo
 Penetrator.boot!
 Penetrator.boot_services!
 
+# Stamp the VM's boot image (from the GCE metadata server) so audit events and
+# status.json carry it for version traceability (#951). Fail-safe to "unknown"
+# off-GCE; set once here so every downstream audit event sees it.
+ENV['BOOT_IMAGE'] ||= InstanceMetadata.boot_image
+
 puts '=== Web Application Penetration Test ==='
 puts "Profile: #{profile}"
 puts "Target: #{target_name}"
@@ -98,7 +103,8 @@ scan_uuid = ENV.fetch('SCAN_UUID', scan.id.to_s)
 StorageService.new.upload_json("control/#{scan_uuid}/status.json", {
   phase: 'completed',
   timestamp: Time.now.utc.iso8601,
-  results_path: gcs_scan_results_path
+  results_path: gcs_scan_results_path,
+  boot_image: ENV.fetch('BOOT_IMAGE', InstanceMetadata::UNKNOWN)
 })
 puts "\n--- Completion Status ---"
 puts "  Written control/#{scan_uuid}/status.json (results_path: #{gcs_scan_results_path})"

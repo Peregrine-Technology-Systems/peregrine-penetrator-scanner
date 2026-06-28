@@ -7,14 +7,24 @@ set -euo pipefail
 MINIMUM_COVERAGE=90
 BRANCH="${CI_COMMIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 
-# Skip tests when code tree is identical to a target branch (promotion/sync-back)
+# Skip tests when code tree is identical to a target branch (promotion/sync-back).
+# #944: the tree-identity "already tested" fast-path is ONLY safe for promotion
+# artifacts (sync/*, merge/*, release/*) — promote.yaml creates those only after
+# the source branch's CI passed green, so an identical tree was genuinely tested.
+# On a feature branch it was a green-by-deferral silent-OK: it skipped as
+# "identical to development" while development's own CI was red, manufacturing a
+# false green. Feature branches always run their own CI.
+case "$BRANCH" in
+  sync/*|merge/*|release/*) PROMO_ARTIFACT=yes ;;
+  *) PROMO_ARTIFACT=no ;;
+esac
 git fetch origin development staging main --quiet 2>/dev/null || true
 HEAD_TREE=$(git rev-parse HEAD^{tree} 2>/dev/null || echo "")
 for TARGET in development staging main; do
   if [ "$BRANCH" = "$TARGET" ]; then continue; fi
   TARGET_TREE=$(git rev-parse "origin/${TARGET}^{tree}" 2>/dev/null || echo "")
-  if [ -n "$HEAD_TREE" ] && [ "$HEAD_TREE" = "$TARGET_TREE" ]; then
-    echo "==> Skipping tests: file content identical to ${TARGET} (already tested)"
+  if [ "$PROMO_ARTIFACT" = "yes" ] && [ -n "$HEAD_TREE" ] && [ "$HEAD_TREE" = "$TARGET_TREE" ]; then
+    echo "==> Skipping tests: identical to ${TARGET} (already tested; promotion artifact)"
     mkdir -p coverage && echo '{"result":{"line":100}}' > coverage/.last_run.json
     exit 0
   fi
