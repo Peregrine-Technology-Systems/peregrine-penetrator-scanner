@@ -33,7 +33,7 @@ class TicketingService
       SQL
 
       results = client.query(sql, params: { site:, fingerprints: })
-      results.each_with_object({}) { |row, hash| hash[row[:fingerprint]] = row[:ticket_ref] }
+      results.to_h { |row| [row[:fingerprint], row[:ticket_ref]] }
     end
   end
 end

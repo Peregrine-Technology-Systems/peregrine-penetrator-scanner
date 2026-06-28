@@ -1,0 +1,26 @@
+name: reduced
+description: "Reduced org-native pilot - baked tools only (testssl + ZAP baseline + Nuclei + trufflehog). Excludes nikto/retire/ffuf pending bakery apt/npm vendoring."
+estimated_duration_minutes: 25
+rate_limit: 8
+phases:
+  - name: discovery
+    tools:
+      - tool: testssl
+        timeout: 300
+  - name: active_scan
+    tools:
+      - tool: zap
+        mode: baseline
+        timeout: 600
+        delay_ms: 100
+  - name: targeted
+    tools:
+      - tool: nuclei
+        severity_filter: critical,high,medium
+        timeout: 600
+        templates: []
+        rate_limit: 8
+        bulk_size: 3
+      - tool: trufflehog
+        timeout: 300
+    parallel: true

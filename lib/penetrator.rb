@@ -44,7 +44,13 @@ module Penetrator
     def connect_db
       db_path = root.join('storage', "#{env}.sqlite3")
       FileUtils.mkdir_p(File.dirname(db_path))
+      # WAL mode: readers never block behind writers (write-commit window is tiny).
+      # busy_timeout: SQLite retries for up to 5s before raising BusyException when
+      # two threads happen to write simultaneously — the WAL window is small enough
+      # that retries almost always succeed within milliseconds.
       @db = Sequel.sqlite(db_path.to_s)
+      @db.run('PRAGMA journal_mode=WAL')
+      @db.run('PRAGMA busy_timeout=5000')
     end
 
     def migrate!
