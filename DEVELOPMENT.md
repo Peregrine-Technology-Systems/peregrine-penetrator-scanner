@@ -4,22 +4,22 @@ Developer guide for the web application penetration testing platform.
 
 ## Prerequisites
 
-- **Ruby 3.2.2** (use rbenv or asdf for version management)
+- **Ruby 4.0.5** (managed via `chruby`/`rbenv`/`asdf`; the repo pins it in `.ruby-version`)
 - **Bundler** (`gem install bundler`)
 - **SQLite3** (development database)
-- **Docker** and **Docker Compose** (for containerized scans and test targets)
-- **GCP CLI** (`gcloud`) -- only needed for deployment
-- **Chromium** -- required for PDF report generation via Grover/Puppeteer
+- **GCP CLI** (`gcloud`) -- only needed for GCS/BigQuery export and org-native ops
 
-### Optional Security Tools (for local scanning)
+> **No Docker.** The scanner runs **natively** — there is no `Dockerfile`, `docker-compose`, or container build. In production it executes on a single-use VM booted from a pre-baked GCE image (`txn-scanner-app`); see [README → Image Model](README.md#image-model). Report generation (PDF, etc.) lives in a separate Penetrator component, not this repo.
 
-These are bundled in the Docker image but can be installed locally for development:
+### Security Tools (for local scanning)
 
-- OWASP ZAP 2.15.0
-- Nuclei 3.2.4
-- sqlmap
-- ffuf 2.1.0
-- Nikto
+In production these are **baked into the `txn-scanner-app` image** (nothing is installed at scan time). For local development, install whichever the profile you're testing needs. The org-native production profile (`reduced`) uses only the baked set:
+
+- **testssl.sh** -- TLS/SSL analysis (in `reduced`)
+- **OWASP ZAP** -- DAST (in `reduced`, baseline mode)
+- **Nuclei** -- template-based CVE scanning (in `reduced`)
+- **trufflehog** -- secret detection (in `reduced`)
+- sqlmap, ffuf, Nikto, retire.js, amass -- used by the fuller profiles (`standard`/`thorough`)
 
 ## Local Setup
 
@@ -31,8 +31,8 @@ cd peregrine-penetrator-scanner
 # Install dependencies
 bundle install
 
-# Create and migrate database
-bundle exec rails db:create db:migrate
+# Migrate the database (Sequel migrations — this is not Rails)
+bundle exec rake db:migrate
 
 # Copy environment variables template
 cp .env.example .env
@@ -140,11 +140,15 @@ bundle exec rubocop --parallel
 
 ## Scan Profiles
 
-Scan profiles are defined in `config/scan_profiles/` as YAML files. Three profiles ship by default:
+Scan profiles are defined in `config/scan_profiles/` as YAML files:
 
+- **reduced** -- the **org-native production profile**; baked-tools-only (testssl + ZAP baseline + Nuclei + trufflehog)
 - **quick** -- Fast reconnaissance only
-- **standard** -- Balanced coverage (default)
-- **thorough** -- Full-depth scanning, all tools
+- **standard** -- Balanced coverage
+- **thorough** / **deep** -- Full-depth scanning, all tools
+- **smoke** / **smoke-test** -- infra validation / canned-findings deploy checks
+
+See [README → Scan Profiles](README.md#scan-profiles) for the per-phase tool matrix.
 
 ```bash
 # List available profiles with phase details
@@ -184,46 +188,11 @@ bundle exec rake scan:run
 bundle exec rake scan:generate_templates CVE_IDS=CVE-2024-1234,CVE-2024-5678
 ```
 
-## Docker Development
+## Production Execution (org-native, no Docker)
 
-### Development Container
+There is no container workflow. In production a scan runs **natively** on a single-use GCE VM booted from the pre-baked `txn-scanner-app` image (runtime + security tools + the app's gems all placed at bake time; nothing installed at scan time), as a dedicated non-root identity, and the VM self-deletes when done. Locally, run the app directly (`bundle exec rake scan:run` / `bin/scan`) with the env vars below — the same entrypoint the VM uses.
 
-Use `docker-compose.dev.yml` for an interactive development environment with source code mounted:
-
-```bash
-# Start development container with DVWA test target
-docker-compose -f docker/docker-compose.dev.yml up -d
-
-# Open a shell in the app container
-docker-compose -f docker/docker-compose.dev.yml exec app bash
-
-# Inside the container, run tests or scans as usual
-bundle exec rspec
-bundle exec rake scan:run
-```
-
-### Production-like Container
-
-Use `docker-compose.yml` to run the full scanner against DVWA:
-
-```bash
-# Run scanner against DVWA (default)
-docker-compose -f docker/docker-compose.yml up
-
-# Run with custom target and profile
-SCAN_PROFILE=thorough \
-TARGET_URLS='["http://dvwa:80"]' \
-docker-compose -f docker/docker-compose.yml up
-
-# Include Juice Shop as additional test target
-docker-compose -f docker/docker-compose.yml --profile testing up
-```
-
-### Building the Docker Image
-
-```bash
-docker build -f docker/Dockerfile -t pentest-platform .
-```
+Release builds the image via bake-on-tag (`bake.yaml` → infra image pipeline); CI runs natively on the agent (Ruby 4.0.5 via chruby). See [README → Image Model](README.md#image-model) and [CI/CD](README.md#cicd).
 
 ## Adding a New Scanner
 
@@ -353,15 +322,14 @@ peregrine-penetrator-scanner/
         scan_report.html.erb   # HTML report template
   config/
     scan_profiles/        # YAML scan configurations
+      reduced.yml           # org-native production profile (baked-tools-only)
       quick.yml
       standard.yml
       thorough.yml
   custom_templates/
     nuclei/               # Custom Nuclei templates
   db/                     # Migrations (SQLite)
-  docker/
-    docker-compose.yml    # Production scanner + DVWA
-    docker-compose.dev.yml  # Development environment
+  .bake/                  # Bake-time contract for the txn-scanner-app image (install.sh + verify.sh)
   infra/                  # Pulumi IaC (Ruby) for GCP
     main.rb
     Pulumi.yaml
