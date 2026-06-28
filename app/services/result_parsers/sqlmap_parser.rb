@@ -9,12 +9,11 @@ module ResultParsers
       log_file = find_log_file
       return [] unless log_file && File.exist?(log_file)
 
-      findings = []
       content = File.read(log_file)
 
       # Parse sqlmap log output for injection points
-      content.scan(/Parameter: (.+?) \((.+?)\)/).each do |param, injection_type|
-        findings << {
+      content.scan(/Parameter: (.+?) \((.+?)\)/).map do |param, injection_type|
+        {
           source_tool: 'sqlmap',
           severity: 'high',
           title: "SQL Injection - #{injection_type.strip}",
@@ -28,8 +27,6 @@ module ResultParsers
           }
         }
       end
-
-      findings
     end
 
     private

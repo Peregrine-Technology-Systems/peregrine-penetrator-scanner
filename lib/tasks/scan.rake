@@ -29,7 +29,7 @@ namespace :scan do
     orchestrator.execute
 
     # Enrich with CVE intelligence
-    if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').count.positive?
+    if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').any?
       puts "\n--- CVE Intelligence Enrichment ---"
       CveIntelligenceService.new(cost_logger:).enrich_scan(scan)
     end
@@ -65,10 +65,10 @@ namespace :scan do
     # Write completion status to GCS — orchestrator polls this to detect scan completion
     scan_uuid = ENV.fetch('SCAN_UUID', scan.id)
     StorageService.new.upload_json("control/#{scan_uuid}/status.json", {
-      phase: 'completed',
-      timestamp: Time.current.iso8601,
-      results_path: gcs_scan_results_path
-    })
+                                     phase: 'completed',
+                                     timestamp: Time.current.iso8601,
+                                     results_path: gcs_scan_results_path
+                                   })
     puts "\n--- Completion Status ---"
     puts "  Written control/#{scan_uuid}/status.json (results_path: #{gcs_scan_results_path})"
 

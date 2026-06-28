@@ -31,7 +31,8 @@ group :development, :test do
   gem "simplecov", "~> 0.22", require: false
   gem "rubocop", "~> 1.75", require: false
   gem "rubocop-sequel", require: false
-  gem "rubocop-rspec", "~> 2.27.0", require: false
+  gem "rubocop-rspec", "~> 3.0", require: false
+  gem "rubocop-factory_bot", require: false
   gem "webmock", "~> 3.19"
 end
 
