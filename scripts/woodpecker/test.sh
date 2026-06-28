@@ -27,19 +27,10 @@ for TARGET in development staging main; do
   fi
 done
 
-# Activate ruby 4.0.5 — the non-interactive Woodpecker step shell does not
-# auto-switch chruby on .ruby-version, so activate it explicitly (chruby source,
-# else the chruby rubies dir on PATH). Agent rubies live in /opt/rubies (infra).
-for cs in /opt/chruby/share/chruby/chruby.sh /usr/local/share/chruby/chruby.sh /etc/profile.d/chruby.sh; do
-  if [ -f "$cs" ]; then
-    # shellcheck disable=SC1090
-    . "$cs"; chruby ruby-4.0.5 2>/dev/null || chruby 4.0.5 2>/dev/null || true
-    break
-  fi
-done
-for rd in /opt/rubies/4.0.5/bin /opt/rubies/ruby-4.0.5/bin; do
-  if [ -x "$rd/ruby" ]; then export PATH="$rd:$PATH"; break; fi
-done
+# Ruby is selected automatically by the agent: /etc/chruby-ci.sh is sourced via
+# BASH_ENV on every CI step and runs `chruby "$(cat .ruby-version)"` against the
+# checkout root. We ship .ruby-version=4.0.5, so 4.0.5 + bundler are already on
+# PATH here — no explicit activation needed (infra #927). Echo for diagnostics.
 echo "==> Ruby: $(ruby -v)"
 bundle install --jobs 4 --retry 3
 APP_ENV=test bundle exec rspec --format documentation

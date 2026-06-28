@@ -1,6 +1,7 @@
 # Release Notes
 
 ## Unreleased
+- fix: drop the hand-rolled chruby activation in `test.sh`/`lint.sh` — rely on the agent's automatic ruby selection (#938). Per infra (#927), `/etc/chruby-ci.sh` is sourced via `BASH_ENV` on every CI step and runs `chruby "$(cat .ruby-version)"`; with `.ruby-version`=4.0.5 at repo root, 4.0.5 + bundler are already on PATH. The explicit blocks added in v1.0.0 sourced non-existent paths (`/opt/chruby/share/chruby/chruby.sh`) and never put ruby on PATH, failing native CI in ~1s. Removed; kept the `ruby -v` diagnostic echo. (#938)
 - docs: update README for the org-native cutover (#932) — drop Docker/DVWA/`cloud/dev` quickstart, ruby 3.2→4.0.5, replace the Docker Architecture + CI/CD sections with the org-native image model (baked `txn-scanner-app`, bake-on-tag, native CI) and the self-delete/reaper safety model, remove the reporter/backend system-context (one-component framing), drop the removed callback (#906), and add product context (Penetrator product line, SOC 2 Type II, cloud-agnostic). (#932)
 
 ## v1.0.0 — 2026-06-28
