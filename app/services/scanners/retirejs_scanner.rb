@@ -31,7 +31,7 @@ module Scanners
     def fetch_target_js(url, js_dir)
       FileUtils.mkdir_p(js_dir)
       run_command(
-        "wget --quiet --mirror --no-parent --accept '*.js,*.html' " \
+        "timeout -k 10 55 wget --quiet --mirror --no-parent --accept '*.js,*.html' " \
         "--directory-prefix=#{js_dir} --no-host-directories " \
         "--timeout=30 --tries=2 #{Shellwords.escape(url)}",
         timeout: 60
@@ -41,7 +41,11 @@ module Scanners
     end
 
     def build_command(js_dir, output_file)
-      "retire --path #{js_dir} --outputformat json --outputpath #{output_file} --nocache --quiet"
+      scan_timeout = tool_config[:timeout] || 180
+      # Shell timeout ensures the Node.js process tree is killed even if the
+      # Ruby-level process group kill doesn't reach all grandchildren.
+      "timeout -k 10 #{scan_timeout - 5} " \
+        "retire --path #{js_dir} --outputformat json --outputpath #{output_file} --nocache --quiet"
     end
 
     def parse_results(output_file, url)

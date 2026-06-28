@@ -345,30 +345,9 @@ else
   echo "$DEPLOY_RESPONSE" | jq -r '.message // .' 2>/dev/null || echo "$DEPLOY_RESPONSE"
 fi
 
-# Tag the Docker image by DIGEST for version traceability: scanner:vX.Y.Z.
-# Production promotion (scanner:staging → scanner:production) is NOT done here.
-# It is owned by release.yaml on the GitHub Deployment event (#767/#808), so the
-# production deploy is decoupled, smoke-verified, and recorded as a Deployment.
-# The Deployment POST above fires that path.
-if [ -n "${DOCKER_REGISTRY:-}" ]; then
-  gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-  STAGING_DIGEST=$(gcloud artifacts docker images describe \
-    "${DOCKER_REGISTRY}/scanner:staging" \
-    --format='value(image_summary.digest)' 2>/dev/null || echo "")
-
-  if [ -n "$STAGING_DIGEST" ]; then
-    echo "Tagging scanner@${STAGING_DIGEST} as scanner:${TAG} (version traceability)"
-    gcloud artifacts docker tags add \
-      "${DOCKER_REGISTRY}/scanner@${STAGING_DIGEST}" \
-      "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
-  else
-    echo "WARNING: Could not resolve staging digest — tagging scanner:${TAG} from the staging tag"
-    gcloud artifacts docker tags add \
-      "${DOCKER_REGISTRY}/scanner:staging" \
-      "${DOCKER_REGISTRY}/scanner:${TAG}" 2>/dev/null || echo "WARNING: Could not tag scanner:${TAG}"
-  fi
-fi
+# Production release is org-native: the git tag created above fires .woodpecker/
+# bake.yaml (repository_dispatch → infra TP baker), which bakes the gem-complete
+# txn-scanner-app GCE image FROM txn-scanner-base. No Docker image tagging here.
 
 # Pipeline-status notification (tag / release) is published to the ci-events
 # Pub/Sub topic by the notify-status step (#780); Slack is deprecated, so no

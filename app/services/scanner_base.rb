@@ -52,7 +52,10 @@ class ScannerBase
     stderr = ''
     status = nil
 
-    Open3.popen3(command) do |stdin_stream, out, err, wait_thr|
+    # pgroup: 0 puts the child in its own process group (PGID == child PID).
+    # kill_process then kills the entire group, reaching Node/Python/shell
+    # grandchildren that survive a bare PID kill.
+    Open3.popen3(command, pgroup: 0) do |stdin_stream, out, err, wait_thr|
       pid = wait_thr.pid
       stdin_stream.close
 
@@ -112,13 +115,15 @@ class ScannerBase
   end
 
   def kill_process(pid)
-    Process.kill('TERM', pid)
+    # Negative PID kills the entire process group, reaching grandchildren
+    # (e.g. node spawned by the retire npm wrapper, python subprocesses).
+    Process.kill('-TERM', pid)
   rescue StandardError
     nil
   ensure
     sleep(1)
     begin
-      Process.kill('KILL', pid)
+      Process.kill('-KILL', pid)
     rescue StandardError
       nil
     end

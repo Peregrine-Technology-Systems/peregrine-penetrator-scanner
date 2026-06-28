@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run RSpec tests inside Docker (agent-independent — no Ruby required on host)
+# Run RSpec natively on the Woodpecker agent — ruby 4.0.5 via chruby + .ruby-version
+# (parity with the txn-scanner-app baked image; no Docker). bundler ships with the ruby.
 # Enforces: 100% test pass + 90% minimum line coverage
 MINIMUM_COVERAGE=90
 BRANCH="${CI_COMMIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
@@ -26,25 +27,33 @@ for TARGET in development staging main; do
   fi
 done
 
-docker run --rm \
-  -v "$CI_WORKSPACE":/app -w /app \
-  ruby:3.2.2 bash -c "
-    set -euo pipefail
-    apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null 2>&1
-    bundle install --jobs 4 --retry 3 --path vendor/bundle
-    APP_ENV=test bundle exec rspec --format documentation
+# Activate ruby 4.0.5 — the non-interactive Woodpecker step shell does not
+# auto-switch chruby on .ruby-version, so activate it explicitly (chruby source,
+# else the chruby rubies dir on PATH). Agent rubies live in /opt/rubies (infra).
+for cs in /opt/chruby/share/chruby/chruby.sh /usr/local/share/chruby/chruby.sh /etc/profile.d/chruby.sh; do
+  if [ -f "$cs" ]; then
+    # shellcheck disable=SC1090
+    . "$cs"; chruby ruby-4.0.5 2>/dev/null || chruby 4.0.5 2>/dev/null || true
+    break
+  fi
+done
+for rd in /opt/rubies/4.0.5/bin /opt/rubies/ruby-4.0.5/bin; do
+  if [ -x "$rd/ruby" ]; then export PATH="$rd:$PATH"; break; fi
+done
+echo "==> Ruby: $(ruby -v)"
+bundle install --jobs 4 --retry 3
+APP_ENV=test bundle exec rspec --format documentation
 
-    # Enforce minimum coverage
-    if [ -f coverage/.last_run.json ]; then
-      COVERAGE=\$(ruby -rjson -e 'puts JSON.parse(File.read(\"coverage/.last_run.json\"))[\"result\"][\"line\"]')
-      echo \"Line coverage: \${COVERAGE}%\"
-      PASS=\$(ruby -e \"puts \${COVERAGE} >= ${MINIMUM_COVERAGE} ? 'yes' : 'no'\")
-      if [ \"\$PASS\" != 'yes' ]; then
-        echo \"ERROR: Coverage \${COVERAGE}% is below ${MINIMUM_COVERAGE}% minimum\"
-        exit 1
-      fi
-      echo \"Coverage gate passed (>= ${MINIMUM_COVERAGE}%)\"
-    else
-      echo 'WARNING: No coverage data found — skipping coverage check'
-    fi
-  "
+# Enforce minimum coverage
+if [ -f coverage/.last_run.json ]; then
+  COVERAGE=$(ruby -rjson -e 'puts JSON.parse(File.read("coverage/.last_run.json"))["result"]["line"]')
+  echo "Line coverage: ${COVERAGE}%"
+  PASS=$(ruby -e "puts ${COVERAGE} >= ${MINIMUM_COVERAGE} ? 'yes' : 'no'")
+  if [ "$PASS" != 'yes' ]; then
+    echo "ERROR: Coverage ${COVERAGE}% is below ${MINIMUM_COVERAGE}% minimum"
+    exit 1
+  fi
+  echo "Coverage gate passed (>= ${MINIMUM_COVERAGE}%)"
+else
+  echo 'WARNING: No coverage data found — skipping coverage check'
+fi
