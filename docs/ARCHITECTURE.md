@@ -1,6 +1,6 @@
 # Architecture
 
-Comprehensive architecture documentation for the Peregrine Penetrator Scanner -- the security scanning engine of the Peregrine pentest platform. This document covers the three-service platform, scan lifecycle, VM safety system, Cloud Functions, control plane, CI/CD pipeline, data flow, and reliability patterns.
+Architecture documentation for the Peregrine Penetrator Scanner — the **scanning engine** component of the Peregrine Penetrator product. This document covers the **scanner only**: its scan lifecycle, VM safety system, Cloud Functions, control plane, CI/CD pipeline, data flow, and reliability patterns. Other components of the product (orchestration, reporting, delivery) and how the product is wired together are out of scope.
 
 ## Table of Contents
 
@@ -17,47 +17,15 @@ Comprehensive architecture documentation for the Peregrine Penetrator Scanner --
 
 ## 1. System Architecture
 
-### Platform Context (C4 Level 1)
+### This component in context
 
-The Peregrine Penetrator platform is a three-service system for automated web application security scanning. Each service owns a distinct responsibility.
+The scanner is **one component** of the Peregrine Penetrator product. Its job is bounded: it runs security tools against an **authorized** target, normalizes and deduplicates the findings, enriches them with CVE intelligence, and **exports structured results** (a JSON envelope to object storage; rows to the data warehouse).
 
-```mermaid
-C4Context
-    title Peregrine Penetrator Platform -- System Context
+Those results are **consumed by other components of the Penetrator product** (orchestration, reporting, and delivery). Those components — and how the product is wired together — are intentionally **out of scope for this document**; this file covers the scanner only.
 
-    Person(user, "Security Team", "Requests scans, reviews reports")
+The rest of this document describes the scanner's own internals: scan lifecycle, VM safety system, control surface, data handling, and supply chain.
 
-    System_Boundary(platform, "Peregrine Penetrator Platform") {
-        System(backend, "Backend API", "Orchestration, scheduling, billing")
-        System(reporter, "Reporter", "AI analysis, PDF reports, ticketing, email")
-        System(scanner, "Scanner", "Run security tools, normalize findings, export JSON")
-    }
-
-    System_Ext(gcp, "Google Cloud Platform", "Compute Engine, GCS, BigQuery, Artifact Registry, Cloud Functions, Cloud Scheduler, Secret Manager")
-    System_Ext(slack, "Slack", "Notifications")
-    System_Ext(nvd, "NVD / CISA / EPSS / OSV", "CVE intelligence APIs")
-
-    Rel(user, backend, "Schedule scans, view results")
-    Rel(backend, reporter, "Dispatch scan jobs")
-    Rel(reporter, scanner, "Trigger scan VMs")
-    Rel(scanner, reporter, "Heartbeats, completion callbacks")
-    Rel(scanner, gcp, "GCS artifacts, BigQuery rows, VM lifecycle")
-    Rel(scanner, nvd, "CVE enrichment")
-    Rel(reporter, gcp, "Fetch scan JSON, store reports")
-    Rel(reporter, user, "Email reports, Slack alerts")
-    Rel(reporter, slack, "Notifications")
-    Rel(scanner, slack, "Scan start/complete alerts")
-```
-
-### Service Responsibilities
-
-| Service | Repository | Stack | Responsibility |
-|---------|-----------|-------|---------------|
-| **Scanner** | `peregrine-penetrator-scanner` | Ruby + Sequel ORM, CLI | Run security tools on ephemeral GCP VMs, normalize findings, enrich with CVE data, export JSON to GCS and BigQuery |
-| **Reporter** | `peregrine-penetrator-reporter` | Sinatra + Cloud Run | AI-powered analysis, PDF report generation, ticketing (GitHub/Linear/Jira), email notifications |
-| **Backend** | `peregrine-penetrator-backend` | API | Orchestration, scan scheduling, billing, user management |
-
-### GCP Infrastructure
+### Scanner Infrastructure
 
 ```mermaid
 graph TB
@@ -110,7 +78,7 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant R as Reporter / Scheduler
+    participant R as Orchestration / Scheduler
     participant CF as Cloud Function
     participant GCE as Compute Engine API
     participant VM as Scan VM
@@ -221,7 +189,7 @@ flowchart TD
 
     P --> Q["ScanResultsExporter<br/>v1.1 JSON to GCS"]
     Q --> R["BigQueryLogger<br/>findings + metadata + costs"]
-    R --> S["ScanCallbackService<br/>POST to reporter"]
+    R --> S["ScanCallbackService<br/>POST to consuming component"]
     S --> T["NotificationService<br/>Slack + email"]
 
     F --> Q
@@ -383,9 +351,9 @@ Four Cloud Functions in `cloud/scheduler/main.py` manage VM lifecycle.
 | Function | Entry Point | Trigger | Purpose |
 |----------|------------|---------|---------|
 | `vm-scavenger` | `scavenge_vms` | Cloud Scheduler (every 5 min) | Delete orphaned scan VMs |
-| `trigger-scan-development` | `trigger_development` | Reporter / Cloud Scheduler | Launch dev VM (clone at boot) |
-| `trigger-scan-staging` | `trigger_staging` | Reporter / Cloud Scheduler | Launch staging VM (baked image) |
-| `trigger-scan-production` | `trigger_production` | Reporter / Cloud Scheduler | Launch production VM (baked image, on-demand) |
+| `trigger-scan-development` | `trigger_development` | Orchestration / Scheduler | Launch dev VM (clone at boot) |
+| `trigger-scan-staging` | `trigger_staging` | Orchestration / Scheduler | Launch staging VM (baked image) |
+| `trigger-scan-production` | `trigger_production` | Orchestration / Scheduler | Launch production VM (baked image, on-demand) |
 
 > **On-demand, not SPOT** — a scan is non-recoverable work, so production scan VMs use standard (on-demand) provisioning; a mid-run preemption is not acceptable. (This is the current Cloud Function launch path; see "Execution model" below — the launch is migrating to a dispatched, org-native model.)
 
@@ -408,7 +376,7 @@ This guard prevents Cloud Scheduler health probes (which use GET) from accidenta
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Reporter / Cloud Scheduler
+    participant Caller as Orchestration / Scheduler
     participant CF as trigger_scan_* Function
     participant GCE as Compute Engine API
     participant SM as Secret Manager
@@ -484,7 +452,7 @@ The control plane enables real-time monitoring and cancellation of running scans
 graph TB
     subgraph "Scanner VM"
         CPL["ControlPlaneLoop<br/>(30s interval thread)"]
-        HBS["HeartbeatSender<br/>(POST to reporter)"]
+        HBS["HeartbeatSender<br/>(POST to consuming component)"]
         CFR["ControlFlagReader<br/>(check GCS cancel)"]
         SS["StorageService<br/>(write GCS heartbeat)"]
     end
@@ -497,7 +465,7 @@ graph TB
         DL["callback_pending.json<br/>(dead letter)"]
     end
 
-    subgraph "Reporter"
+    subgraph "Consuming component"
         API["Heartbeat endpoint<br/>/callbacks/heartbeat"]
         Cancel["Cancel API<br/>(writes control.json)"]
     end
@@ -514,7 +482,7 @@ graph TB
 sequenceDiagram
     participant VM as Scanner VM
     participant G as GCS
-    participant R as Reporter
+    participant R as Consuming component
 
     Note over VM: ControlPlaneLoop starts
 
@@ -552,7 +520,7 @@ sequenceDiagram
 
 ### Cancel Signal
 
-The reporter can cancel a running scan by writing a control flag to GCS:
+The orchestration/control plane can cancel a running scan by writing a control flag to GCS:
 
 ```json
 // GCS: control/{scan_uuid}/control.json
@@ -569,11 +537,11 @@ All control artifacts live under `control/{scan_uuid}/` in the GCS bucket:
 
 | Artifact | Writer | Reader | Purpose |
 |----------|--------|--------|---------|
-| `scan_started.json` | ScanOrchestrator | Reporter | Detect started-but-never-completed scans |
-| `heartbeat.json` | ControlPlaneLoop | Scavenger, Reporter | Track scan liveness and progress |
-| `control.json` | Reporter (cancel API) | ControlFlagReader | Signal scan cancellation |
+| `scan_started.json` | ScanOrchestrator | Consumer | Detect started-but-never-completed scans |
+| `heartbeat.json` | ControlPlaneLoop | Scavenger, consumer | Track scan liveness and progress |
+| `control.json` | Control plane (cancel) | ControlFlagReader | Signal scan cancellation |
 | `status.json` | vm-startup.sh | Scavenger | Track post-scan lifecycle (uploading, terminating) |
-| `callback_pending.json` | ScanCallbackService | Reporter (recovery) | Dead letter when callback fails |
+| `callback_pending.json` | ScanCallbackService | Consumer (recovery) | Dead letter when callback fails |
 
 ### Lifecycle Status Phases
 
@@ -727,7 +695,7 @@ flowchart TD
     VM --> Term["VM self-terminates<br/>(EXIT trap)"]
 ```
 
-**Stub mode**: During smoke tests (`SCAN_PROFILE=smoke-test`), `HeartbeatSender` and `ScanCallbackService` log their payloads at INFO level but do not make HTTP calls. The reporter did not dispatch the scan, so there is no matching job record. GCS writes proceed normally -- that is the real verification.
+**Stub mode**: During smoke tests (`SCAN_PROFILE=smoke-test`), `HeartbeatSender` and `ScanCallbackService` log their payloads at INFO level but do not make HTTP calls. The orchestration layer did not dispatch the scan, so there is no matching job record. GCS writes proceed normally -- that is the real verification.
 
 ---
 
@@ -795,7 +763,7 @@ gs://{project}-pentest-reports/
   control/{scan_uuid}/
     scan_started.json          # Written at scan start
     heartbeat.json             # Updated every 30s
-    control.json               # Cancel signal (written by reporter)
+    control.json               # Cancel signal (written by the control plane)
     status.json                # VM lifecycle phase
     callback_pending.json      # Dead letter (if callback fails)
   scan-results/{target_id}/{scan_id}/
@@ -959,12 +927,12 @@ flowchart LR
 
 ### Dead Letter to GCS
 
-When the completion callback to the reporter fails after 3 retries (with exponential backoff), the payload is written to GCS as a dead letter. The reporter can recover these on its next sweep.
+When the completion callback to the consuming component fails after 3 retries (with exponential backoff), the payload is written to GCS as a dead letter. The consuming component can recover these on its next sweep.
 
 ```mermaid
 sequenceDiagram
     participant VM as Scanner VM
-    participant R as Reporter
+    participant R as Consuming component
     participant G as GCS
 
     VM->>R: POST callback (attempt 1)
