@@ -33,7 +33,6 @@ RSpec.describe ScanResultsExporter do
            epss_score: 0.95,
            kev_known_exploited: true,
            evidence: { 'description' => 'Injection in login form' },
-           ai_assessment: { 'summary' => 'Critical risk', 'recommendation' => 'Use parameterized queries' },
            duplicate: false)
   end
 
@@ -69,7 +68,7 @@ RSpec.describe ScanResultsExporter do
     let(:envelope) { exporter.build_envelope }
 
     it 'includes schema_version' do
-      expect(envelope[:schema_version]).to eq('1.3')
+      expect(envelope[:schema_version]).to eq('1.4')
     end
 
     describe 'tool_chain' do
@@ -204,11 +203,11 @@ RSpec.describe ScanResultsExporter do
         expect(sql_finding[:kev_known_exploited]).to be(true)
       end
 
-      it 'includes evidence and AI assessment' do
+      it 'includes evidence' do
         sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
 
         expect(sql_finding[:evidence]).to eq('description' => 'Injection in login form')
-        expect(sql_finding[:ai_assessment]).to include('summary' => 'Critical risk')
+        expect(sql_finding).not_to have_key(:ai_assessment)
       end
     end
   end
@@ -234,7 +233,7 @@ RSpec.describe ScanResultsExporter do
       allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
         content = File.read(local_path)
         parsed = JSON.parse(content)
-        expect(parsed['schema_version']).to eq('1.3')
+        expect(parsed['schema_version']).to eq('1.4')
         expect(parsed['findings'].size).to eq(2)
         true
       end

@@ -92,14 +92,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
       expect(summary['by_severity']).to be_a(Hash)
     end
 
-    it 'exports a v1.3 JSON envelope' do
+    it 'exports a v1.4 JSON envelope' do
       orchestrator = ScanOrchestrator.new(scan)
       orchestrator.execute
 
       exporter = ScanResultsExporter.new(scan)
       envelope = exporter.build_envelope
 
-      expect(envelope[:schema_version]).to eq('1.3')
+      expect(envelope[:schema_version]).to eq('1.4')
       expect(envelope[:metadata][:scan_id]).to eq(scan.id)
       expect(envelope[:metadata][:target_name]).to eq('DVWA E2E Test')
       expect(envelope[:findings]).to be_an(Array)

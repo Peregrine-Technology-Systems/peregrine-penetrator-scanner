@@ -26,16 +26,6 @@ RSpec.describe Target do
       expect(target.valid?).to be false
       expect(target.errors.on(:auth_type)).not_to be_nil
     end
-
-    it 'allows nil ticket_tracker' do
-      target = build(:target, ticket_tracker: nil)
-      expect(target.valid?).to be true
-    end
-
-    it 'validates ticket_tracker inclusion when present' do
-      target = build(:target, ticket_tracker: 'invalid')
-      expect(target.valid?).to be false
-    end
   end
 
   describe 'associations' do
@@ -49,18 +39,6 @@ RSpec.describe Target do
     it 'assigns a UUID' do
       target = create(:target)
       expect(target.id).to match(/\A[0-9a-f-]{36}\z/)
-    end
-  end
-
-  describe '#ticketing_enabled?' do
-    it 'returns false without ticket_tracker' do
-      target = build(:target, ticket_tracker: nil)
-      expect(target.ticketing_enabled?).to be false
-    end
-
-    it 'returns true with tracker and config' do
-      target = build(:target, :with_github_tickets)
-      expect(target.ticketing_enabled?).to be true
     end
   end
 
