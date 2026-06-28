@@ -1,9 +1,13 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.0.0 — 2026-06-28
 - fix: activate ruby 4.0.5 explicitly in `test.sh`/`lint.sh` for native CI — the non-interactive Woodpecker step shell doesn't auto-switch chruby on `.ruby-version` (chruby source + `/opt/rubies` PATH fallback, set -e-safe). (#916)
 - feat!: org-native cutover — remove Docker entirely (#916). Deletes the Docker image build (`docker/`, `build.yaml`/`build-base.yaml`), the legacy GCP Cloud Function launch (`cloud/`), and the Docker-based deploy/release/smoke workflows; CI now runs **native on the agent** (ruby 4.0.5 via chruby/`.ruby-version`, no `docker run`). Production release is org-native: the version tag fires `bake.yaml` → infra TP baker → `txn-scanner-app` GCE image. Also bumps `rubocop-rspec`→3.x (+`rubocop-factory_bot`, plugins config) for ruby-4.0.5 gem compatibility. (#916)
 - fix: complete #906 GCS-only completion in `bin/scan` — drop the two `ScanCallbackService` calls (the service was deleted in #906 but `bin/scan` still referenced it → would `NameError` on the baked image) and write `control/<scan_uuid>/status.json` with `results_path` so the consumer can detect completion (mirrors the rake task). (#906)
+
+## v0.21.1 — 2026-06-23
 
 - chore: clean pre-existing sensitive tokens from tracked files flagged by the pre-publish lint (#922). Allow-markered the public Woodpecker CI server host (status badge + notification links — functional, not secret) in README and the notify scripts; stripped internal cross-repo issue numbers from code comments in `notify-status.sh`, `smoke-test.sh`, and `infra/main.rb` (prose retained). RELEASE_NOTES historical `## vX` citations intentionally left as-is per #773 (editing them dup-headings under `merge=union`). No git-history rewrite — current-files cleanup only. (#922)
 - feat: add a pre-publish sensitive-content lint to keep the public repo public-safe (#919). New `scripts/woodpecker/check-sensitive-content.sh` blocks operational/identity/topology tokens (infra hostnames, service-account emails, private IPs, internal storage buckets, internal cross-repo issue refs) from **added lines** — pre-existing content is not re-flagged (diff-scoped: staged / `--range` / `--all` modes; the historical cleanup is a separate pass). Generic patterns are committed; specific internal names live in a gitignored `.sensitive-extra-patterns` (shipped as `.example`) so the lint itself doesn't publish them. Inline `# allow-sensitive: <reason>` escape hatch. Wired into `ci.yaml` (parent-commit-aware range mode, skips safely on shallow) and the pre-commit hook (staged, runs for docs too); 11 bats cases. (#919)
