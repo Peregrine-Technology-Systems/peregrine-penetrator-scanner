@@ -26,6 +26,8 @@ done
 # needed (infra #927, see test.sh). Echo for diagnostics.
 echo "==> Ruby: $(ruby -v)"
 # Exclude the development group (debug) — see test.sh: debug transitively pulls
-# psych which builds from source and needs libyaml (absent on the agent). (#945)
-BUNDLE_WITHOUT="development" bundle install --jobs 4 --retry 3
+# psych which builds from source and needs libyaml (absent on the agent).
+# Exported so both `bundle install` and `bundle exec` honor it. (#945)
+export BUNDLE_WITHOUT="development"
+bundle install --jobs 4 --retry 3
 bundle exec rubocop --parallel
