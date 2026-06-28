@@ -1,6 +1,7 @@
 # Release Notes
 
 ## Unreleased
+- chore: remove monolith/Rails-era dead code + document the real retention policy (#960). The scanner cannot and does not retain or purge scan data — downstream components delete the specific records once delivered to the customer — so the monolith-era retention machinery was dead code. Removes `DataRetentionPurger` (+ spec), `lib/tasks/retention.rake`, `app/services/ticketing_service/` (ticketing extracted to the reporter), `app/views/` (orphaned Rails mailer layouts; no mailers exist), the entire Rails-era `db/migrate/` (superseded by `db/sequel_migrations/`), and the now-unused `retention_purge_completed` audit action. Adds the previously-missing `docs/data_retention_policy.md` stating the policy: scanner retains nothing; downstream deletes post-delivery; only a minimal audit record (site scanned, start/end, scan type) is kept 18 months for SOC 2 — vulnerability data is explicitly excluded. (#960)
 
 ## v1.1.0 — 2026-06-28
 
