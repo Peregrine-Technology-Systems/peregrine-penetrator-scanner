@@ -24,7 +24,7 @@ require 'json'
 #
 # Deterministic by construction: fixed SEED, fixed base timestamp, derived ids.
 # No SecureRandom / Time.now — re-running yields byte-identical output.
-module SyntheticCorpus
+module SyntheticCorpus # rubocop:disable Metrics/ModuleLength
   SEED = 20_260_629
   CONTRACT_VERSION = '2.0'
   BASE_TIME = Time.utc(2026, 6, 29, 12, 0, 0)
@@ -107,7 +107,11 @@ module SyntheticCorpus
     variant = idx % spec[:titles].length
     title = spec[:titles][variant]
     with_cve = spec[:cve] && rng.rand < 0.7
-    sev = spec[:type] == 'asset' ? nil : SEVERITIES[rng.rand(with_cve ? 2 : SEVERITIES.length)]
+    sev = if spec[:type] == 'asset'
+            nil
+          else
+            SEVERITIES[rng.rand(with_cve ? 2 : SEVERITIES.length)]
+          end
     base = {
       id: uuid("realistic:#{idx}"),
       scan_id: SCAN_ID,
@@ -148,7 +152,7 @@ module SyntheticCorpus
       { kind: 'file', path: "config/#{%w[secrets.yml .env app.json deploy.sh][variant % 4]}",
         line: 10 + variant, commit: uuid("commit:#{idx}")[0, 12] }
     when 'asset'
-      { kind: 'asset', domain: "sub#{idx}.target.example", ip: "203.0.113.#{idx % 254 + 1}", record_type: 'A' }
+      { kind: 'asset', domain: "sub#{idx}.target.example", ip: "203.0.113.#{(idx % 254) + 1}", record_type: 'A' }
     end
   end
 
@@ -188,7 +192,7 @@ module SyntheticCorpus
     case spec[:tool]
     when 'zap' then { request: 'GET /search?q=<script> HTTP/1.1', response: 'HTTP/1.1 200', matcher: 'reflected' }
     when 'nuclei' then { matcher_name: 'word', extracted_results: ['root:x:0:0'], curl_command: 'curl ...' }
-    when 'sqlmap' then { payload: "1 AND SLEEP(5)", dbms: %w[MySQL PostgreSQL MSSQL][variant % 3] }
+    when 'sqlmap' then { payload: '1 AND SLEEP(5)', dbms: %w[MySQL PostgreSQL MSSQL][variant % 3] }
     when 'ffuf' then { status_code: [200, 403, 301, 200][variant % 4], content_length: 1024 + variant }
     when 'nikto' then { message: 'Server reveals information', method: 'GET' }
     when 'testssl' then { protocol: 'TLSv1.0', cipher: 'ECDHE-RSA-AES128-SHA' }
@@ -222,19 +226,22 @@ module SyntheticCorpus
     end
   end
 
-  def perturb(f, mutation, idx, rng)
+  def perturb(f, mutation, idx, _rng) # rubocop:disable Naming/MethodParameterName
     f[:id] = uuid("perturbed:#{idx}")
     f[:detected_at] = iso(idx)
     case mutation
-    when :contradictory_severity then f[:finding_type] = 'asset'; f[:severity] = 'critical'
+    when :contradictory_severity then f[:finding_type] = 'asset'
+                                      f[:severity] = 'critical'
     when :impossible_scores then f[:scores] = { cvss_score: 13.7, epss_score: 1.9, cvss_vector: 'CVSS:9.9/???' }
     when :malformed_identifier then f[:identifiers] = [{ type: 'cve', value: 'CVE-99999-NONSENSE' }, { type: 'cwe', value: 'CWE-abc' }]
     when :wrong_locator_kind then f[:location] = { kind: 'network', host: nil, port: 'eighty', protocol: 42 }
-    when :garbage_evidence then f[:evidence] = { '' => nil, " " => "� garbage ‮" }
-    when :missing_required then f.delete(:title); f.delete(:location)
-    when :unicode_overflow then f[:title] = ('🛰️' * 200) + ("A" * 5000)
+    when :garbage_evidence then f[:evidence] = { '' => nil, " " => '� garbage ‮' }
+    when :missing_required then f.delete(:title)
+                                f.delete(:location)
+    when :unicode_overflow then f[:title] = ('🛰️' * 200) + ('A' * 5000)
     when :deep_ext then f[:ext] = deep_nest(40)
-    when :nonsensical_combo then f[:probe] = 'sqlmap'; f[:location] = { kind: 'package', name: 12_345, version: %w[a b] }
+    when :nonsensical_combo then f[:probe] = 'sqlmap'
+                                 f[:location] = { kind: 'package', name: 12_345, version: %w[a b] }
     when :null_storm then %i[probe source_tool finding_type title severity location identifiers].each { |k| f[k] = nil }
     end
     f[:ext] = (f[:ext].is_a?(Hash) ? f[:ext] : {}).merge(
@@ -260,8 +267,10 @@ module SyntheticCorpus
       },
       summary: { total_findings: findings.length },
       tool_chain: {
-        executed: PROBES.map { |p| { tool: p[:tool], status: 'completed', exit_code: 0,
-                                     findings_count: findings.count { |f| f[:source_tool] == p[:tool] } } } +
+        executed: PROBES.map do |p|
+          { tool: p[:tool], status: 'completed', exit_code: 0,
+            findings_count: findings.count { |f| f[:source_tool] == p[:tool] } }
+        end +
           [{ tool: 'sqlmap', status: 'failed', exit_code: nil, findings_count: nil }] # failed tool stays visible (#971)
       },
       findings: findings
@@ -296,7 +305,7 @@ module SyntheticCorpus
     (BASE_TIME + offset_seconds).strftime('%Y-%m-%dT%H:%M:%SZ')
   end
 
-  def fingerprint(f)
+  def fingerprint(f) # rubocop:disable Naming/MethodParameterName
     loc = f[:location] || {}
     tuple = [f[:title]&.downcase&.strip,
              "#{loc[:host] || host_of(loc[:url])}#{loc[:path] || path_of(loc[:url])}",

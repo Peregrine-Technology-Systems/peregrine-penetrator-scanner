@@ -2,24 +2,24 @@
 
 require 'json'
 
+CONTRACT_CORPUS_DIR = File.expand_path('../fixtures/synthetic_corpus', __dir__)
+CONTRACT_CORE_REQUIRED = %w[id scan_id detected_at probe source_tool finding_type title location].freeze
+CONTRACT_VALID_SEVERITY = %w[critical high medium low info].freeze
+CONTRACT_NON_VULN_TYPES = %w[asset informational].freeze
+CONTRACT_REFERENCE_PROBES = %w[web-dast template-cve injection content-discovery server-misconfig
+                               tls sca secrets asset-discovery].freeze
+
 # Conformance test for the probe output contract (docs/probe_contract.md) against
 # the synthetic corpus (spec/support/synthetic_corpus.rb → spec/fixtures/synthetic_corpus).
 #
 # This doubles as the stable contract-test target the downstream analysis service
 # writes against — it asserts the *shape* the scanner emits, not any analysis logic.
-RSpec.describe 'Probe output contract' do
-  corpus_dir = File.expand_path('../fixtures/synthetic_corpus', __dir__)
-  realistic = JSON.parse(File.read(File.join(corpus_dir, 'realistic.json')))
-  perturbed = JSON.parse(File.read(File.join(corpus_dir, 'perturbed.json')))
-  manifest  = JSON.parse(File.read(File.join(corpus_dir, 'manifest.json')))
-
-  rf = realistic['findings']
-  pf = perturbed['findings']
-
-  CORE_REQUIRED = %w[id scan_id detected_at probe source_tool finding_type title location].freeze
-  VALID_SEVERITY = %w[critical high medium low info].freeze
-  REFERENCE_PROBES = %w[web-dast template-cve injection content-discovery server-misconfig
-                        tls sca secrets asset-discovery].freeze
+RSpec.describe 'Probe output contract' do # rubocop:disable RSpec/DescribeClass
+  let(:realistic) { JSON.parse(File.read(File.join(CONTRACT_CORPUS_DIR, 'realistic.json'))) }
+  let(:perturbed) { JSON.parse(File.read(File.join(CONTRACT_CORPUS_DIR, 'perturbed.json'))) }
+  let(:manifest) { JSON.parse(File.read(File.join(CONTRACT_CORPUS_DIR, 'manifest.json'))) }
+  let(:rf) { realistic['findings'] }
+  let(:pf) { perturbed['findings'] }
 
   describe 'corpus integrity' do
     it 'has 100 realistic and 30 perturbed findings' do
@@ -30,7 +30,7 @@ RSpec.describe 'Probe output contract' do
     it 'is stamped synthetic and flagged not-ground-truth' do
       expect(manifest['synthetic']).to be(true)
       expect(manifest['not_ground_truth']).to be_a(String).and(be_truthy)
-      expect((rf + pf)).to all(satisfy { |f| f.dig('ext', 'synthetic', 'generated') == true })
+      expect(rf + pf).to all(satisfy { |f| f.dig('ext', 'synthetic', 'generated') == true })
     end
 
     it 'declares the contract version it was generated against' do
@@ -40,12 +40,12 @@ RSpec.describe 'Probe output contract' do
 
   describe 'realistic series conforms to the contract' do
     it 'covers all nine reference probes' do
-      expect(rf.map { |f| f['probe'] }.uniq).to match_array(REFERENCE_PROBES)
+      expect(rf.map { |f| f['probe'] }.uniq).to match_array(CONTRACT_REFERENCE_PROBES)
     end
 
     it 'every finding carries the required core fields' do
       rf.each do |f|
-        CORE_REQUIRED.each { |k| expect(f[k]).not_to(be_nil, "missing #{k} in #{f['id']}") }
+        CONTRACT_CORE_REQUIRED.each { |k| expect(f[k]).not_to(be_nil, "missing #{k} in #{f['id']}") }
       end
     end
 
@@ -54,8 +54,7 @@ RSpec.describe 'Probe output contract' do
     end
 
     it 'has at least one finding with a CVE and at least one without' do
-      with_cve = rf.select { |f| (f['identifiers'] || []).any? { |i| i['type'] == 'cve' } }
-      without_cve = rf.reject { |f| (f['identifiers'] || []).any? { |i| i['type'] == 'cve' } }
+      with_cve, without_cve = rf.partition { |f| (f['identifiers'] || []).any? { |i| i['type'] == 'cve' } }
       expect(with_cve).not_to be_empty
       expect(without_cve).not_to be_empty
     end
@@ -74,9 +73,9 @@ RSpec.describe 'Probe output contract' do
     it 'normalizes severity to the closed enum, null only for non-vulnerability findings' do
       rf.each do |f|
         if f['severity'].nil?
-          expect(%w[asset informational]).to include(f['finding_type'])
+          expect(CONTRACT_NON_VULN_TYPES).to include(f['finding_type'])
         else
-          expect(VALID_SEVERITY).to include(f['severity'])
+          expect(CONTRACT_VALID_SEVERITY).to include(f['severity'])
         end
       end
     end
