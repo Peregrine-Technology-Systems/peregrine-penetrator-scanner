@@ -151,7 +151,7 @@ RSpec.describe Scanners::ZapScanner do
 
       result = scanner.run
       expect(result[:success]).to be(true)
-      expect(result[:findings].first).to include(source_tool: 'zap', severity: 'high', title: 'Reflected XSS')
+      expect(result[:findings].first).to include('source_tool' => 'zap', 'severity' => 'high', 'title' => 'Reflected XSS')
     end
 
     context 'with multiple origins' do
