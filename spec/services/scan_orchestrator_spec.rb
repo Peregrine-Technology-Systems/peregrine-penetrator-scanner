@@ -15,7 +15,6 @@ RSpec.describe ScanOrchestrator do
   before do
     mock_profile = instance_double(ScanProfile, name: 'standard', smoke: false, smoke_test: false, phases: [mock_phase])
     allow(ScanProfile).to receive(:load).and_return(mock_profile)
-    allow(FindingNormalizer).to receive(:new).and_return(instance_double(FindingNormalizer, normalize: nil))
     stub_request(:head, 'https://example.com/').to_return(status: 200)
     stub_default_fingerprinter_registry
   end
@@ -77,14 +76,6 @@ RSpec.describe ScanOrchestrator do
 
       expect(ffuf_scanner).to have_received(:run)
       expect(nikto_scanner).to have_received(:run)
-    end
-
-    it 'calls normalize_findings' do
-      normalizer = instance_double(FindingNormalizer)
-      allow(FindingNormalizer).to receive(:new).with(scan).and_return(normalizer)
-      expect(normalizer).to receive(:normalize)
-
-      orchestrator.execute
     end
 
     it 'generates summary with finding counts' do

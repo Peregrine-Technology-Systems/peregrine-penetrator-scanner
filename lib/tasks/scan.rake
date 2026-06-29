@@ -19,48 +19,19 @@ namespace :scan do
     scan = Scan.create(target_id: target.id, profile:)
     puts "Scan ID: #{scan.id}"
 
-    # Initialize cost tracker and audit logger
-    cost_logger = ScanCostLogger.new(scan)
     audit = AuditLogger.new
     audit.scan_started(scan)
 
     # Execute scan
-    orchestrator = ScanOrchestrator.new(scan, cost_logger:)
+    orchestrator = ScanOrchestrator.new(scan)
     orchestrator.execute
-
-    # Enrich with CVE intelligence
-    if scan.findings_dataset.exclude(cve_id: nil).exclude(cve_id: '').any?
-      puts "\n--- CVE Intelligence Enrichment ---"
-      CveIntelligenceService.new(cost_logger:).enrich_scan(scan)
-    end
 
     # Export versioned JSON to GCS (canonical scan output)
     puts "\n--- Scan Results Export ---"
-    exporter = ScanResultsExporter.new(scan, cost_logger:)
+    exporter = ScanResultsExporter.new(scan)
     gcs_scan_results_path = exporter.export
     puts "  Exported v#{ScanResultsExporter::SCHEMA_VERSION} to #{gcs_scan_results_path}"
     audit.json_exported(scan, gcs_path: gcs_scan_results_path)
-
-    # Load findings to BigQuery FROM the versioned JSON
-    if BigQueryLogger.enabled?
-      puts "\n--- Finding History (JSON-first) ---"
-      scan_results = exporter.build_envelope
-      logged = BigQueryLogger.new(cost_logger:).log_from_json(scan_results)
-      puts "  Logged #{logged} findings to BigQuery (#{ENV.fetch('SCAN_MODE', 'dev')})"
-      audit.bq_loaded(scan, rows_logged: logged)
-    end
-
-    # Log scan costs to BigQuery
-    if BigQueryLogger.enabled?
-      puts "\n--- Cost Tracking ---"
-      if cost_logger.log_to_bigquery
-        data = cost_logger.cost_data
-        puts "  VM: #{data[:vm_type]}, Runtime: #{data[:vm_runtime_seconds]}s, " \
-             "Est. cost: $#{format('%.4f', data[:estimated_cost_usd])}"
-      else
-        puts '  Cost logging skipped or failed'
-      end
-    end
 
     # Write completion status to GCS — orchestrator polls this to detect scan completion
     scan_uuid = ENV.fetch('SCAN_UUID', scan.id)
