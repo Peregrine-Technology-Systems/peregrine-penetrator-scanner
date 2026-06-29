@@ -1,0 +1,20 @@
+{
+  "name": "penetrator synthetic finding corpus",
+  "synthetic": true,
+  "not_ground_truth": "Bootstrap material only — replace with a real corpus as it accrues.",
+  "contract_version": "2.0",
+  "contract_doc": "docs/probe_contract.md",
+  "seed": 20260629,
+  "counts": {
+    "realistic": 100,
+    "perturbed": 30
+  },
+  "series": {
+    "realistic": "Well-formed findings across all nine reference probes; ~half with a CVE.",
+    "perturbed": "Out-of-distribution findings labelled ext.synthetic.perturbation + label=escalate — the Knowledge-Loop boundary class, not garbage."
+  },
+  "files": [
+    "realistic.json",
+    "perturbed.json"
+  ]
+}
