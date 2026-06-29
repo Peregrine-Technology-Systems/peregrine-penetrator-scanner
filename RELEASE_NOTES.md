@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.3.0 — 2026-06-29
 - feat: emit the probe output contract v2.0 from the scanner (#971). Parsers now build the superset contract finding — polymorphic `location{}` (web/network/file/package), lossless `identifiers[]`, tool-reported `scores{}`, `component{}`, `finding_type`, `tool_check_id`, `evidence` — via a shared `ResultParsers::Contract` builder; `Finding` stores the document in a `data` JSON column (migration `006`) with thin index columns; `ScanResultsExporter` emits the v2.0 envelope (`SCHEMA_VERSION` 1.4 → 2.0). **Lossless wins:** `identifiers[]` preserves every CVE/CWE (retire.js/testssl/nuclei previously kept only the first); trufflehog now captures `file:line:commit`; testssl/network, retire.js/package, and trufflehog/file get typed locations instead of a synthesized URL. Tool-reported `cvss`/`epss` stay in `scores{}`; the Analyzer adds authoritative enrichment downstream (no `kev` emitted by the probe). `spec/contract/probe_contract_spec.rb` now also gates the **real** parser→model→exporter output against the same contract as the synthetic corpus. `raw_ref` deferred (null). Suite 432 green, 95.92%. (#971)
 
 ## v1.2.0 — 2026-06-29
