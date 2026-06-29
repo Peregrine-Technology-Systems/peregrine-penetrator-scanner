@@ -6,8 +6,7 @@ require 'securerandom'
 class AuditLogger
   ACTIONS = %w[
     scan_started scan_completed scan_failed
-    json_exported bq_loaded
-    cve_enrichment_completed
+    json_exported
   ].freeze
 
   def initialize
@@ -69,14 +68,6 @@ class AuditLogger
       scan_id: scan.id,
       gcs_output_path: gcs_path,
       finding_count: scan.findings_dataset.non_duplicate.count
-    )
-  end
-
-  def bq_loaded(scan, rows_logged:)
-    log(
-      action: 'bq_loaded',
-      scan_id: scan.id,
-      rows_logged:
     )
   end
 

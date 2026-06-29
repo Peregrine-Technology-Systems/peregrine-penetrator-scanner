@@ -2,15 +2,12 @@ class ControlPlaneLoop
   INTERVAL = 30
   TICK_TIMEOUT = 10
 
-  # rubocop:disable Metrics/ParameterLists -- cost_logger added for comprehensive cost tracking (#651)
-  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:, cost_logger: nil)
-    # rubocop:enable Metrics/ParameterLists
+  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:)
     @scan_uuid = scan_uuid
     @heartbeat = HeartbeatSender.new(
       callback_url:, scan_uuid:, job_id:, callback_secret:
     )
     @gcs_bucket = gcs_bucket
-    @cost_logger = cost_logger
     @storage = StorageService.new if gcs_bucket.to_s.present?
     @mutex = Mutex.new
     @cancelled = false
@@ -79,7 +76,6 @@ class ControlPlaneLoop
       timestamp: Time.current.iso8601,
       **progress
     }
-    @cost_logger&.track_gcs_upload(payload.to_json.bytesize)
     @storage.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
   end
 

@@ -135,16 +135,4 @@ RSpec.describe AuditLogger do
       end
     end
   end
-
-  describe '#bq_loaded' do
-    it 'logs bq_loaded with row count' do
-      audit.bq_loaded(scan, rows_logged: 42)
-
-      expect(Penetrator.logger).to have_received(:info) do |msg|
-        parsed = JSON.parse(msg)
-        expect(parsed['action']).to eq('bq_loaded')
-        expect(parsed['rows_logged']).to eq(42)
-      end
-    end
-  end
 end

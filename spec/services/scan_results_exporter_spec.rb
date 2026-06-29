@@ -255,23 +255,6 @@ RSpec.describe ScanResultsExporter do
     end
   end
 
-  describe 'cost tracking' do
-    let(:cost_logger) { instance_double(ScanCostLogger) }
-
-    before { allow(cost_logger).to receive(:track_gcs_upload) }
-
-    it 'tracks GCS upload bytes when cost_logger provided' do
-      exporter_with_cost = described_class.new(scan, cost_logger:)
-      exporter_with_cost.export
-
-      expect(cost_logger).to have_received(:track_gcs_upload).with(a_value > 0)
-    end
-
-    it 'works without cost_logger (default nil)' do
-      expect { exporter.export }.not_to raise_error
-    end
-  end
-
   describe 'with missing summary' do
     let(:scan) do
       create(:scan, :completed, target:, summary: nil, tool_statuses: {})
