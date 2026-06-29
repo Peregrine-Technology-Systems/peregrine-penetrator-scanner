@@ -3,178 +3,69 @@ require 'sequel_helper'
 RSpec.describe ResultParsers::FfufParser do
   describe '#parse' do
     let(:ffuf_data) do
-      {
-        'results' => [
-          {
-            'input' => { 'FUZZ' => 'admin' },
-            'url' => 'https://example.com/admin',
-            'status' => 200,
-            'length' => 4523,
-            'words' => 234,
-            'lines' => 56,
-            'content-type' => 'text/html',
-            'redirectlocation' => nil
-          },
-          {
-            'input' => { 'FUZZ' => 'secret' },
-            'url' => 'https://example.com/secret',
-            'status' => 403,
-            'length' => 162,
-            'words' => 6,
-            'lines' => 8,
-            'content-type' => 'text/html',
-            'redirectlocation' => nil
-          },
-          {
-            'input' => { 'FUZZ' => 'old-page' },
-            'url' => 'https://example.com/old-page',
-            'status' => 301,
-            'length' => 0,
-            'words' => 0,
-            'lines' => 0,
-            'content-type' => 'text/html',
-            'redirectlocation' => 'https://example.com/new-page'
-          }
-        ]
-      }
+      { 'results' => [
+        { 'input' => { 'FUZZ' => 'admin' }, 'url' => 'https://example.com/admin', 'status' => 200,
+          'length' => 4523, 'words' => 234, 'lines' => 56, 'content-type' => 'text/html' },
+        { 'input' => { 'FUZZ' => 'secret' }, 'url' => 'https://example.com/secret', 'status' => 403,
+          'length' => 162, 'content-type' => 'text/html' },
+        { 'input' => { 'FUZZ' => 'old-page' }, 'url' => 'https://example.com/old-page', 'status' => 301,
+          'length' => 0, 'content-type' => 'text/html', 'redirectlocation' => 'https://example.com/new-page' }
+      ] }
     end
 
-    it 'parses all results from ffuf output' do
+    def parse(data)
       tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
+      tmpfile.write(data.to_json)
       tmpfile.close
+      described_class.new(tmpfile.path).parse
+    ensure
+      tmpfile.unlink
+    end
 
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
+    it 'parses results into contract exposure findings' do
+      results = parse(ffuf_data)
       expect(results.length).to eq(3)
-    ensure
-      tmpfile.unlink
+      expect(results).to all(include('source_tool' => 'ffuf', 'probe' => 'content-discovery',
+                                     'finding_type' => 'exposure'))
     end
 
-    it 'sets source_tool to ffuf' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      results.each { |r| expect(r[:source_tool]).to eq('ffuf') }
-    ensure
-      tmpfile.unlink
+    it 'maps status codes to severity (403 → low, else info)' do
+      results = parse(ffuf_data)
+      by_url = results.to_h { |r| [r.dig('location', 'url'), r['severity']] }
+      expect(by_url['https://example.com/admin']).to eq('info')
+      expect(by_url['https://example.com/secret']).to eq('low')
+      expect(by_url['https://example.com/old-page']).to eq('info')
     end
 
-    it 'maps 200 status to info severity' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      admin_finding = results.find { |r| r[:url] == 'https://example.com/admin' }
-      expect(admin_finding[:severity]).to eq('info')
-    ensure
-      tmpfile.unlink
+    it 'puts the discovered URL in a web location and the endpoint in the title' do
+      first = parse(ffuf_data).first
+      expect(first.dig('location', 'url')).to eq('https://example.com/admin')
+      expect(first['title']).to include('admin')
     end
 
-    it 'maps 403 status to low severity' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      secret_finding = results.find { |r| r[:url] == 'https://example.com/secret' }
-      expect(secret_finding[:severity]).to eq('low')
-    ensure
-      tmpfile.unlink
-    end
-
-    it 'maps 301/302 status to info severity' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      redirect_finding = results.find { |r| r[:url] == 'https://example.com/old-page' }
-      expect(redirect_finding[:severity]).to eq('info')
-    ensure
-      tmpfile.unlink
-    end
-
-    it 'includes title with discovered endpoint' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      expect(results.first[:title]).to include('admin')
-    ensure
-      tmpfile.unlink
-    end
-
-    it 'includes evidence with response details' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      evidence = results.first[:evidence]
-      expect(evidence[:status_code]).to eq(200)
-      expect(evidence[:content_length]).to eq(4523)
-      expect(evidence[:content_type]).to eq('text/html')
-    ensure
-      tmpfile.unlink
-    end
-
-    it 'includes redirect location in evidence when present' do
-      tmpfile = Tempfile.new(['ffuf', '.json'])
-      tmpfile.write(ffuf_data.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      redirect = results.find { |r| r[:url] == 'https://example.com/old-page' }
-      expect(redirect[:evidence][:redirect_location]).to eq('https://example.com/new-page')
-    ensure
-      tmpfile.unlink
+    it 'includes response details in evidence' do
+      results = parse(ffuf_data)
+      expect(results.first['evidence']).to include('status_code' => 200, 'content_length' => 4523,
+                                                   'content_type' => 'text/html')
+      redirect = results.find { |r| r.dig('location', 'url') == 'https://example.com/old-page' }
+      expect(redirect['evidence']['redirect_location']).to eq('https://example.com/new-page')
     end
 
     it 'returns empty array for missing file' do
-      parser = described_class.new('/nonexistent/file.json')
-      expect(parser.parse).to eq([])
+      expect(described_class.new('/nonexistent/file.json').parse).to eq([])
     end
 
     it 'returns empty array for invalid JSON' do
       tmpfile = Tempfile.new(['invalid', '.json'])
       tmpfile.write('not valid json')
       tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      expect(parser.parse).to eq([])
+      expect(described_class.new(tmpfile.path).parse).to eq([])
     ensure
       tmpfile.unlink
     end
 
     it 'handles empty results array' do
-      tmpfile = Tempfile.new(['empty', '.json'])
-      tmpfile.write({ 'results' => [] }.to_json)
-      tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      expect(parser.parse).to eq([])
-    ensure
-      tmpfile.unlink
+      expect(parse('results' => [])).to eq([])
     end
   end
 end

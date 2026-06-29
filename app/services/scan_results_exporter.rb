@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ScanResultsExporter
-  SCHEMA_VERSION = '1.4'
+  SCHEMA_VERSION = '2.0'
 
   def initialize(scan)
     @scan = scan
@@ -108,22 +108,16 @@ class ScanResultsExporter
     }
   end
 
+  # Emit the stored probe output contract document (#971), stamped with the
+  # per-finding provenance the DB owns. `data` is the canonical contract finding
+  # (location/identifiers/scores/component/evidence/ext); the scanner is the
+  # authority for id/scan_id/detected_at.
   def finding_to_hash(finding)
-    {
-      id: finding.id,
-      source_tool: finding.source_tool,
-      severity: finding.severity,
-      title: finding.title,
-      url: finding.url,
-      parameter: finding.parameter,
-      cwe_id: finding.cwe_id,
-      cve_id: finding.cve_id,
-      cvss_score: finding.cvss_score,
-      cvss_vector: finding.cvss_vector,
-      epss_score: finding.epss_score,
-      kev_known_exploited: finding.kev_known_exploited,
-      evidence: finding.evidence
-    }
+    (finding.data || {}).merge(
+      'id' => finding.id,
+      'scan_id' => finding.scan_id,
+      'detected_at' => finding.created_at&.utc&.iso8601
+    )
   end
 
   def write_and_upload(json)

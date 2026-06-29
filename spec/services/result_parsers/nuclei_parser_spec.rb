@@ -5,144 +5,93 @@ RSpec.describe ResultParsers::NucleiParser do
 
   let(:fixture_path) { Penetrator.root.join('spec/fixtures/nuclei_results.jsonl').to_s }
 
-  describe '#parse' do
-    it 'returns an array of finding hashes' do
-      results = parser.parse
+  def ids(finding, type)
+    (finding['identifiers'] || []).select { |i| i['type'] == type }.map { |i| i['value'] }
+  end
 
-      expect(results).to be_an(Array)
-      expect(results).not_to be_empty
+  describe '#parse' do
+    it 'returns contract findings' do
+      results = parser.parse
+      expect(results).to be_an(Array).and(be_present)
+      expect(results).to all(include('source_tool' => 'nuclei', 'probe' => 'template-cve',
+                                     'finding_type' => 'vulnerability'))
     end
 
     it 'parses all JSONL lines' do
-      results = parser.parse
-
-      expect(results.length).to eq(3)
-    end
-
-    it 'sets source_tool to nuclei' do
-      results = parser.parse
-
-      results.each do |finding|
-        expect(finding[:source_tool]).to eq('nuclei')
-      end
+      expect(parser.parse.length).to eq(3)
     end
 
     it 'maps Nuclei severity levels correctly' do
       results = parser.parse
-
-      critical_finding = results.find { |f| f[:title] == 'Log4j RCE (CVE-2021-44228)' }
-      expect(critical_finding[:severity]).to eq('critical')
-
-      high_finding = results.find { |f| f[:title] == 'Confluence Authentication Bypass' }
-      expect(high_finding[:severity]).to eq('high')
-
-      info_finding = results.find { |f| f[:title] == 'Technology Detection' }
-      expect(info_finding[:severity]).to eq('info')
+      expect(results.find { |f| f['title'] == 'Log4j RCE (CVE-2021-44228)' }['severity']).to eq('critical')
+      expect(results.find { |f| f['title'] == 'Confluence Authentication Bypass' }['severity']).to eq('high')
+      expect(results.find { |f| f['title'] == 'Technology Detection' }['severity']).to eq('info')
     end
 
-    it 'extracts matched-at URL' do
-      results = parser.parse
-
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:url]).to eq('https://example.com/api/login')
+    it 'puts the matched-at URL in a web location' do
+      log4j = parser.parse.find { |f| f['title'] =~ /Log4j/ }
+      expect(log4j['location']).to include('kind' => 'web', 'url' => 'https://example.com/api/login')
     end
 
-    it 'extracts CVE IDs from classification' do
-      results = parser.parse
-
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:cve_id]).to eq('CVE-2021-44228')
+    it 'records the template id as tool_check_id' do
+      log4j = parser.parse.find { |f| f['title'] =~ /Log4j/ }
+      expect(log4j['tool_check_id']).to eq('cve-2021-44228-log4j-rce')
     end
 
-    it 'extracts CWE IDs from classification' do
-      results = parser.parse
+    it 'preserves CVE and CWE identifiers' do
+      log4j = parser.parse.find { |f| f['title'] =~ /Log4j/ }
+      expect(ids(log4j, 'cve')).to include('CVE-2021-44228')
+      expect(ids(log4j, 'cwe')).to include('CWE-502')
+    end
 
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:cwe_id]).to eq('CWE-502')
+    it 'carries tool-reported scores' do
+      results = parser.parse
+      log4j = results.find { |f| f['title'] =~ /Log4j/ }
+      expect(log4j['scores']).to include(
+        'cvss_score' => 10.0,
+        'cvss_vector' => 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H',
+        'epss_score' => 0.97565
+      )
+      expect(results.find { |f| f['title'] =~ /Confluence/ }['scores']['cvss_score']).to eq(9.8)
+    end
+
+    it 'omits scores when the template has none' do
+      tech = parser.parse.find { |f| f['title'] == 'Technology Detection' }
+      expect(tech['scores']).to be_nil
+    end
+
+    it 'has no CVE/CWE identifiers when classification lacks them' do
+      tech = parser.parse.find { |f| f['title'] == 'Technology Detection' }
+      expect(ids(tech, 'cve')).to be_empty
+      expect(ids(tech, 'cwe')).to be_empty
     end
 
     it 'includes evidence with template details' do
-      results = parser.parse
-
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:evidence][:template_id]).to eq('cve-2021-44228-log4j-rce')
-      expect(log4j[:evidence][:curl_command]).to be_present
-    end
-
-    it 'extracts CVSS score from classification' do
-      results = parser.parse
-
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:cvss_score]).to eq(10.0)
-
-      confluence = results.find { |f| f[:title] =~ /Confluence/ }
-      expect(confluence[:cvss_score]).to eq(9.8)
-    end
-
-    it 'extracts CVSS vector from classification' do
-      results = parser.parse
-
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:cvss_vector]).to eq('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H')
-    end
-
-    it 'extracts EPSS score from classification' do
-      results = parser.parse
-
-      log4j = results.find { |f| f[:title] =~ /Log4j/ }
-      expect(log4j[:epss_score]).to eq(0.97565)
-    end
-
-    it 'returns nil CVSS/EPSS when classification lacks them' do
-      results = parser.parse
-
-      tech_detect = results.find { |f| f[:title] == 'Technology Detection' }
-      expect(tech_detect[:cvss_score]).to be_nil
-      expect(tech_detect[:cvss_vector]).to be_nil
-      expect(tech_detect[:epss_score]).to be_nil
-    end
-
-    it 'handles nil CVE and CWE gracefully' do
-      results = parser.parse
-
-      tech_detect = results.find { |f| f[:title] == 'Technology Detection' }
-      expect(tech_detect[:cve_id]).to be_nil
-      expect(tech_detect[:cwe_id]).to be_nil
+      log4j = parser.parse.find { |f| f['title'] =~ /Log4j/ }
+      expect(log4j['evidence']['curl_command']).to be_present
     end
 
     it 'returns empty array for missing file' do
-      parser = described_class.new('/nonexistent/file.jsonl')
-      results = parser.parse
-
-      expect(results).to eq([])
+      expect(described_class.new('/nonexistent/file.jsonl').parse).to eq([])
     end
 
     it 'skips invalid JSON lines and continues parsing' do
       tmpfile = Tempfile.new(['mixed', '.jsonl'])
-      tmpfile.write("{\"template-id\":\"test\",\"info\":{\"name\":\"Valid\",\"severity\":\"high\"},\"matched-at\":\"https://example.com\"}\n")
+      tmpfile.write("{\"template-id\":\"t\",\"info\":{\"name\":\"Valid\",\"severity\":\"high\"},\"matched-at\":\"https://example.com\"}\n")
       tmpfile.write("not valid json\n")
-      tmpfile.write("{\"template-id\":\"test2\",\"info\":{\"name\":\"Also Valid\",\"severity\":\"low\"},\"matched-at\":\"https://example.com/2\"}\n")
+      tmpfile.write("{\"template-id\":\"t2\",\"info\":{\"name\":\"Also Valid\",\"severity\":\"low\"},\"matched-at\":\"https://example.com/2\"}\n")
       tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      expect(results.length).to eq(2)
+      expect(described_class.new(tmpfile.path).parse.length).to eq(2)
     ensure
       tmpfile.unlink
     end
 
     it 'skips empty lines' do
       tmpfile = Tempfile.new(['blank_lines', '.jsonl'])
-      tmpfile.write("{\"template-id\":\"test\",\"info\":{\"name\":\"Valid\",\"severity\":\"high\"},\"matched-at\":\"https://example.com\"}\n")
-      tmpfile.write("\n")
-      tmpfile.write("   \n")
+      tmpfile.write("{\"template-id\":\"t\",\"info\":{\"name\":\"Valid\",\"severity\":\"high\"},\"matched-at\":\"https://example.com\"}\n")
+      tmpfile.write("\n   \n")
       tmpfile.close
-
-      parser = described_class.new(tmpfile.path)
-      results = parser.parse
-
-      expect(results.length).to eq(1)
+      expect(described_class.new(tmpfile.path).parse.length).to eq(1)
     ensure
       tmpfile.unlink
     end

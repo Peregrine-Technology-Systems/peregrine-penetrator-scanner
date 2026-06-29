@@ -3,18 +3,26 @@ require 'sequel_helper'
 RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/DescribeClass
   let(:target) { create(:target, name: 'DVWA E2E Test', urls: ['http://dvwa:80']) }
   let(:scan) { create(:scan, target:, profile: 'quick') }
-
   let(:mock_findings) do
     [
-      { source_tool: 'zap', severity: 'high', title: 'SQL Injection', url: 'http://dvwa:80/login.php',
-        parameter: 'username', cwe_id: 'CWE-89', evidence: { description: 'Login form injectable' } },
-      { source_tool: 'zap', severity: 'medium', title: 'Missing X-Frame-Options', url: 'http://dvwa:80/',
-        cwe_id: 'CWE-1021', evidence: { description: 'Clickjacking possible' } },
-      { source_tool: 'nuclei', severity: 'high', title: 'CVE-2021-44228 Log4Shell', url: 'http://dvwa:80/',
-        cve_id: 'CVE-2021-44228', cwe_id: 'CWE-917', evidence: { description: 'JNDI injection' } },
-      { source_tool: 'zap', severity: 'high', title: 'SQL Injection', url: 'http://dvwa:80/login.php',
-        parameter: 'username', cwe_id: 'CWE-89', evidence: { description: 'Duplicate — same fingerprint' } }
+      contract_finding(source_tool: 'zap', severity: 'high', title: 'SQL Injection',
+                       url: 'http://dvwa:80/login.php', parameter: 'username', cwe: 'CWE-89'),
+      contract_finding(source_tool: 'zap', severity: 'medium', title: 'Missing X-Frame-Options',
+                       url: 'http://dvwa:80/', cwe: 'CWE-1021'),
+      contract_finding(source_tool: 'nuclei', severity: 'high', title: 'CVE-2021-44228 Log4Shell',
+                       url: 'http://dvwa:80/', cve: 'CVE-2021-44228', cwe: 'CWE-917'),
+      # Duplicate of the first (same title/location/cwe → same fingerprint)
+      contract_finding(source_tool: 'zap', severity: 'high', title: 'SQL Injection',
+                       url: 'http://dvwa:80/login.php', parameter: 'username', cwe: 'CWE-89')
     ]
+  end
+
+  def contract_finding(source_tool:, severity:, title:, url:, parameter: nil, cwe: nil, cve: nil) # rubocop:disable Metrics/ParameterLists
+    ResultParsers::Contract.finding(
+      source_tool:, probe: 'web-dast', finding_type: 'vulnerability', severity:, title:,
+      location: ResultParsers::Contract.web(url:, parameter:),
+      identifiers: [ResultParsers::Contract.identifier('cwe', cwe), ResultParsers::Contract.identifier('cve', cve)]
+    )
   end
 
   before do
@@ -92,14 +100,14 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
       expect(summary['by_severity']).to be_a(Hash)
     end
 
-    it 'exports a v1.4 JSON envelope' do
+    it 'exports a v2.0 JSON envelope' do
       orchestrator = ScanOrchestrator.new(scan)
       orchestrator.execute
 
       exporter = ScanResultsExporter.new(scan)
       envelope = exporter.build_envelope
 
-      expect(envelope[:schema_version]).to eq('1.4')
+      expect(envelope[:schema_version]).to eq('2.0')
       expect(envelope[:metadata][:scan_id]).to eq(scan.id)
       expect(envelope[:metadata][:target_name]).to eq('DVWA E2E Test')
       expect(envelope[:findings]).to be_an(Array)
@@ -113,7 +121,8 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
       exporter = ScanResultsExporter.new(scan)
       finding = exporter.build_envelope[:findings].first
 
-      expect(finding).to include(:id, :source_tool, :severity, :title, :url)
+      expect(finding).to include('id', 'source_tool', 'severity', 'title')
+      expect(finding['location']).to include('kind' => 'web')
     end
   end
 end

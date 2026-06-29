@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'json'
+require 'sequel_helper'
 
 CONTRACT_CORPUS_DIR = File.expand_path('../fixtures/synthetic_corpus', __dir__)
 CONTRACT_CORE_REQUIRED = %w[id scan_id detected_at probe source_tool finding_type title location].freeze
@@ -14,7 +14,7 @@ CONTRACT_REFERENCE_PROBES = %w[web-dast template-cve injection content-discovery
 #
 # This doubles as the stable contract-test target the downstream analysis service
 # writes against — it asserts the *shape* the scanner emits, not any analysis logic.
-RSpec.describe 'Probe output contract' do # rubocop:disable RSpec/DescribeClass
+RSpec.describe 'Probe output contract' do # rubocop:disable RSpec/DescribeClass, RSpec/MultipleDescribes
   let(:realistic) { JSON.parse(File.read(File.join(CONTRACT_CORPUS_DIR, 'realistic.json'))) }
   let(:perturbed) { JSON.parse(File.read(File.join(CONTRACT_CORPUS_DIR, 'perturbed.json'))) }
   let(:manifest) { JSON.parse(File.read(File.join(CONTRACT_CORPUS_DIR, 'manifest.json'))) }
@@ -112,6 +112,53 @@ RSpec.describe 'Probe output contract' do # rubocop:disable RSpec/DescribeClass
       meta = realistic['metadata']
       expect(meta['substrate']).to include('platform', 'machine_type', 'provisioning')
       expect(meta['vm_timing']).to include('wall_clock_seconds')
+    end
+  end
+end
+
+# The corpus is the published shape; this asserts the REAL parser→model→exporter
+# chain emits the SAME contract (one source of truth). Real fixtures span the
+# web/network/package/file locator kinds.
+RSpec.describe 'Probe output contract — real exporter output' do # rubocop:disable RSpec/DescribeClass
+  subject(:findings) { ScanResultsExporter.new(scan).build_envelope[:findings] }
+
+  let(:fixtures) { Penetrator.root.join('spec/fixtures') }
+  let(:scan) do
+    create(:scan, :completed, tool_statuses: { 'zap' => { 'status' => 'completed' } },
+                              summary: { 'total_findings' => 0 })
+  end
+
+  before do
+    contracts = [
+      ResultParsers::ZapParser.new(fixtures.join('zap_results.json').to_s).parse,
+      ResultParsers::NucleiParser.new(fixtures.join('nuclei_results.jsonl').to_s).parse,
+      ResultParsers::TestsslParser.new(fixtures.join('testssl_results.json')).parse.first(3),
+      ResultParsers::RetirejsParser.new(fixtures.join('retirejs_results.json'), 'https://x').parse,
+      ResultParsers::TrufflehogParser.new(fixtures.join('trufflehog_results.json'), 'https://x').parse
+    ].flatten
+    contracts.each do |contract|
+      Finding.from_contract(contract, scan_id: scan.id)
+    rescue Sequel::ValidationFailed
+      nil
+    end
+  end
+
+  it 'emits findings that satisfy the same core contract as the corpus' do
+    expect(findings).to be_present
+    findings.each do |f|
+      CONTRACT_CORE_REQUIRED.each { |k| expect(f[k]).not_to(be_nil, "missing #{k} in real export") }
+      expect(f.dig('location', 'kind')).to be_present
+    end
+  end
+
+  it 'spans multiple locator kinds (web/network/package/file)' do
+    kinds = findings.map { |f| f.dig('location', 'kind') }.uniq
+    expect(kinds).to include('web', 'network', 'package', 'file')
+  end
+
+  it 'emits identifiers as {type,value} pairs' do
+    findings.flat_map { |f| f['identifiers'] || [] }.each do |id|
+      expect(id.keys).to match_array(%w[type value])
     end
   end
 end
