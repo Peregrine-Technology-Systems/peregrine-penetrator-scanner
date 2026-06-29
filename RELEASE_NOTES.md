@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.1.2 — 2026-06-29
 - docs: README — describe the scanner as a thin **probe** in the Penetrator fleet (#973). Removes stale monolith-era framing (the "Rails app doing everything: scan, analyze, report, notify" lineage table → a one-line lineage note) and reframes the scanner's bounded job as run-tools → normalize to the [probe output contract](docs/probe_contract.md) → export findings to GCS. Moves enrichment, deduplication, prioritization, and reporting to "downstream, out of scope"; fixes factual drift (dropped the unwired OSV from the CVE list, removed BigQuery from the headline pipeline, generic "downstream consumer" instead of naming reporter, pointed the docs table at `probe_contract.md`). Pairs with the analysis extraction — lands with/after enrichment+dedup are removed from the scanner. (#973)
 
 ## v1.1.1 — 2026-06-28
