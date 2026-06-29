@@ -231,6 +231,16 @@ The contract ships with a **representative reference fixture** that the scanner 
 
 The fixture is the stable target the analysis service writes its contract test against — it lets the consumer validate against the shape without pushing any analysis logic back into the probe.
 
+### Synthetic corpus (bootstrap material)
+
+A larger deterministic synthetic corpus ships alongside the fixture for cold-start / Knowledge-Loop bootstrapping:
+
+- **Location:** `spec/fixtures/synthetic_corpus/` — `manifest.json`, `realistic.json`, `perturbed.json`.
+- **Generator:** `spec/support/synthetic_corpus.rb` (seeded, reproducible — re-running yields byte-identical output).
+- **Conformance test:** `spec/contract/probe_contract_spec.rb`.
+- **Two labelled series:** `realistic` (100 findings across all nine probes, with multi-identifier and duplicate cases) and `perturbed` (30 out-of-distribution findings, each `ext.synthetic.perturbation = <type>` + `label = escalate` — the "exceeds the deterministic DSL, escalate" class, **not** garbage).
+- **Not ground truth.** This is synthetic bootstrap material; a model trained on it risks learning the generator, not the world. Replace with a real corpus as it accrues.
+
 ---
 
 ## 12. How to evolve this contract
