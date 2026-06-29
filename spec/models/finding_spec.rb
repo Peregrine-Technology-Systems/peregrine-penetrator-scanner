@@ -38,12 +38,12 @@ RSpec.describe Finding do
   end
 
   describe '#before_validation' do
-    it 'generates fingerprint from composite key' do
+    it 'generates a fingerprint from the contract document (title:host+url:param:cwe)' do
       finding = build(:finding, source_tool: 'zap', title: 'XSS', url: 'https://example.com',
-                                parameter: 'q', cwe_id: 'CWE-79', fingerprint: nil)
+                                parameter: 'q', cwe_id: 'CWE-79')
       finding.valid?
       expect(finding.fingerprint).to eq(
-        Digest::SHA256.hexdigest('zap:XSS:https://example.com:q:CWE-79')
+        Digest::SHA256.hexdigest('xss:https://example.com:q:CWE-79')
       )
     end
   end

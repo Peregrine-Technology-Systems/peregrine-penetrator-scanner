@@ -6,26 +6,7 @@ module ResultParsers
 
     def parse
       data = JSON.parse(File.read(@output_file))
-      results = data['results'] || []
-
-      results.map do |result|
-        {
-          source_tool: 'ffuf',
-          severity: severity_for_status(result['status']),
-          title: "Discovered endpoint: #{result['input']&.values&.first || result['url']}",
-          url: result['url'],
-          parameter: nil,
-          cwe_id: nil,
-          evidence: {
-            status_code: result['status'],
-            content_length: result['length'],
-            content_words: result['words'],
-            content_lines: result['lines'],
-            content_type: result['content-type'],
-            redirect_location: result['redirectlocation']
-          }.compact
-        }
-      end
+      (data['results'] || []).map { |result| build(result) }
     rescue JSON::ParserError, Errno::ENOENT => e
       Penetrator.logger.error("[FfufParser] Parse error: #{e.message}")
       []
@@ -33,11 +14,23 @@ module ResultParsers
 
     private
 
+    def build(result)
+      Contract.finding(
+        source_tool: 'ffuf', probe: 'content-discovery', finding_type: 'exposure',
+        severity: severity_for_status(result['status']),
+        title: "Discovered endpoint: #{result['input']&.values&.first || result['url']}",
+        location: Contract.web(url: result['url']),
+        evidence: {
+          'status_code' => result['status'], 'content_length' => result['length'],
+          'content_words' => result['words'], 'content_lines' => result['lines'],
+          'content_type' => result['content-type'], 'redirect_location' => result['redirectlocation']
+        }
+      )
+    end
+
     def severity_for_status(status)
       case status
-      when 200 then 'info'
       when 403 then 'low'
-      when 301, 302 then 'info'
       else 'info'
       end
     end

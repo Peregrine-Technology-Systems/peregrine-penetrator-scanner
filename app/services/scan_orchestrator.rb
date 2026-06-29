@@ -211,8 +211,8 @@ class ScanOrchestrator
   end
 
   def save_findings(findings)
-    findings.each do |finding_attrs|
-      Finding.create(finding_attrs.merge(scan_id: scan.id))
+    findings.each do |contract|
+      Finding.from_contract(contract, scan_id: scan.id)
     rescue Sequel::ValidationFailed => e
       Penetrator.logger.warn("[ScanOrchestrator] Duplicate finding skipped: #{e.message}")
     end

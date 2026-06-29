@@ -68,7 +68,7 @@ RSpec.describe ScanResultsExporter do
     let(:envelope) { exporter.build_envelope }
 
     it 'includes schema_version' do
-      expect(envelope[:schema_version]).to eq('1.4')
+      expect(envelope[:schema_version]).to eq('2.0')
     end
 
     describe 'tool_chain' do
@@ -178,36 +178,39 @@ RSpec.describe ScanResultsExporter do
     end
 
     describe 'findings' do
+      let(:sql_finding) { envelope[:findings].find { |f| f['title'] == 'SQL Injection' } }
+
+      def identifiers(finding, type)
+        (finding['identifiers'] || []).select { |i| i['type'] == type }.map { |i| i['value'] }
+      end
+
       it 'excludes duplicate findings' do
-        titles = envelope[:findings].pluck(:title)
+        titles = envelope[:findings].map { |f| f['title'] }
         expect(titles).to include('SQL Injection', 'Missing Security Headers')
         expect(titles).not_to include('Duplicate Finding')
       end
 
-      it 'includes core finding fields' do
-        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
-
-        expect(sql_finding[:source_tool]).to eq('zap')
-        expect(sql_finding[:severity]).to eq('high')
-        expect(sql_finding[:parameter]).to eq('username')
-        expect(sql_finding[:cwe_id]).to eq('CWE-89')
-        expect(sql_finding[:cve_id]).to eq('CVE-2024-1234')
+      it 'emits each finding as the probe contract document with provenance' do
+        expect(sql_finding['source_tool']).to eq('zap')
+        expect(sql_finding['severity']).to eq('high')
+        expect(sql_finding.dig('location', 'parameter')).to eq('username')
+        expect(sql_finding['id']).to be_present
+        expect(sql_finding['scan_id']).to eq(scan.id)
+        expect(sql_finding['detected_at']).to be_present
       end
 
-      it 'includes CVSS/EPSS/KEV enrichment fields' do
-        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
+      it 'preserves CVE + CWE identifiers losslessly' do
+        expect(identifiers(sql_finding, 'cwe')).to include('CWE-89')
+        expect(identifiers(sql_finding, 'cve')).to include('CVE-2024-1234')
+      end
 
-        expect(sql_finding[:cvss_score]).to eq(9.8)
-        expect(sql_finding[:cvss_vector]).to eq('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')
-        expect(sql_finding[:epss_score]).to eq(0.95)
-        expect(sql_finding[:kev_known_exploited]).to be(true)
+      it 'carries tool-reported scores, not analyzer enrichment (no kev)' do
+        expect(sql_finding['scores']).to include('cvss_score' => 9.8, 'epss_score' => 0.95)
+        expect(sql_finding).not_to have_key('kev_known_exploited')
       end
 
       it 'includes evidence' do
-        sql_finding = envelope[:findings].find { |f| f[:title] == 'SQL Injection' }
-
-        expect(sql_finding[:evidence]).to eq('description' => 'Injection in login form')
-        expect(sql_finding).not_to have_key(:ai_assessment)
+        expect(sql_finding['evidence']).to eq('description' => 'Injection in login form')
       end
     end
   end
@@ -233,7 +236,7 @@ RSpec.describe ScanResultsExporter do
       allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
         content = File.read(local_path)
         parsed = JSON.parse(content)
-        expect(parsed['schema_version']).to eq('1.4')
+        expect(parsed['schema_version']).to eq('2.0')
         expect(parsed['findings'].size).to eq(2)
         true
       end

@@ -11,25 +11,23 @@ module ResultParsers
 
       content = File.read(log_file)
 
-      # Parse sqlmap log output for injection points
       content.scan(/Parameter: (.+?) \((.+?)\)/).map do |param, injection_type|
-        {
-          source_tool: 'sqlmap',
-          severity: 'high',
-          title: "SQL Injection - #{injection_type.strip}",
-          url: @url,
-          parameter: param.strip,
-          cwe_id: 'CWE-89',
-          evidence: {
-            injection_type: injection_type.strip,
-            url: @url,
-            log_excerpt: extract_context(content, param)
-          }
-        }
+        build(param.strip, injection_type.strip, content)
       end
     end
 
     private
+
+    def build(param, injection_type, content)
+      Contract.finding(
+        source_tool: 'sqlmap', probe: 'injection', finding_type: 'vulnerability',
+        tool_check_id: injection_type, severity: 'high',
+        title: "SQL Injection - #{injection_type}",
+        location: Contract.web(url: @url, parameter: param),
+        identifiers: [Contract.identifier('cwe', 'CWE-89')],
+        evidence: { 'injection_type' => injection_type, 'log_excerpt' => extract_context(content, param) }
+      )
+    end
 
     def find_log_file
       return nil unless @output_dir.exist?
