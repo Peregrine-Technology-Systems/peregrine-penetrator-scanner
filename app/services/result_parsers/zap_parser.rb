@@ -9,30 +9,34 @@ module ResultParsers
     def parse
       data = JSON.parse(File.read(@output_file))
       alerts = data['site']&.flat_map { |s| s['alerts'] || [] } || []
-
-      alerts.map do |alert|
-        instances = alert['instances'] || []
-        instances.map do |instance|
-          {
-            source_tool: 'zap',
-            severity: SEVERITY_MAP[alert['riskcode'].to_s] || 'info',
-            title: alert['name'] || alert['alert'],
-            url: instance['uri'],
-            parameter: instance['param'],
-            cwe_id: alert['cweid'].present? ? "CWE-#{alert['cweid']}" : nil,
-            evidence: {
-              description: alert['desc'],
-              solution: alert['solution'],
-              reference: alert['reference'],
-              evidence: instance['evidence'],
-              method: instance['method']
-            }.compact
-          }
-        end
-      end.flatten
+      alerts.flat_map { |alert| (alert['instances'] || []).map { |instance| build(alert, instance) } }
     rescue JSON::ParserError, Errno::ENOENT => e
       Penetrator.logger.error("[ZapParser] Parse error: #{e.message}")
       []
+    end
+
+    private
+
+    def build(alert, instance)
+      Contract.finding(
+        source_tool: 'zap', probe: 'web-dast', finding_type: 'vulnerability',
+        tool_check_id: alert['pluginid'],
+        severity: SEVERITY_MAP[alert['riskcode'].to_s] || 'info',
+        severity_source: alert['riskdesc'],
+        title: alert['name'] || alert['alert'],
+        description: alert['desc'],
+        location: Contract.web(url: instance['uri'], method: instance['method'], parameter: instance['param']),
+        identifiers: [Contract.identifier('cwe', cwe(alert))],
+        evidence: {
+          'solution' => alert['solution'], 'reference' => alert['reference'],
+          'evidence' => instance['evidence']
+        }
+      )
+    end
+
+    def cwe(alert)
+      code = alert['cweid'].to_s
+      code.empty? || %w[-1 0].include?(code) ? nil : "CWE-#{code}"
     end
   end
 end

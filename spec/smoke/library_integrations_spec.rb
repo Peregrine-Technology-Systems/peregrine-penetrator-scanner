@@ -24,6 +24,10 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
   end
 
   describe 'Parser integrations' do
+    def ids(finding, type)
+      (finding['identifiers'] || []).select { |i| i['type'] == type }.map { |i| i['value'] }
+    end
+
     describe 'NucleiParser' do
       subject(:results) { ResultParsers::NucleiParser.new(fixtures.join('nuclei_results.jsonl').to_s).parse }
 
@@ -31,36 +35,32 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
         expect(results.length).to eq(3)
       end
 
-      it 'extracts CVE, CWE, CVSS, and EPSS from classification' do
-        log4j = results.find { |f| f[:title] =~ /Log4j/ }
+      it 'extracts CVE, CWE, and tool-reported scores from classification' do
+        log4j = results.find { |f| f['title'] =~ /Log4j/ }
 
-        expect(log4j[:cve_id]).to eq('CVE-2021-44228')
-        expect(log4j[:cwe_id]).to eq('CWE-502')
-        expect(log4j[:cvss_score]).to eq(10.0)
-        expect(log4j[:cvss_vector]).to start_with('CVSS:3.1/')
-        expect(log4j[:epss_score]).to be_a(Float)
+        expect(ids(log4j, 'cve')).to include('CVE-2021-44228')
+        expect(ids(log4j, 'cwe')).to include('CWE-502')
+        expect(log4j['scores']).to include('cvss_score' => 10.0)
+        expect(log4j['scores']['cvss_vector']).to start_with('CVSS:3.1/')
+        expect(log4j['scores']['epss_score']).to be_a(Float)
       end
 
-      it 'returns nil enrichment fields when classification lacks them' do
-        tech = results.find { |f| f[:title] == 'Technology Detection' }
+      it 'omits scores and identifiers when classification lacks them' do
+        tech = results.find { |f| f['title'] == 'Technology Detection' }
 
-        expect(tech[:cve_id]).to be_nil
-        expect(tech[:cvss_score]).to be_nil
-        expect(tech[:cvss_vector]).to be_nil
-        expect(tech[:epss_score]).to be_nil
+        expect(tech['scores']).to be_nil
+        expect(ids(tech, 'cve')).to be_empty
       end
 
-      it 'produces findings that persist to the database' do
+      it 'persists to the database via the contract' do
         scan = create(:scan, :running)
-        log4j = results.find { |f| f[:title] =~ /Log4j/ }
+        log4j = results.find { |f| f['title'] =~ /Log4j/ }
 
-        finding = Finding.create(log4j.merge(scan_id: scan.id))
-        finding.reload
+        finding = Finding.from_contract(log4j, scan_id: scan.id).reload
 
         expect(finding.source_tool).to eq('nuclei')
-        expect(finding.cvss_score).to eq(10.0)
-        expect(finding.cvss_vector).to start_with('CVSS:3.1/')
-        expect(finding.epss_score).to be_a(Float)
+        expect(finding.finding_type).to eq('vulnerability')
+        expect(finding.data.dig('scores', 'cvss_score')).to eq(10.0)
       end
     end
 
@@ -71,26 +71,24 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
         expect(results.length).to eq(3)
       end
 
-      it 'extracts CWE ID with prefix' do
-        xss = results.find { |f| f[:title] =~ /Cross Site Scripting/ }
-        expect(xss[:cwe_id]).to eq('CWE-79')
+      it 'extracts CWE ID with prefix into identifiers' do
+        xss = results.find { |f| f['title'] =~ /Cross Site Scripting/ }
+        expect(ids(xss, 'cwe')).to include('CWE-79')
       end
 
       it 'maps risk codes to severity levels' do
-        severities = results.map { |f| f[:severity] }
-        expect(severities).to include('low', 'high')
+        expect(results.map { |f| f['severity'] }).to include('low', 'high')
       end
 
-      it 'extracts parameters from instances' do
-        xss = results.find { |f| f[:parameter] == 'q' }
-        expect(xss).not_to be_nil
+      it 'extracts parameters into the web location' do
+        expect(results.find { |f| f.dig('location', 'parameter') == 'q' }).not_to be_nil
       end
 
-      it 'produces findings that persist to the database' do
+      it 'persists to the database via the contract' do
         scan = create(:scan, :running)
-        xss = results.find { |f| f[:title] =~ /Cross Site Scripting/ }
+        xss = results.find { |f| f['title'] =~ /Cross Site Scripting/ }
 
-        finding = Finding.create(xss.merge(scan_id: scan.id))
+        finding = Finding.from_contract(xss, scan_id: scan.id)
         expect(finding.id).to be_present
         expect(finding.fingerprint).to be_present
       end
@@ -103,18 +101,18 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
         expect(results.length).to eq(2)
       end
 
-      it 'sets source_tool to nikto' do
-        expect(results.all? { |f| f[:source_tool] == 'nikto' }).to be true
+      it 'tags findings as nikto misconfigurations' do
+        expect(results).to all(include('source_tool' => 'nikto', 'finding_type' => 'misconfiguration'))
       end
 
-      it 'includes evidence with OSVDB reference' do
-        git_finding = results.find { |f| f[:url]&.include?('.git') }
-        expect(git_finding[:evidence]).to include(:id)
+      it 'records a tool_check_id and a web location' do
+        expect(results.first['tool_check_id']).to be_present
+        expect(results.first.dig('location', 'url')).to be_present
       end
 
-      it 'produces findings that persist to the database' do
+      it 'persists to the database via the contract' do
         scan = create(:scan, :running)
-        finding = Finding.create(results.first.merge(scan_id: scan.id))
+        finding = Finding.from_contract(results.first, scan_id: scan.id)
         expect(finding.id).to be_present
       end
     end
@@ -127,21 +125,21 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
       end
 
       it 'maps status codes to severity' do
-        admin = results.find { |f| f[:title] =~ /admin/ }
-        backup = results.find { |f| f[:title] =~ /backup/ }
+        admin = results.find { |f| f['title'] =~ /admin/ }
+        backup = results.find { |f| f['title'] =~ /backup/ }
 
-        expect(admin[:severity]).to eq('info')
-        expect(backup[:severity]).to eq('low')
+        expect(admin['severity']).to eq('info')
+        expect(backup['severity']).to eq('low')
       end
 
-      it 'extracts discovered URLs' do
-        urls = results.map { |f| f[:url] }
+      it 'extracts discovered URLs into the web location' do
+        urls = results.map { |f| f.dig('location', 'url') }
         expect(urls).to include('https://example.com/admin')
       end
 
-      it 'produces findings that persist to the database' do
+      it 'persists to the database via the contract' do
         scan = create(:scan, :running)
-        finding = Finding.create(results.first.merge(scan_id: scan.id))
+        finding = Finding.from_contract(results.first, scan_id: scan.id)
         expect(finding.id).to be_present
       end
     end
@@ -211,16 +209,17 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
                        epss_score: 0.5, kev_known_exploited: false, duplicate: false)
     end
 
-    it 'uses schema version 1.4' do
+    it 'uses schema version 2.0' do
       envelope = ScanResultsExporter.new(export_scan).build_envelope
-      expect(envelope[:schema_version]).to eq('1.4')
+      expect(envelope[:schema_version]).to eq('2.0')
     end
 
-    it 'includes CVSS/EPSS/KEV enrichment fields in findings' do
+    it 'carries tool-reported scores in findings (no analyzer-owned kev)' do
       finding = ScanResultsExporter.new(export_scan).build_envelope[:findings].first
 
-      expect(finding).to include(:cvss_score, :cvss_vector, :epss_score, :kev_known_exploited)
-      expect(finding[:cvss_vector]).to start_with('CVSS:3.1/')
+      expect(finding['scores']).to include('cvss_score' => 7.5, 'epss_score' => 0.5)
+      expect(finding['scores']['cvss_vector']).to start_with('CVSS:3.1/')
+      expect(finding).not_to have_key('kev_known_exploited')
     end
   end
 

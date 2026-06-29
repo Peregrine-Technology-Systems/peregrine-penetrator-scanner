@@ -1,45 +1,38 @@
 require 'sequel_helper'
 
 RSpec.describe ResultParsers::TrufflehogParser do
-  # Real trufflehog --json output captured by running `trufflehog filesystem`
-  # with --include-detectors=PrivateKey against a generated RSA key (test material,
-  # key deleted after fixture capture). NDJSON format: one JSON object per line.
+  # Real trufflehog --json output captured against a generated RSA key (test
+  # material, deleted after capture). NDJSON: one JSON object per line.
   let(:fixture) { Penetrator.root.join('spec/fixtures/trufflehog_results.json') }
 
   describe '#parse (against real fixture)' do
     subject(:findings) { described_class.new(fixture, 'https://example.com').parse }
 
-    it 'produces one finding per detected secret (1 in fixture)' do
+    it 'produces one contract secret finding per detected secret (1 in fixture)' do
       expect(findings.length).to eq(1)
+      expect(findings).to all(include('source_tool' => 'trufflehog', 'probe' => 'secrets',
+                                      'finding_type' => 'secret', 'severity' => 'high'))
     end
 
-    it 'tags every finding with source_tool trufflehog' do
-      expect(findings.map { |f| f[:source_tool] }.uniq).to eq(['trufflehog'])
+    it 'uses DetectorName as title and tool_check_id' do
+      finding = findings.first
+      expect(finding['title']).to include('Private')
+      expect(finding['tool_check_id']).to be_present
     end
 
-    it 'uses DetectorName as title' do
-      expect(findings.first[:title]).to include('PrivateKey').or include('Private')
+    it 'records the verified flag at the top level' do
+      expect(findings.first['verified']).to be(true).or be(false)
     end
 
-    it 'maps all findings to high severity (leaked secrets are always serious)' do
-      expect(findings.map { |f| f[:severity] }.uniq).to eq(['high'])
+    it 'locates the secret in a file location' do
+      expect(findings.first['location']).to include('kind' => 'file')
+      expect(findings.first.dig('location', 'path')).to be_present
     end
 
-    it 'sets url to the target_url' do
-      expect(findings.first[:url]).to eq('https://example.com')
-    end
-
-    it 'includes DetectorName and Verified in evidence' do
-      ev = findings.first[:evidence]
-      expect(ev).to have_key(:detector_name)
-      expect(ev).to have_key(:verified)
-    end
-
-    it 'stores only the Redacted field from trufflehog (not the full Raw value)' do
-      ev = findings.first[:evidence]
-      # trufflehog's Redacted is a truncated form; Raw is the full secret body — must not be stored
-      expect(ev.keys).not_to include(:raw)
-      expect(ev).to have_key(:redacted)
+    it 'stores only the Redacted field (never the full Raw secret)' do
+      ev = findings.first['evidence']
+      expect(ev).to have_key('redacted')
+      expect(ev.keys).not_to include('raw')
     end
   end
 
@@ -66,6 +59,7 @@ RSpec.describe ResultParsers::TrufflehogParser do
       tmp.close
       findings = described_class.new(tmp.path, 'https://x.com').parse
       expect(findings.length).to eq(1)
+      expect(findings.first.dig('location', 'path')).to eq('/f.js')
     ensure
       tmp.unlink
     end

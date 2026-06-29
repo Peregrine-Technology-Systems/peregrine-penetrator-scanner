@@ -2,59 +2,52 @@ require 'sequel_helper'
 
 RSpec.describe ResultParsers::RetirejsParser do
   # Real retire.js --outputformat json output captured by scanning jQuery 1.12.4
-  # (a known-vulnerable version) with `retire --path /tmp/retire-test --outputformat json`
-  # 6 vulnerabilities across one file. Canned smoke does not exercise this tool.
+  # (a known-vulnerable version). 6 vulnerabilities across one file.
   let(:fixture) { Penetrator.root.join('spec/fixtures/retirejs_results.json') }
+
+  def ids(finding, type)
+    (finding['identifiers'] || []).select { |i| i['type'] == type }.map { |i| i['value'] }
+  end
+
+  def by_summary(findings, frag)
+    findings.find { |x| x.dig('evidence', 'identifiers_summary').to_s.include?(frag) }
+  end
 
   describe '#parse (against real fixture)' do
     subject(:findings) { described_class.new(fixture, 'https://example.com').parse }
 
-    it 'produces one finding per vulnerability (6 vulns in fixture)' do
+    it 'produces one contract finding per vulnerability (6 in fixture)' do
       expect(findings.length).to eq(6)
+      expect(findings).to all(include('source_tool' => 'retirejs', 'probe' => 'sca',
+                                      'finding_type' => 'outdated-component'))
     end
 
-    it 'tags every finding with source_tool retirejs' do
-      expect(findings.map { |f| f[:source_tool] }.uniq).to eq(['retirejs'])
+    it 'maps retire.js severities' do
+      expect(by_summary(findings, 'parseHTML')['severity']).to eq('medium')
+      expect(by_summary(findings, 'End-of-Life')['severity']).to eq('low')
     end
 
-    it 'maps retire.js medium → medium' do
-      f = findings.find { |x| x[:evidence][:identifiers_summary].include?('parseHTML') }
-      expect(f[:severity]).to eq('medium')
+    it 'preserves CVE identifiers (lossless)' do
+      expect(ids(by_summary(findings, 'CORS'), 'cve')).to include('CVE-2015-9251')
+      expect(ids(by_summary(findings, 'parseHTML'), 'cve')).to be_empty
     end
 
-    it 'maps retire.js low → low' do
-      f = findings.find { |x| x[:evidence][:identifiers_summary].include?('End-of-Life') }
-      expect(f[:severity]).to eq('low')
-    end
-
-    it 'extracts cve_id (first CVE from identifiers.CVE array)' do
-      f = findings.find { |x| x[:evidence][:identifiers_summary].include?('CORS') }
-      expect(f[:cve_id]).to eq('CVE-2015-9251')
-    end
-
-    it 'sets cve_id to nil when identifiers.CVE is absent' do
-      f = findings.find { |x| x[:evidence][:identifiers_summary].include?('parseHTML') }
-      expect(f[:cve_id]).to be_nil
-    end
-
-    it 'extracts cwe_id (first entry from cwe array)' do
-      f = findings.find { |x| x[:evidence][:identifiers_summary].include?('parseHTML') }
-      expect(f[:cwe_id]).to eq('CWE-79')
+    it 'preserves CWE identifiers' do
+      expect(ids(by_summary(findings, 'parseHTML'), 'cwe')).to include('CWE-79')
     end
 
     it 'uses identifiers.summary as title' do
-      f = findings.find { |x| x[:evidence][:identifiers_summary].include?('parseHTML') }
-      expect(f[:title]).to include('parseHTML')
+      expect(by_summary(findings, 'parseHTML')['title']).to include('parseHTML')
     end
 
-    it 'sets url to the target_url passed at construction' do
-      expect(findings.map { |f| f[:url] }.uniq).to eq(['https://example.com'])
-    end
-
-    it 'includes component + version in evidence' do
+    it 'records the vulnerable library in a package location + component block' do
       f = findings.first
-      expect(f[:evidence][:component]).to eq('jquery')
-      expect(f[:evidence][:version]).to eq('1.12.4')
+      expect(f['location']).to include('kind' => 'package', 'name' => 'jquery', 'version' => '1.12.4')
+      expect(f['component']).to include('name' => 'jquery', 'version' => '1.12.4', 'ecosystem' => 'npm')
+    end
+
+    it 'keeps the affected target URL in evidence' do
+      expect(findings.map { |f| f.dig('evidence', 'affected_url') }.uniq).to eq(['https://example.com'])
     end
   end
 
@@ -74,7 +67,7 @@ RSpec.describe ResultParsers::RetirejsParser do
 
     it 'returns [] when data array is empty (no vulns)' do
       tmp = Tempfile.new(['empty', '.json'])
-      tmp.write('{"version":"5.4.3","start":"2026-01-01T00:00:00.000Z","data":[],"messages":[],"errors":[],"time":0.1}')
+      tmp.write('{"version":"5.4.3","data":[],"messages":[],"errors":[],"time":0.1}')
       tmp.close
       expect(described_class.new(tmp.path, 'https://x.com').parse).to eq([])
     ensure

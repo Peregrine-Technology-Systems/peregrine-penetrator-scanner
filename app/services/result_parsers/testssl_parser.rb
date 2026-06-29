@@ -1,6 +1,6 @@
 module ResultParsers
   # Normalizes testssl.sh `--jsonfile` output (a flat array of
-  # {id, ip, port, severity, finding, cve?, cwe?}) into Finding hashes.
+  # {id, ip, port, severity, finding, cve?, cwe?}) into probe-contract findings.
   # Severity mapping is config-driven (config/testssl_severity_map.yml); records
   # whose severity is unmapped (OK/DEBUG/FATAL) or whose ip is "/" (engine/cmdline
   # meta) are dropped — they are non-findings. See #48.
@@ -30,16 +30,22 @@ module ResultParsers
       severity = self.class.severity_map[record['severity']]
       return nil if severity.nil? || record['ip'] == '/'
 
-      {
-        source_tool: 'testssl',
-        severity:,
+      Contract.finding(
+        source_tool: 'testssl', probe: 'tls', finding_type: 'misconfiguration',
+        tool_check_id: record['id'],
+        severity:, severity_source: record['severity'],
         title: title_for(record),
-        url: url_for(record['ip']),
-        parameter: nil,
-        cwe_id: record['cwe'],
-        cve_id: first_cve(record['cve']),
-        evidence: { id: record['id'], port: record['port'], testssl_severity: record['severity'] }.compact
-      }
+        location: Contract.network(host: host_for(record['ip']), port: record['port'], protocol: 'tls'),
+        identifiers: identifiers(record),
+        evidence: { 'id' => record['id'] }
+      )
+    end
+
+    # Preserve ALL CVEs the record cites (testssl space-separates them) — the flat
+    # model kept only the first; identifiers[] is lossless (#971).
+    def identifiers(record)
+      cves = record['cve'].to_s.split(/\s+/).map { |c| Contract.identifier('cve', c) }
+      cves + [Contract.identifier('cwe', record['cwe'])]
     end
 
     def title_for(record)
@@ -47,15 +53,9 @@ module ResultParsers
       finding.empty? || finding == '--' ? record['id'] : finding
     end
 
-    def url_for(ip)
+    def host_for(ip)
       host = ip.to_s.split('/').first
-      host.to_s.empty? ? nil : "https://#{host}"
-    end
-
-    def first_cve(cve)
-      return nil if cve.to_s.strip.empty?
-
-      cve.split(/\s+/).first
+      host.to_s.empty? ? nil : host
     end
   end
 end

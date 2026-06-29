@@ -9,15 +9,12 @@ RSpec.describe ResultParsers::SqlmapParser do
     let(:sqlmap_log_content) do
       <<~LOG
         [INFO] testing connection to the target URL
-        [INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'
         Parameter: id (GET)
             Type: boolean-based blind
-            Title: AND boolean-based blind - WHERE or HAVING clause
             Payload: id=1 AND 5678=5678
 
         Parameter: name (POST)
             Type: time-based blind
-            Title: MySQL >= 5.0.12 time-based blind
             Payload: name=test' AND SLEEP(5)-- -
       LOG
     end
@@ -27,82 +24,54 @@ RSpec.describe ResultParsers::SqlmapParser do
       File.write(output_dir.join('example.com', 'log'), sqlmap_log_content)
     end
 
-    after do
-      FileUtils.rm_rf(output_dir)
+    after { FileUtils.rm_rf(output_dir) }
+
+    def ids(finding, type)
+      (finding['identifiers'] || []).select { |i| i['type'] == type }.map { |i| i['value'] }
     end
 
-    it 'parses injection points from sqlmap log' do
+    it 'parses injection points into contract findings' do
       results = parser.parse
       expect(results.length).to eq(2)
+      expect(results).to all(include('source_tool' => 'sqlmap', 'probe' => 'injection',
+                                     'finding_type' => 'vulnerability', 'severity' => 'high'))
     end
 
-    it 'sets source_tool to sqlmap' do
+    it 'puts the parameter + url in a web location' do
       results = parser.parse
-      results.each { |r| expect(r[:source_tool]).to eq('sqlmap') }
+      expect(results.map { |r| r.dig('location', 'parameter') }).to include('id', 'name')
+      expect(results).to all(satisfy { |r| r.dig('location', 'url') == url })
     end
 
-    it 'sets severity to high' do
-      results = parser.parse
-      results.each { |r| expect(r[:severity]).to eq('high') }
+    it 'titles the finding by injection place' do
+      titles = parser.parse.map { |r| r['title'] }
+      expect(titles).to include('SQL Injection - GET', 'SQL Injection - POST')
     end
 
-    it 'extracts parameter name' do
-      results = parser.parse
-      params = results.pluck(:parameter)
-      expect(params).to include('id')
-      expect(params).to include('name')
+    it 'tags CWE-89 in identifiers' do
+      expect(parser.parse).to all(satisfy { |r| ids(r, 'cwe') == ['CWE-89'] })
     end
 
-    it 'includes injection type in title' do
-      results = parser.parse
-      titles = results.pluck(:title)
-      expect(titles).to include('SQL Injection - GET')
-      expect(titles).to include('SQL Injection - POST')
-    end
-
-    it 'sets CWE-89 for SQL injection' do
-      results = parser.parse
-      results.each { |r| expect(r[:cwe_id]).to eq('CWE-89') }
-    end
-
-    it 'includes URL in results' do
-      results = parser.parse
-      results.each { |r| expect(r[:url]).to eq(url) }
-    end
-
-    it 'includes evidence with injection details' do
-      results = parser.parse
-      results.each do |r|
-        expect(r[:evidence]).to be_a(Hash)
-        expect(r[:evidence][:injection_type]).to be_present
-        expect(r[:evidence][:url]).to eq(url)
-      end
-    end
-
-    it 'includes log context in evidence' do
-      results = parser.parse
-      expect(results.first[:evidence][:log_excerpt]).to be_present
+    it 'includes evidence with injection details + log context' do
+      finding = parser.parse.first
+      expect(finding['evidence']['injection_type']).to be_present
+      expect(finding['evidence']['log_excerpt']).to be_present
     end
 
     it 'returns empty array when output dir does not exist' do
-      parser = described_class.new(Pathname.new('/nonexistent/path'), url)
-      expect(parser.parse).to eq([])
+      expect(described_class.new(Pathname.new('/nonexistent/path'), url).parse).to eq([])
     end
 
     it 'returns empty array when no log file found' do
       empty_dir = Penetrator.root.join('tmp/test_sqlmap_empty')
       FileUtils.mkdir_p(empty_dir)
-
-      parser = described_class.new(empty_dir, url)
-      expect(parser.parse).to eq([])
+      expect(described_class.new(empty_dir, url).parse).to eq([])
     ensure
       FileUtils.rm_rf(empty_dir)
     end
 
     it 'returns empty array when log has no injection points' do
-      no_injections = "sqlmap identified the following injection point(s):\n[INFO] testing done\n"
-      File.write(output_dir.join('example.com', 'log'), no_injections)
-
+      File.write(output_dir.join('example.com', 'log'), "[INFO] testing done\n")
       expect(parser.parse).to eq([])
     end
   end
