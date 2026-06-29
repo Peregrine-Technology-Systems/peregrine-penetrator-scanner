@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-BSL%201.1-blue)
 ![Platform](https://img.shields.io/badge/platform-GCP-4285F4?logo=googlecloud&logoColor=white)
 
-Automated security scanning engine that orchestrates open-source penetration testing tools against target web applications, normalizes and deduplicates findings, enriches with CVE intelligence, and exports structured results to GCS and BigQuery.
+Automated security scanning engine — one **probe** in the Peregrine Penetrator fleet. It runs open-source penetration testing tools against authorized web applications, normalizes their output into the canonical [probe output contract](docs/probe_contract.md), and exports structured findings to GCS for downstream analysis. Enrichment, deduplication, prioritization, and reporting are downstream concerns — out of scope here.
 
 > **Part of the Peregrine Penetrator product line at Peregrine Technology Systems.** This repo is **one component** — the scanning engine — of the Penetrator product. The product as a whole is built to Peregrine Technology Systems' standards for **SOC 2 Type II** compliance (a product-level property, not inferable from this component alone). Penetrator is **cloud-agnostic**; the scanner currently happens to deploy on GCP — a deployment detail, not a platform coupling.
 >
@@ -25,15 +25,14 @@ All tools in this repository are for **authorized testing only**. Explicit writt
 
 ## Architecture
 
-The scanner is **one component** of the **Peregrine Penetrator** product. Its job is bounded: run security tools against an **authorized** target, normalize and deduplicate findings, enrich them with CVE intelligence, and **export structured results** to GCS (and BigQuery). Those results are **consumed by other components of the product** (orchestration, reporting, delivery) — which are intentionally **out of scope for this repository**.
+The scanner is **one probe** in the **Peregrine Penetrator** product. Its job is bounded: run security tools against an **authorized** target, normalize their output into the canonical **probe output contract**, and **export structured findings** to GCS. Everything analytical — CVE/exploit **enrichment**, **deduplication**, **prioritization** — and **reporting** belongs to downstream components, intentionally **out of scope for this repository**. See [docs/probe_contract.md](docs/probe_contract.md) for the finding shape this probe emits.
 
 ```mermaid
 graph LR
-    Orchestration["Orchestration<br/>(dispatches scans —<br/>separate component)"] -->|scan request| Scanner["Scanner<br/>(this repo · Ruby, native VM)"]
-    Scanner -->|JSON results| GCS[(GCS)]
-    Scanner -->|findings + costs| BQ[(BigQuery)]
-    Scanner -->|CVE enrichment| CVE[(NVD / KEV / EPSS / OSV)]
-    GCS -->|consumed by| Other["other Penetrator components"]
+    Orchestration["Orchestration<br/>(dispatches scans —<br/>separate component)"] -->|scan request| Scanner["Scanner probe<br/>(this repo · Ruby, native VM)"]
+    Scanner -->|findings in the<br/>probe output contract| GCS[(GCS)]
+    GCS -->|consumed by| Analysis["downstream analysis<br/>(enrich · dedup · prioritize)"]
+    Analysis --> Reporting["reporting & delivery"]
 ```
 
 ### Scan Pipeline
@@ -48,15 +47,13 @@ flowchart TD
     E --> N[Slack: Scan Started]
     N --> P[Preflight Check<br/>HTTP HEAD targets, 10s timeout]
     P -->|unreachable| X[Fail + self-terminate]
-    P -->|reachable| F[Discovery: ffuf + Nikto]
+    P -->|reachable| F[Discovery tools]
     F -->|critical failure| X
-    F --> G[Active: OWASP ZAP]
-    G --> H[Targeted: Nuclei + sqlmap]
-    H --> I[FindingNormalizer<br/>SHA256 dedup]
-    I --> J[CVE Enrichment<br/>NVD + KEV + EPSS + OSV]
-    J --> K[JSON Export to GCS]
-    K --> L[BigQuery Logging]
-    L --> M[Write status.json<br/>GCS-only completion]
+    F --> G[Active scan tools]
+    G --> H[Targeted tools]
+    H --> I[Normalize to<br/>probe output contract]
+    I --> K[Export findings to GCS]
+    K --> M[Write status.json<br/>GCS-only completion]
 ```
 
 ### Control Plane
@@ -151,21 +148,14 @@ SCAN_PROFILE=standard TARGET_NAME="My App" TARGET_URLS='["https://example.com"]'
 |----------|-----------|
 | **Sequel ORM** over Rails | 80MB RAM, <1s boot, 15 gems (was 300MB, 5s, 38 gems under Rails) |
 | **Single-use VMs** | Each scan on a fresh on-demand VM (booted from the baked image) that self-deletes |
-| **JSON-first pipeline** | Canonical JSON envelope to GCS, then BigQuery |
-| **One component** | The scanner scans and exports results; other components of the Penetrator product consume them (out of scope here) |
+| **JSON-first pipeline** | Canonical JSON envelope to GCS in the [probe output contract](docs/probe_contract.md) shape |
+| **One probe** | The scanner scans and exports findings; downstream components analyze, prioritize, and report (out of scope here) |
 | **Heartbeat protocol** | Real-time progress, stale scan detection, cooperative cancellation |
-| **Dead letter to GCS** | No scan results lost even if reporter is down |
+| **Dead letter to GCS** | No findings lost even if a downstream consumer is unavailable |
 
-### Design Approach
+### Lineage
 
-This project followed **stepwise refinement** — building a working monolith first, then extracting clean service boundaries once the domain was understood:
-
-| Version | What happened |
-|---------|--------------|
-| v0.1.0 | Monolith — Rails app doing everything: scan, analyze, report, notify |
-| v0.2.0 | Rails stripped — migrated to Sequel ORM + plain Ruby CLI |
-| v0.3.0 | Service extraction — reports, AI, ticketing, email moved to reporter (-7,030 lines) |
-| v0.4.0+ | Control plane — heartbeats, cancel, smoke-test, reliability hardening |
+The scanner evolved from a Rails monolith into a lean Sequel CLI, and then into a single-purpose **probe**: analysis and reporting were extracted to downstream components, leaving it to do one thing — scan and emit findings in the probe output contract. Full version history in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ---
 
@@ -220,7 +210,8 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). <
 |----------|-------------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full architecture with Mermaid diagrams — scan flow, control plane, VM lifecycle, data model, reliability |
 | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | Threat model, secrets management, container/network/control plane security |
-| [docs/schema_versioning.md](docs/schema_versioning.md) | v1.0 JSON envelope contract between scanner and reporter |
+| [docs/probe_contract.md](docs/probe_contract.md) | **Canonical probe output contract** — the finding shape this probe emits for downstream analysis |
+| [docs/schema_versioning.md](docs/schema_versioning.md) | JSON envelope version contract + MINOR/MAJOR evolution rules |
 | [docs/data_retention_policy.md](docs/data_retention_policy.md) | Data retention: scanner retains nothing; downstream deletes scan records post-delivery; only a minimal audit record (18mo, SOC 2) is kept |
 | [docs/audit_logging.md](docs/audit_logging.md) | Audit event types, chain of custody, compliance (SOC 2, ISO 27001) |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Local setup, testing, environment variables |
