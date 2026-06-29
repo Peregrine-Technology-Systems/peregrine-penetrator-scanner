@@ -1,0 +1,1565 @@
+{
+  "schema_version": "2.0",
+  "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+  "metadata": {
+    "synthetic": true,
+    "series": "perturbed",
+    "substrate": {
+      "platform": "gce",
+      "machine_type": "e2-standard-2",
+      "provisioning": "on-demand"
+    },
+    "vm_timing": {
+      "created_at": "2026-06-29T12:00:00Z",
+      "deleted_at": "2026-06-29T12:10:00Z",
+      "wall_clock_seconds": 600
+    }
+  },
+  "summary": {
+    "total_findings": 30
+  },
+  "tool_chain": {
+    "executed": [
+      {
+        "tool": "zap",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "nuclei",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "sqlmap",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "ffuf",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "nikto",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "testssl",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "retirejs",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "trufflehog",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "amass",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 3
+      },
+      {
+        "tool": "sqlmap",
+        "status": "failed",
+        "exit_code": null,
+        "findings_count": null
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "677b6bd8-de9d-eb6a-d735-aab5640732a6",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:00Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40012",
+      "finding_type": "asset",
+      "severity": "critical",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Reflected XSS",
+      "description": "Reflected XSS detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e2ed4c2f-1bdf-a66f-45bf-7c1d2f00dd99.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 0,
+          "perturbation": "contradictory_severity",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:e9b4697b9d7bd9bef59ea280896584c0ab56b15c235a591aba0047d7877aaed6"
+    },
+    {
+      "id": "48cb65cb-6ea8-13c3-0dc8-c404f1bb5a54",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:01Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2022-22965",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Spring4Shell RCE",
+      "description": "Spring4Shell RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2022-22965"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 13.7,
+        "epss_score": 1.9,
+        "cvss_vector": "CVSS:9.9/???"
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/029e3fc6-af96-2b4d-4f13-0f94e58f2d9f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 1,
+          "perturbation": "impossible_scores",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:ab7374f729964449594eb114e92e05aff9be97a966358970846620680cddc724"
+    },
+    {
+      "id": "604dbb7b-4b21-93f0-da6e-40017b9c3968",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:02Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "union-query",
+      "finding_type": "vulnerability",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "high",
+      "title": "UNION-query SQLi",
+      "description": "UNION-query SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-99999-NONSENSE"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-abc"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MSSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/25cca3c9-4328-4698-2781-60953ffeb026.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 2,
+          "perturbation": "malformed_identifier",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:16a4882b016ae2b6d9bd9ec0b37dcfa45266d8bc81f300583c7b59bbcc6bf5af"
+    },
+    {
+      "id": "ed52b68d-0abb-b091-e490-ea8af788b96f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:03Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "medium",
+      "title": "Discovered endpoint: /api",
+      "description": "Discovered endpoint: /api detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": null,
+        "port": "eighty",
+        "protocol": 42
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1027
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3bbeeac8-b2d7-f9de-8be3-9edd6f8a59d4.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 3,
+          "perturbation": "wrong_locator_kind",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:8c94eed25e44e07a6d669c35cdc7804a307fc733036fef716faad962acbc5644"
+    },
+    {
+      "id": "928633c0-bfd8-5883-8243-a1ea4202ae9a",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:04Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3092",
+      "finding_type": "misconfiguration",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "high",
+      "title": "/admin/ directory indexable",
+      "description": "/admin/ directory indexable detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "": null,
+        "\u0000\u0001": "� garbage ‮"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/43b25677-9dc8-0a35-987a-439783b9ff4d.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 4,
+          "perturbation": "garbage_evidence",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:ad981c1bfefc0c9a4e866e9ac17e514766936b41b3578c872c1cd6f6f5132228"
+    },
+    {
+      "id": "5b995c29-8fd5-d57f-a6c5-dce38e5eb898",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:05Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "BEAST",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "description": "BEAST attack possible detected by testssl on the authorized target.",
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1005"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2005"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/983795cb-78d7-8d21-a54e-b9757aa9fc60.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 5,
+          "perturbation": "missing_required",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:4f46bd6a8165aaf54d4a8543bdada48cf95acd19f4e5667955f96d5faed20dc8"
+    },
+    {
+      "id": "ce445e53-efbc-efb4-5d70-07bf97a72db0",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:06Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "description": "lodash prototype pollution detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/fd613429-537f-7031-67bc-71a344bd0bd1.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 6,
+          "perturbation": "unicode_overflow",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:c1ad870bb70c174b6f29a17cf97568799c0a397d9ed6067d981bdeb081453a89"
+    },
+    {
+      "id": "be9e0fbe-c4f1-bf38-0047-a79765e65a4d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:07Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "SlackWebhook",
+      "finding_type": "secret",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "verified": true,
+      "title": "Slack webhook",
+      "description": "Slack webhook detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/deploy.sh",
+        "line": 13,
+        "commit": "ba91166e-ee1"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "SlackWebhook",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d0e12d6b-c576-f70e-57fb-2008f1c2e6c7.json",
+      "ext": {
+        "nested": {
+          "nested": {
+            "nested": {
+              "nested": {
+                "nested": {
+                  "nested": {
+                    "nested": {
+                      "nested": {
+                        "nested": {
+                          "nested": {
+                            "nested": {
+                              "nested": {
+                                "nested": {
+                                  "nested": {
+                                    "nested": {
+                                      "nested": {
+                                        "nested": {
+                                          "nested": {
+                                            "nested": {
+                                              "nested": {
+                                                "nested": {
+                                                  "nested": {
+                                                    "nested": {
+                                                      "nested": {
+                                                        "nested": {
+                                                          "nested": {
+                                                            "nested": {
+                                                              "nested": {
+                                                                "nested": {
+                                                                  "nested": {
+                                                                    "nested": {
+                                                                      "nested": {
+                                                                        "nested": {
+                                                                          "nested": {
+                                                                            "nested": {
+                                                                              "nested": {
+                                                                                "nested": {
+                                                                                  "nested": {
+                                                                                    "nested": {
+                                                                                      "nested": {
+                                                                                        "leaf": true
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 7,
+          "perturbation": "deep_ext",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:94e1ac2c3bf24c1bad0f9d1ae4f8fa8b6d267f714a2ea1580b24d955c59cfe02"
+    },
+    {
+      "id": "733d21c7-6d89-3f75-6add-b382526bd28b",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:08Z",
+      "probe": "sqlmap",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": 12345,
+        "version": [
+          "a",
+          "b"
+        ]
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a1496fb9-540c-676c-b027-d511050df2df.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 8,
+          "perturbation": "nonsensical_combo",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "80e6bdc5-0601-a264-dfc1-70ec438cc579",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:09Z",
+      "tool_check_id": "40018",
+      "severity_source": "High",
+      "confidence": "high",
+      "description": "SQL Injection detected by zap on the authorized target.",
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3ce5328c-1cbd-8bc2-c767-0514f5ef339a.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 9,
+          "perturbation": "null_storm",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:b08d4fd7d6e93d703c461582b1650b1bd6c8722c1aa917e857ab2b64985a722a"
+    },
+    {
+      "id": "2ac267a7-77d4-4ca9-e21b-73c0abad5d95",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:10Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2023-23397",
+      "finding_type": "asset",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Outlook NTLM leak",
+      "description": "Outlook NTLM leak detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-23397"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 5.7,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.228
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/788e6dae-9f19-f4ae-6ad8-451638ee3a42.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 10,
+          "perturbation": "contradictory_severity",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:2c07762ace371d636414c30343e9d95eb4c9874cc4c257428b73f8208b03d6e8"
+    },
+    {
+      "id": "95a87346-5fe1-47e1-27bd-4122684fd8cc",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:11Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "error-based",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Error-based SQLi",
+      "description": "Error-based SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b961f8b3-6b1e-42f5-e75d-0a1f0ba6300e.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 11,
+          "perturbation": "impossible_scores",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:5ac89cd3ae796607d69d83f209c7c3a8d8d6c405289b934df355feb8ad88186f",
+      "scores": {
+        "cvss_score": 13.7,
+        "epss_score": 1.9,
+        "cvss_vector": "CVSS:9.9/???"
+      }
+    },
+    {
+      "id": "4911c9ef-0990-146e-4899-bdbc7739292b",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:12Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Discovered endpoint: /admin",
+      "description": "Discovered endpoint: /admin detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-99999-NONSENSE"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-abc"
+        }
+      ],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1024
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b9333155-8a7a-461a-117d-4120a278c98f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 12,
+          "perturbation": "malformed_identifier",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:e3c914122d08886fffc01a73acfafa1032a665c7c0c50824409d578d25297e1e"
+    },
+    {
+      "id": "5ecd201e-e317-ea78-94a5-9679edf17c4d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:13Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3268",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Directory listing enabled",
+      "description": "Directory listing enabled detected by nikto on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": null,
+        "port": "eighty",
+        "protocol": 42
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/7bcd4789-d6f2-3067-9792-2a1c6eac9b76.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 13,
+          "perturbation": "wrong_locator_kind",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:c937183fd6343fb38dea5813ec169c74e986d141d6d04b64ec3776a0f2351ebb"
+    },
+    {
+      "id": "a7737eb5-2212-04c4-ce3e-11c644e075ae",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:14Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "RC4",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "RC4 ciphers offered",
+      "description": "RC4 ciphers offered detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 8443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1014"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2014"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "": null,
+        "\u0000\u0001": "� garbage ‮"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/05a40c4d-f76a-a371-6310-7569c737d3c3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 14,
+          "perturbation": "garbage_evidence",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:2551257d50376dcfee17e8c39a1b434cea2523cd6a8bb8bb2664de7c6c172457"
+    },
+    {
+      "id": "1104a569-aac7-af95-62e6-c584b012d726",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:15Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "description": "Bootstrap XSS detected by retirejs on the authorized target.",
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1015"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2015"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-000f-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5f7ba05d-3031-8fc6-c268-5ba3b7e26527.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 15,
+          "perturbation": "missing_required",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:f24a957b6abb18f4013643eb7924ed934fcb32d460bc52f5ddefae057c4ad715"
+    },
+    {
+      "id": "ceea39f8-7b57-0b3d-e2e0-c33664337e9f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:16Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "AWS",
+      "finding_type": "secret",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "low",
+      "verified": true,
+      "title": "🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "description": "AWS credentials detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/secrets.yml",
+        "line": 10,
+        "commit": "3951945b-4e0"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "AWS",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/39a1f072-1602-2933-967d-1025d5060a8e.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 16,
+          "perturbation": "unicode_overflow",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:9f32fa731e802188718fcf2e006d6fc158b3b8ac86780cd1c2dcc440bff55575"
+    },
+    {
+      "id": "593c4e49-63e1-7427-d809-16d6d199b6f9",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:17Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub17.target.example",
+        "ip": "203.0.113.18",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/1d3ca623-14ab-661e-3a69-9785a70d8675.json",
+      "ext": {
+        "nested": {
+          "nested": {
+            "nested": {
+              "nested": {
+                "nested": {
+                  "nested": {
+                    "nested": {
+                      "nested": {
+                        "nested": {
+                          "nested": {
+                            "nested": {
+                              "nested": {
+                                "nested": {
+                                  "nested": {
+                                    "nested": {
+                                      "nested": {
+                                        "nested": {
+                                          "nested": {
+                                            "nested": {
+                                              "nested": {
+                                                "nested": {
+                                                  "nested": {
+                                                    "nested": {
+                                                      "nested": {
+                                                        "nested": {
+                                                          "nested": {
+                                                            "nested": {
+                                                              "nested": {
+                                                                "nested": {
+                                                                  "nested": {
+                                                                    "nested": {
+                                                                      "nested": {
+                                                                        "nested": {
+                                                                          "nested": {
+                                                                            "nested": {
+                                                                              "nested": {
+                                                                                "nested": {
+                                                                                  "nested": {
+                                                                                    "nested": {
+                                                                                      "nested": {
+                                                                                        "leaf": true
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 17,
+          "perturbation": "deep_ext",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "0bbd204f-3ff2-afd4-f2f0-a9431476baca",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:18Z",
+      "probe": "sqlmap",
+      "source_tool": "zap",
+      "tool_check_id": "10202",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "Anti-CSRF tokens absent",
+      "description": "Anti-CSRF tokens absent detected by zap on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": 12345,
+        "version": [
+          "a",
+          "b"
+        ]
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e1086200-cf9e-0bf0-521e-b13083e26b72.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 18,
+          "perturbation": "nonsensical_combo",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:2529117f628aefb90096050152fcb9b8ed792d1e3d6c3c5dfdd1d16422d39fca"
+    },
+    {
+      "id": "bc0cd2f8-3634-a299-2577-fc12c8a589b9",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:19Z",
+      "tool_check_id": "CVE-2017-5638",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "description": "Struts2 OGNL RCE detected by nuclei on the authorized target.",
+      "scores": {
+        "cvss_score": 9.6,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.9242
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3afed680-3dd2-53aa-05f6-16d71ee78c77.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 19,
+          "perturbation": "null_storm",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:44602155d76c8f3fd8f12e0df0fae0092766a793d3a57fb8e6d02f02ffe3cf25"
+    },
+    {
+      "id": "4e0dda96-e0b9-879d-5183-a26dec10e805",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:20Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "boolean-blind",
+      "finding_type": "asset",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Boolean-based blind SQLi",
+      "description": "Boolean-based blind SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f7b09725-fc45-94c8-ab3d-2c0ac750fe43.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 20,
+          "perturbation": "contradictory_severity",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:b62a665ce95cb9720eedcaa71d6b10437410f0e47e8e5191de10b16ec2dcf861"
+    },
+    {
+      "id": "7c69533f-1fa1-a008-f73d-d0aba58dded9",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:21Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "high",
+      "title": "Discovered endpoint: /.git",
+      "description": "Discovered endpoint: /.git detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 403,
+        "content_length": 1025
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f6f65fb2-d6d5-82d8-3d6f-11374b6c67af.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 21,
+          "perturbation": "impossible_scores",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:b7b13023774d0dc388ec4fc54d5a510f755c420de78b48c300a46e2229a50017",
+      "scores": {
+        "cvss_score": 13.7,
+        "epss_score": 1.9,
+        "cvss_vector": "CVSS:9.9/???"
+      }
+    },
+    {
+      "id": "9108eaf7-e2cd-b190-ed18-b3df75a85cd9",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:22Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-877",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "TRACE method allowed",
+      "description": "TRACE method allowed detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-99999-NONSENSE"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-abc"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/6602e512-9159-e68a-51c5-bdfb930a542c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 22,
+          "perturbation": "malformed_identifier",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:ad5ffd191c81a923ed05d5a515082dc7f4bd0087bee26c303fe571582faaafd1"
+    },
+    {
+      "id": "fb47bfa7-bfe2-919f-de89-b8b0401234c5",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:23Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "cert_expired",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Certificate expired",
+      "description": "Certificate expired detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": null,
+        "port": "eighty",
+        "protocol": 42
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/cd84fa17-512d-e0cc-f3cc-a318660d5904.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 23,
+          "perturbation": "wrong_locator_kind",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:7a453456f57968f19d4616aa77d683686a67951c67a770fb698bf93fc00eb1c7"
+    },
+    {
+      "id": "83394244-3c86-ec00-7154-9aeb29f67ac2",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:24Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "jQuery known vulnerabilities",
+      "description": "jQuery known vulnerabilities detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "jquery",
+        "version": "1.7.1",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1024"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2024"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-0018-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "jquery",
+        "version": "1.7.1",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "": null,
+        "\u0000\u0001": "� garbage ‮"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e96e1555-c4df-3204-3484-4f417183d560.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 24,
+          "perturbation": "garbage_evidence",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:74033920aa51da46291929915afd87d1ebd4f4cd60ba32c246cea4cd885a11f3"
+    },
+    {
+      "id": "54e3ee77-f19a-afe4-baad-bf9fa199caa3",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:25Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "GitHub",
+      "finding_type": "secret",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "verified": true,
+      "description": "GitHub token detected by trufflehog on the authorized target.",
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "GitHub",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f81dd818-fda2-3725-6926-d6a04e8176ac.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 25,
+          "perturbation": "missing_required",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:25a8df8906bdf358f8170f8d4d07647f0c28763d38504733019cd5e32770225e"
+    },
+    {
+      "id": "6b544c70-c205-66a3-08a3-1a6e1f72f5c7",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:26Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️🛰️AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub26.target.example",
+        "ip": "203.0.113.27",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/337ba5fa-ce9f-85d1-30ba-db8bd52003a3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 26,
+          "perturbation": "unicode_overflow",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "bc17de6e-54c4-3841-7b65-b1edf87faf8a",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:27Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "90022",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Application error disclosure",
+      "description": "Application error disclosure detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/dfad940e-85e3-b325-c0d3-122d4a4f76bb.json",
+      "ext": {
+        "nested": {
+          "nested": {
+            "nested": {
+              "nested": {
+                "nested": {
+                  "nested": {
+                    "nested": {
+                      "nested": {
+                        "nested": {
+                          "nested": {
+                            "nested": {
+                              "nested": {
+                                "nested": {
+                                  "nested": {
+                                    "nested": {
+                                      "nested": {
+                                        "nested": {
+                                          "nested": {
+                                            "nested": {
+                                              "nested": {
+                                                "nested": {
+                                                  "nested": {
+                                                    "nested": {
+                                                      "nested": {
+                                                        "nested": {
+                                                          "nested": {
+                                                            "nested": {
+                                                              "nested": {
+                                                                "nested": {
+                                                                  "nested": {
+                                                                    "nested": {
+                                                                      "nested": {
+                                                                        "nested": {
+                                                                          "nested": {
+                                                                            "nested": {
+                                                                              "nested": {
+                                                                                "nested": {
+                                                                                  "nested": {
+                                                                                    "nested": {
+                                                                                      "nested": {
+                                                                                        "leaf": true
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 27,
+          "perturbation": "deep_ext",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:6d9c7c7c7af8311038af54dad6ed014a68d67498c45b0662e2ae86b8ff1857bc"
+    },
+    {
+      "id": "9d18889e-51ca-afc8-0712-6f6d5f8931ec",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:28Z",
+      "probe": "sqlmap",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2021-44228",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Log4j JNDI RCE",
+      "description": "Log4j JNDI RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": 12345,
+        "version": [
+          "a",
+          "b"
+        ]
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2021-44228"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 6.9,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.1553
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f17822cc-1aa9-211e-e368-5f9daa87a8ba.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 28,
+          "perturbation": "nonsensical_combo",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:e6033e933a9eeba72fc85f8fcb8750c3aa3bbc4f0299cf086b52cd36f760ae51"
+    },
+    {
+      "id": "92315094-5d32-5f0d-49bc-b9806bd67496",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:29Z",
+      "tool_check_id": "time-blind",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "description": "Time-based blind SQLi detected by sqlmap on the authorized target.",
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "PostgreSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a741d533-6d30-db50-e583-87f4c3fd6fcf.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "perturbed",
+          "index": 29,
+          "perturbation": "null_storm",
+          "label": "escalate"
+        }
+      },
+      "fingerprint": "sha256:3320b1b8af18d4012fbbb3fb348e07cc3346be4b38b400deb2d5f7ca4aecec02"
+    }
+  ]
+}
