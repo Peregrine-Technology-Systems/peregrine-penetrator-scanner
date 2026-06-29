@@ -1,7 +1,28 @@
 require 'uri'
+require 'timeout'
 
 module Scanners
+  # Drives OWASP ZAP natively via the daemon + HTTP API (no Docker).
+  #
+  # Replaces the Docker-era `zap-baseline.py`/`/zap/wrk` wrappers (which need
+  # ZAP's docker/ python scripts on PATH — not present in the org-native image)
+  # with the raw `zap.sh` daemon, which the baked image provides (Java + zap.sh).
+  #
+  #   baseline → access + spider + passive scan   (no active attack)
+  #   full     → baseline + active scan
+  #
+  # The API's traditional JSON report (/OTHER/core/other/jsonreport/) is byte-for
+  # byte the shape ResultParsers::ZapParser already consumes, so the parser is
+  # unchanged.
   class ZapScanner < ScannerBase
+    DAEMON_HOST = '127.0.0.1'.freeze
+    DAEMON_PORT = 8090
+    DAEMON_READY_TIMEOUT = 120
+    POLL_INTERVAL = 2
+    MODES = %w[baseline full].freeze
+
+    class ZapError < StandardError; end
+
     def tool_name
       'zap'
     end
@@ -10,48 +31,116 @@ module Scanners
 
     def execute
       mode = tool_config[:mode] || 'baseline'
-      zap_wrk = Pathname.new('/zap/wrk')
-      report_name = 'zap_results.json'
-      zap_output = zap_wrk.join(report_name)
-      local_output = output_dir.join(report_name)
-      all_findings = []
+      raise ZapError, "Unknown ZAP mode: #{mode}" unless MODES.include?(mode)
 
-      # ZAP starts a full Java daemon per invocation — scan each unique
-      # origin once (ZAP's spider handles path discovery internally).
-      # Scanning individual paths would cause zombie processes (#625).
-      unique_origins(target_urls).each do |origin|
-        cmd = build_command(mode, origin, report_name)
-        result = run_command(cmd, timeout: tool_config[:timeout])
-
-        # ZAP returns 2 for warnings found (not an error)
-        return { success: false, error: result[:stderr], findings: [] } unless result[:success] || result[:exit_code] == 2
-
-        if File.exist?(zap_output)
-          FileUtils.cp(zap_output.to_s, local_output.to_s)
-          all_findings.concat(parse_results(local_output))
-        end
+      report_path = output_dir.join('zap_results.json')
+      begin
+        start_daemon!
+        run_scan(mode)
+        File.write(report_path, fetch_json_report)
+      ensure
+        shutdown_daemon
       end
 
-      { success: true, findings: all_findings, output_file: local_output.to_s }
+      { success: true, findings: parse_results(report_path), output_file: report_path.to_s }
+    rescue ZapError => e
+      { success: false, error: e.message, findings: [] }
     end
 
     private
 
-    def build_command(mode, url, report_name)
-      cmd = case mode
-            when 'baseline'
-              "zap-baseline.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
-            when 'full'
-              "zap-full-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
-            when 'api'
-              "zap-api-scan.py -t #{Shellwords.escape(url)} -J #{report_name} -I"
-            else
-              raise ArgumentError, "Unknown ZAP mode: #{mode}"
-            end
+    def run_scan(mode)
+      Timeout.timeout(tool_config[:timeout] || 600) do
+        unique_origins(target_urls).each { |origin| scan_origin(origin, mode) }
+      end
+    rescue Timeout::Error
+      raise ZapError, "ZAP scan timed out after #{tool_config[:timeout] || 600}s"
+    end
 
-      cmd += " -z \"-config scanner.delayInMs=#{tool_config[:delay_ms]}\"" if tool_config[:delay_ms]
+    def scan_origin(origin, mode)
+      api_get('/JSON/core/action/accessUrl/', url: origin)
+      spider_id = api_get('/JSON/spider/action/scan/', url: origin)['scan']
+      poll_until('/JSON/spider/view/status/', { scanId: spider_id }, 'status', '100')
+      poll_until('/JSON/pscan/view/recordsToScan/', {}, 'recordsToScan', '0')
+      return unless mode == 'full'
 
-      cmd
+      ascan_id = api_get('/JSON/ascan/action/scan/', url: origin)['scan']
+      poll_until('/JSON/ascan/view/status/', { scanId: ascan_id }, 'status', '100')
+    end
+
+    # --- daemon lifecycle ---------------------------------------------------
+
+    def start_daemon!
+      @daemon_pid = spawn_daemon
+      deadline = monotonic + DAEMON_READY_TIMEOUT
+      until daemon_ready?
+        raise ZapError, 'ZAP daemon did not become ready' if monotonic > deadline
+
+        sleep(POLL_INTERVAL)
+      end
+      logger.info("[zap] daemon ready on #{DAEMON_HOST}:#{DAEMON_PORT}")
+    end
+
+    def spawn_daemon
+      Process.spawn(
+        'zap.sh', '-daemon', '-host', DAEMON_HOST, '-port', DAEMON_PORT.to_s,
+        '-config', 'api.disablekey=true',
+        '-config', 'api.addrs.addr.name=.*', '-config', 'api.addrs.addr.regex=true',
+        %i[out err] => File::NULL, :pgroup => 0
+      )
+    end
+
+    def daemon_ready?
+      conn.get('/JSON/core/view/version/').success?
+    rescue Faraday::Error
+      false
+    end
+
+    def shutdown_daemon
+      return unless @daemon_pid
+
+      begin
+        conn.get('/JSON/core/action/shutdown/')
+      rescue Faraday::Error
+        nil
+      end
+      kill_process(@daemon_pid)
+    end
+
+    # --- ZAP API ------------------------------------------------------------
+
+    def conn
+      @conn ||= Faraday.new(url: "http://#{DAEMON_HOST}:#{DAEMON_PORT}") do |f|
+        f.request :json
+        f.response :json, content_type: /\bjson$/
+        f.options.timeout = 30
+      end
+    end
+
+    def api_get(path, params = {})
+      resp = conn.get(path, params)
+      raise ZapError, "ZAP API #{path} returned HTTP #{resp.status}" unless resp.success?
+
+      resp.body
+    end
+
+    def fetch_json_report
+      resp = conn.get('/OTHER/core/other/jsonreport/')
+      raise ZapError, "ZAP report returned HTTP #{resp.status}" unless resp.success?
+
+      resp.body.is_a?(String) ? resp.body : resp.body.to_json
+    end
+
+    def poll_until(path, params, key, target)
+      loop do
+        return if api_get(path, params)[key].to_s == target
+
+        sleep(POLL_INTERVAL)
+      end
+    end
+
+    def monotonic
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
     def unique_origins(urls)
@@ -61,7 +150,7 @@ module Scanners
     end
 
     def parse_results(output_file)
-      return [] unless output_file.exist?
+      return [] unless File.exist?(output_file)
 
       ResultParsers::ZapParser.new(output_file).parse
     end
