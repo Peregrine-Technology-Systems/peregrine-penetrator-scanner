@@ -1,0 +1,4120 @@
+{
+  "schema_version": "2.0",
+  "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+  "metadata": {
+    "synthetic": true,
+    "series": "realistic",
+    "substrate": {
+      "platform": "gce",
+      "machine_type": "e2-standard-2",
+      "provisioning": "on-demand"
+    },
+    "vm_timing": {
+      "created_at": "2026-06-29T12:00:00Z",
+      "deleted_at": "2026-06-29T12:10:00Z",
+      "wall_clock_seconds": 600
+    }
+  },
+  "summary": {
+    "total_findings": 100
+  },
+  "tool_chain": {
+    "executed": [
+      {
+        "tool": "zap",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 12
+      },
+      {
+        "tool": "nuclei",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 11
+      },
+      {
+        "tool": "sqlmap",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 11
+      },
+      {
+        "tool": "ffuf",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 12
+      },
+      {
+        "tool": "nikto",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 11
+      },
+      {
+        "tool": "testssl",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 12
+      },
+      {
+        "tool": "retirejs",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 10
+      },
+      {
+        "tool": "trufflehog",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 11
+      },
+      {
+        "tool": "amass",
+        "status": "completed",
+        "exit_code": 0,
+        "findings_count": 10
+      },
+      {
+        "tool": "sqlmap",
+        "status": "failed",
+        "exit_code": null,
+        "findings_count": null
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "e2ed4c2f-1bdf-a66f-45bf-7c1d2f00dd99",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:00Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40012",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Reflected XSS",
+      "description": "Reflected XSS detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e2ed4c2f-1bdf-a66f-45bf-7c1d2f00dd99.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 0
+        }
+      },
+      "fingerprint": "sha256:e9b4697b9d7bd9bef59ea280896584c0ab56b15c235a591aba0047d7877aaed6"
+    },
+    {
+      "id": "029e3fc6-af96-2b4d-4f13-0f94e58f2d9f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:01Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2022-22965",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Spring4Shell RCE",
+      "description": "Spring4Shell RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2022-22965"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 5.9,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.8794
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/029e3fc6-af96-2b4d-4f13-0f94e58f2d9f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 1
+        }
+      },
+      "fingerprint": "sha256:ab7374f729964449594eb114e92e05aff9be97a966358970846620680cddc724"
+    },
+    {
+      "id": "25cca3c9-4328-4698-2781-60953ffeb026",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:02Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "union-query",
+      "finding_type": "vulnerability",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "high",
+      "title": "UNION-query SQLi",
+      "description": "UNION-query SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MSSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/25cca3c9-4328-4698-2781-60953ffeb026.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 2
+        }
+      },
+      "fingerprint": "sha256:16a4882b016ae2b6d9bd9ec0b37dcfa45266d8bc81f300583c7b59bbcc6bf5af"
+    },
+    {
+      "id": "3bbeeac8-b2d7-f9de-8be3-9edd6f8a59d4",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:03Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "medium",
+      "title": "Discovered endpoint: /api",
+      "description": "Discovered endpoint: /api detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1027
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3bbeeac8-b2d7-f9de-8be3-9edd6f8a59d4.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 3
+        }
+      },
+      "fingerprint": "sha256:8c94eed25e44e07a6d669c35cdc7804a307fc733036fef716faad962acbc5644"
+    },
+    {
+      "id": "43b25677-9dc8-0a35-987a-439783b9ff4d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:04Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3092",
+      "finding_type": "misconfiguration",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "high",
+      "title": "/admin/ directory indexable",
+      "description": "/admin/ directory indexable detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/43b25677-9dc8-0a35-987a-439783b9ff4d.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 4
+        }
+      },
+      "fingerprint": "sha256:ad981c1bfefc0c9a4e866e9ac17e514766936b41b3578c872c1cd6f6f5132228"
+    },
+    {
+      "id": "983795cb-78d7-8d21-a54e-b9757aa9fc60",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:05Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "BEAST",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "BEAST attack possible",
+      "description": "BEAST attack possible detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1005"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2005"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/983795cb-78d7-8d21-a54e-b9757aa9fc60.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 5
+        }
+      },
+      "fingerprint": "sha256:4f46bd6a8165aaf54d4a8543bdada48cf95acd19f4e5667955f96d5faed20dc8"
+    },
+    {
+      "id": "fd613429-537f-7031-67bc-71a344bd0bd1",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:06Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "lodash prototype pollution",
+      "description": "lodash prototype pollution detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/fd613429-537f-7031-67bc-71a344bd0bd1.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 6
+        }
+      },
+      "fingerprint": "sha256:c1ad870bb70c174b6f29a17cf97568799c0a397d9ed6067d981bdeb081453a89"
+    },
+    {
+      "id": "d0e12d6b-c576-f70e-57fb-2008f1c2e6c7",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:07Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "SlackWebhook",
+      "finding_type": "secret",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "verified": true,
+      "title": "Slack webhook",
+      "description": "Slack webhook detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/deploy.sh",
+        "line": 13,
+        "commit": "ba91166e-ee1"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "SlackWebhook",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d0e12d6b-c576-f70e-57fb-2008f1c2e6c7.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 7
+        }
+      },
+      "fingerprint": "sha256:94e1ac2c3bf24c1bad0f9d1ae4f8fa8b6d267f714a2ea1580b24d955c59cfe02"
+    },
+    {
+      "id": "a1496fb9-540c-676c-b027-d511050df2df",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:08Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub8.target.example",
+        "ip": "203.0.113.9",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a1496fb9-540c-676c-b027-d511050df2df.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 8
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "3ce5328c-1cbd-8bc2-c767-0514f5ef339a",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:09Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40018",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "SQL Injection",
+      "description": "SQL Injection detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3ce5328c-1cbd-8bc2-c767-0514f5ef339a.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 9
+        }
+      },
+      "fingerprint": "sha256:b08d4fd7d6e93d703c461582b1650b1bd6c8722c1aa917e857ab2b64985a722a"
+    },
+    {
+      "id": "788e6dae-9f19-f4ae-6ad8-451638ee3a42",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:10Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2023-23397",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Outlook NTLM leak",
+      "description": "Outlook NTLM leak detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-23397"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 5.7,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.228
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/788e6dae-9f19-f4ae-6ad8-451638ee3a42.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 10
+        }
+      },
+      "fingerprint": "sha256:2c07762ace371d636414c30343e9d95eb4c9874cc4c257428b73f8208b03d6e8"
+    },
+    {
+      "id": "b961f8b3-6b1e-42f5-e75d-0a1f0ba6300e",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:11Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "error-based",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Error-based SQLi",
+      "description": "Error-based SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b961f8b3-6b1e-42f5-e75d-0a1f0ba6300e.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 11
+        }
+      },
+      "fingerprint": "sha256:5ac89cd3ae796607d69d83f209c7c3a8d8d6c405289b934df355feb8ad88186f"
+    },
+    {
+      "id": "b9333155-8a7a-461a-117d-4120a278c98f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:12Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Discovered endpoint: /admin",
+      "description": "Discovered endpoint: /admin detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1024
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b9333155-8a7a-461a-117d-4120a278c98f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 12
+        }
+      },
+      "fingerprint": "sha256:e3c914122d08886fffc01a73acfafa1032a665c7c0c50824409d578d25297e1e"
+    },
+    {
+      "id": "7bcd4789-d6f2-3067-9792-2a1c6eac9b76",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:13Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3268",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Directory listing enabled",
+      "description": "Directory listing enabled detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/7bcd4789-d6f2-3067-9792-2a1c6eac9b76.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 13
+        }
+      },
+      "fingerprint": "sha256:c937183fd6343fb38dea5813ec169c74e986d141d6d04b64ec3776a0f2351ebb"
+    },
+    {
+      "id": "05a40c4d-f76a-a371-6310-7569c737d3c3",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:14Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "RC4",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "RC4 ciphers offered",
+      "description": "RC4 ciphers offered detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 8443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1014"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2014"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/05a40c4d-f76a-a371-6310-7569c737d3c3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 14
+        }
+      },
+      "fingerprint": "sha256:2551257d50376dcfee17e8c39a1b434cea2523cd6a8bb8bb2664de7c6c172457"
+    },
+    {
+      "id": "5f7ba05d-3031-8fc6-c268-5ba3b7e26527",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:15Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "title": "Bootstrap XSS",
+      "description": "Bootstrap XSS detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1015"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2015"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-000f-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5f7ba05d-3031-8fc6-c268-5ba3b7e26527.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 15
+        }
+      },
+      "fingerprint": "sha256:f24a957b6abb18f4013643eb7924ed934fcb32d460bc52f5ddefae057c4ad715"
+    },
+    {
+      "id": "39a1f072-1602-2933-967d-1025d5060a8e",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:16Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "AWS",
+      "finding_type": "secret",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "low",
+      "verified": true,
+      "title": "AWS credentials",
+      "description": "AWS credentials detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/secrets.yml",
+        "line": 10,
+        "commit": "3951945b-4e0"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "AWS",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/39a1f072-1602-2933-967d-1025d5060a8e.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 16
+        }
+      },
+      "fingerprint": "sha256:9f32fa731e802188718fcf2e006d6fc158b3b8ac86780cd1c2dcc440bff55575"
+    },
+    {
+      "id": "1d3ca623-14ab-661e-3a69-9785a70d8675",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:17Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub17.target.example",
+        "ip": "203.0.113.18",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/1d3ca623-14ab-661e-3a69-9785a70d8675.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 17
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "e1086200-cf9e-0bf0-521e-b13083e26b72",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:18Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "10202",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "Anti-CSRF tokens absent",
+      "description": "Anti-CSRF tokens absent detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e1086200-cf9e-0bf0-521e-b13083e26b72.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 18
+        }
+      },
+      "fingerprint": "sha256:2529117f628aefb90096050152fcb9b8ed792d1e3d6c3c5dfdd1d16422d39fca"
+    },
+    {
+      "id": "3afed680-3dd2-53aa-05f6-16d71ee78c77",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:19Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2017-5638",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Struts2 OGNL RCE",
+      "description": "Struts2 OGNL RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2017-5638"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 9.6,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.9242
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3afed680-3dd2-53aa-05f6-16d71ee78c77.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 19
+        }
+      },
+      "fingerprint": "sha256:44602155d76c8f3fd8f12e0df0fae0092766a793d3a57fb8e6d02f02ffe3cf25"
+    },
+    {
+      "id": "f7b09725-fc45-94c8-ab3d-2c0ac750fe43",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:20Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "boolean-blind",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Boolean-based blind SQLi",
+      "description": "Boolean-based blind SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f7b09725-fc45-94c8-ab3d-2c0ac750fe43.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 20
+        }
+      },
+      "fingerprint": "sha256:b62a665ce95cb9720eedcaa71d6b10437410f0e47e8e5191de10b16ec2dcf861"
+    },
+    {
+      "id": "f6f65fb2-d6d5-82d8-3d6f-11374b6c67af",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:21Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "high",
+      "title": "Discovered endpoint: /.git",
+      "description": "Discovered endpoint: /.git detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 403,
+        "content_length": 1025
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f6f65fb2-d6d5-82d8-3d6f-11374b6c67af.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 21
+        }
+      },
+      "fingerprint": "sha256:b7b13023774d0dc388ec4fc54d5a510f755c420de78b48c300a46e2229a50017"
+    },
+    {
+      "id": "6602e512-9159-e68a-51c5-bdfb930a542c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:22Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-877",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "TRACE method allowed",
+      "description": "TRACE method allowed detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/6602e512-9159-e68a-51c5-bdfb930a542c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 22
+        }
+      },
+      "fingerprint": "sha256:ad5ffd191c81a923ed05d5a515082dc7f4bd0087bee26c303fe571582faaafd1"
+    },
+    {
+      "id": "cd84fa17-512d-e0cc-f3cc-a318660d5904",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:23Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "cert_expired",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Certificate expired",
+      "description": "Certificate expired detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/cd84fa17-512d-e0cc-f3cc-a318660d5904.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 23
+        }
+      },
+      "fingerprint": "sha256:7a453456f57968f19d4616aa77d683686a67951c67a770fb698bf93fc00eb1c7"
+    },
+    {
+      "id": "e96e1555-c4df-3204-3484-4f417183d560",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:24Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "jQuery known vulnerabilities",
+      "description": "jQuery known vulnerabilities detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "jquery",
+        "version": "1.7.1",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1024"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2024"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-0018-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "jquery",
+        "version": "1.7.1",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e96e1555-c4df-3204-3484-4f417183d560.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 24
+        }
+      },
+      "fingerprint": "sha256:74033920aa51da46291929915afd87d1ebd4f4cd60ba32c246cea4cd885a11f3"
+    },
+    {
+      "id": "f81dd818-fda2-3725-6926-d6a04e8176ac",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:25Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "GitHub",
+      "finding_type": "secret",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "verified": true,
+      "title": "GitHub token",
+      "description": "GitHub token detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/.env",
+        "line": 11,
+        "commit": "80fdd7c4-190"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "GitHub",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f81dd818-fda2-3725-6926-d6a04e8176ac.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 25
+        }
+      },
+      "fingerprint": "sha256:25a8df8906bdf358f8170f8d4d07647f0c28763d38504733019cd5e32770225e"
+    },
+    {
+      "id": "337ba5fa-ce9f-85d1-30ba-db8bd52003a3",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:26Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub26.target.example",
+        "ip": "203.0.113.27",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/337ba5fa-ce9f-85d1-30ba-db8bd52003a3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 26
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "dfad940e-85e3-b325-c0d3-122d4a4f76bb",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:27Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "90022",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Application error disclosure",
+      "description": "Application error disclosure detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/dfad940e-85e3-b325-c0d3-122d4a4f76bb.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 27
+        }
+      },
+      "fingerprint": "sha256:6d9c7c7c7af8311038af54dad6ed014a68d67498c45b0662e2ae86b8ff1857bc"
+    },
+    {
+      "id": "f17822cc-1aa9-211e-e368-5f9daa87a8ba",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:28Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2021-44228",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Log4j JNDI RCE",
+      "description": "Log4j JNDI RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2021-44228"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 6.9,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.1553
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f17822cc-1aa9-211e-e368-5f9daa87a8ba.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 28
+        }
+      },
+      "fingerprint": "sha256:e6033e933a9eeba72fc85f8fcb8750c3aa3bbc4f0299cf086b52cd36f760ae51"
+    },
+    {
+      "id": "a741d533-6d30-db50-e583-87f4c3fd6fcf",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:29Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "time-blind",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Time-based blind SQLi",
+      "description": "Time-based blind SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "PostgreSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a741d533-6d30-db50-e583-87f4c3fd6fcf.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 29
+        }
+      },
+      "fingerprint": "sha256:3320b1b8af18d4012fbbb3fb348e07cc3346be4b38b400deb2d5f7ca4aecec02"
+    },
+    {
+      "id": "d1fa752c-7327-c1da-5715-eba1ede39710",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:30Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "title": "Discovered endpoint: /backup",
+      "description": "Discovered endpoint: /backup detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 301,
+        "content_length": 1026
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d1fa752c-7327-c1da-5715-eba1ede39710.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 30
+        }
+      },
+      "fingerprint": "sha256:1f66373b838930a82bdf93b4753ba841a31ac74c26d45cd2dc46825881a65000"
+    },
+    {
+      "id": "d6ea0b2f-f713-dc86-08e1-c19c17ba7316",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:31Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-630",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "Server leaks version",
+      "description": "Server leaks version detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d6ea0b2f-f713-dc86-08e1-c19c17ba7316.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 31
+        }
+      },
+      "fingerprint": "sha256:1d6f5ad657823deba0f91ffae5a505ea18f02d47955f14c42a1bc7bdd1c406a4"
+    },
+    {
+      "id": "b6eff4e2-bd02-6579-b796-506f6c0a5886",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:32Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "heartbleed",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Heartbleed",
+      "description": "Heartbleed detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 993,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1032"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2032"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b6eff4e2-bd02-6579-b796-506f6c0a5886.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 32
+        }
+      },
+      "fingerprint": "sha256:77a56deb00e3fde9cbe592c66a3a557693745f92dca171e9af42202f7926395a"
+    },
+    {
+      "id": "4002e54c-79ea-f147-c1d5-5bd64b40fe48",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:33Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "AngularJS XSS",
+      "description": "AngularJS XSS detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "angular",
+        "version": "1.5.0",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1033"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2033"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-0021-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "angular",
+        "version": "1.5.0",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/4002e54c-79ea-f147-c1d5-5bd64b40fe48.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 33
+        }
+      },
+      "fingerprint": "sha256:cd71fff32ccdd1b7f4772ef450de33469353f09a3b20700807c328e4f25a99f3"
+    },
+    {
+      "id": "f9c3e947-80c3-cc1e-42fe-fc5226397998",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:34Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "Stripe",
+      "finding_type": "secret",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "verified": true,
+      "title": "Stripe API key",
+      "description": "Stripe API key detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/app.json",
+        "line": 12,
+        "commit": "0462ac52-eb8"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "Stripe",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f9c3e947-80c3-cc1e-42fe-fc5226397998.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 34
+        }
+      },
+      "fingerprint": "sha256:c44d1fb3e310ba30a98e9db2a9569e691c08f9295e2179bc0ccf3aff6bcd7eed"
+    },
+    {
+      "id": "eb8af6c2-0976-d941-eedc-3d22c1e7335f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:35Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "high",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub35.target.example",
+        "ip": "203.0.113.36",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/eb8af6c2-0976-d941-eedc-3d22c1e7335f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 35
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "1a0551a4-35ef-ce37-c1ca-aa5dd34d4c95",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:36Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40012",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Reflected XSS",
+      "description": "Reflected XSS detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/1a0551a4-35ef-ce37-c1ca-aa5dd34d4c95.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 36
+        }
+      },
+      "fingerprint": "sha256:e9b4697b9d7bd9bef59ea280896584c0ab56b15c235a591aba0047d7877aaed6"
+    },
+    {
+      "id": "67638b7b-f85f-57c7-708b-089534757d7f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:37Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2022-22965",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Spring4Shell RCE",
+      "description": "Spring4Shell RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2022-22965"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 8.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.0086
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/67638b7b-f85f-57c7-708b-089534757d7f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 37
+        }
+      },
+      "fingerprint": "sha256:ab7374f729964449594eb114e92e05aff9be97a966358970846620680cddc724"
+    },
+    {
+      "id": "f622dbfb-be7b-00f7-65cd-83db8ff1bbad",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:38Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "union-query",
+      "finding_type": "vulnerability",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "low",
+      "title": "UNION-query SQLi",
+      "description": "UNION-query SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MSSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f622dbfb-be7b-00f7-65cd-83db8ff1bbad.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 38
+        }
+      },
+      "fingerprint": "sha256:16a4882b016ae2b6d9bd9ec0b37dcfa45266d8bc81f300583c7b59bbcc6bf5af"
+    },
+    {
+      "id": "b93703ce-b3fd-3a29-e222-1436e609c75d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:39Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "high",
+      "title": "Discovered endpoint: /api",
+      "description": "Discovered endpoint: /api detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1027
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b93703ce-b3fd-3a29-e222-1436e609c75d.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 39
+        }
+      },
+      "fingerprint": "sha256:8c94eed25e44e07a6d669c35cdc7804a307fc733036fef716faad962acbc5644"
+    },
+    {
+      "id": "623a5880-949d-dcf7-1b8d-869a3ffdb401",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:40Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3092",
+      "finding_type": "misconfiguration",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "high",
+      "title": "/admin/ directory indexable",
+      "description": "/admin/ directory indexable detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/623a5880-949d-dcf7-1b8d-869a3ffdb401.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 40
+        }
+      },
+      "fingerprint": "sha256:ad981c1bfefc0c9a4e866e9ac17e514766936b41b3578c872c1cd6f6f5132228"
+    },
+    {
+      "id": "98cfd30c-f420-3c5e-eecd-6a4de32394e2",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:41Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "POODLE",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "POODLE (SSLv3)",
+      "description": "POODLE (SSLv3) detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 8443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1041"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2041"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/98cfd30c-f420-3c5e-eecd-6a4de32394e2.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 41
+        }
+      },
+      "fingerprint": "sha256:51e433d1eeadfab005f11b93850bd1ea88ae2ab15a8c28750249354a5b6dc912"
+    },
+    {
+      "id": "5f74700c-57b9-02c9-8cd6-cc6861318d4c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:42Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "lodash prototype pollution",
+      "description": "lodash prototype pollution detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1042"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2042"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-002a-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5f74700c-57b9-02c9-8cd6-cc6861318d4c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 42
+        }
+      },
+      "fingerprint": "sha256:c1ad870bb70c174b6f29a17cf97568799c0a397d9ed6067d981bdeb081453a89"
+    },
+    {
+      "id": "5383dff3-065e-fe77-c112-075abd6e8d1d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:43Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "SlackWebhook",
+      "finding_type": "secret",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "verified": false,
+      "title": "Slack webhook",
+      "description": "Slack webhook detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/deploy.sh",
+        "line": 13,
+        "commit": "50b81553-74e"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "SlackWebhook",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5383dff3-065e-fe77-c112-075abd6e8d1d.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 43
+        }
+      },
+      "fingerprint": "sha256:94e1ac2c3bf24c1bad0f9d1ae4f8fa8b6d267f714a2ea1580b24d955c59cfe02"
+    },
+    {
+      "id": "bc5b4212-7a04-02f3-9381-c1d1316d39b8",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:44Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub44.target.example",
+        "ip": "203.0.113.45",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/bc5b4212-7a04-02f3-9381-c1d1316d39b8.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 44
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "7635e4fc-b433-5a19-b5ec-b9ca8034670c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:45Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40018",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "SQL Injection",
+      "description": "SQL Injection detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/7635e4fc-b433-5a19-b5ec-b9ca8034670c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 45
+        }
+      },
+      "fingerprint": "sha256:b08d4fd7d6e93d703c461582b1650b1bd6c8722c1aa917e857ab2b64985a722a"
+    },
+    {
+      "id": "790c0f1c-dfd6-c91e-8bc5-c6440744b61b",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:46Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2023-23397",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "title": "Outlook NTLM leak",
+      "description": "Outlook NTLM leak detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/790c0f1c-dfd6-c91e-8bc5-c6440744b61b.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 46
+        }
+      },
+      "fingerprint": "sha256:2c07762ace371d636414c30343e9d95eb4c9874cc4c257428b73f8208b03d6e8"
+    },
+    {
+      "id": "054dd569-7e82-c69d-2ba9-d49c184cd8e2",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:47Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "error-based",
+      "finding_type": "vulnerability",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "medium",
+      "title": "Error-based SQLi",
+      "description": "Error-based SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/054dd569-7e82-c69d-2ba9-d49c184cd8e2.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 47
+        }
+      },
+      "fingerprint": "sha256:5ac89cd3ae796607d69d83f209c7c3a8d8d6c405289b934df355feb8ad88186f"
+    },
+    {
+      "id": "df3bfaaa-6a95-25e8-4fe6-9c894c796e3b",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:48Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Discovered endpoint: /admin",
+      "description": "Discovered endpoint: /admin detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1024
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/df3bfaaa-6a95-25e8-4fe6-9c894c796e3b.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 48
+        }
+      },
+      "fingerprint": "sha256:e3c914122d08886fffc01a73acfafa1032a665c7c0c50824409d578d25297e1e"
+    },
+    {
+      "id": "33b11126-99a9-87dd-fa8f-82ff0315a5c5",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:49Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3268",
+      "finding_type": "misconfiguration",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Directory listing enabled",
+      "description": "Directory listing enabled detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/33b11126-99a9-87dd-fa8f-82ff0315a5c5.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 49
+        }
+      },
+      "fingerprint": "sha256:c937183fd6343fb38dea5813ec169c74e986d141d6d04b64ec3776a0f2351ebb"
+    },
+    {
+      "id": "b78f687f-7a9e-cc37-036a-a703836243d5",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:50Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "BEAST",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "BEAST attack possible",
+      "description": "BEAST attack possible detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1050"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2050"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b78f687f-7a9e-cc37-036a-a703836243d5.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 50
+        }
+      },
+      "fingerprint": "sha256:4f46bd6a8165aaf54d4a8543bdada48cf95acd19f4e5667955f96d5faed20dc8"
+    },
+    {
+      "id": "51cf12ea-c8db-34f6-d7f2-49b99a07e7f7",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:51Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Bootstrap XSS",
+      "description": "Bootstrap XSS detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/51cf12ea-c8db-34f6-d7f2-49b99a07e7f7.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 51
+        }
+      },
+      "fingerprint": "sha256:f24a957b6abb18f4013643eb7924ed934fcb32d460bc52f5ddefae057c4ad715"
+    },
+    {
+      "id": "090055c0-bc7e-bdb3-5809-9cd7ff78ec54",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:52Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "AWS",
+      "finding_type": "secret",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "verified": true,
+      "title": "AWS credentials",
+      "description": "AWS credentials detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/secrets.yml",
+        "line": 10,
+        "commit": "ca3bad3a-673"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "AWS",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/090055c0-bc7e-bdb3-5809-9cd7ff78ec54.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 52
+        }
+      },
+      "fingerprint": "sha256:9f32fa731e802188718fcf2e006d6fc158b3b8ac86780cd1c2dcc440bff55575"
+    },
+    {
+      "id": "5922d3f4-b754-5bc9-4135-f194931fb790",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:53Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "medium",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub53.target.example",
+        "ip": "203.0.113.54",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5922d3f4-b754-5bc9-4135-f194931fb790.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 53
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "deac4d13-98d1-bb6d-e93d-a8f7d0aea469",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:54Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "10202",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Anti-CSRF tokens absent",
+      "description": "Anti-CSRF tokens absent detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/deac4d13-98d1-bb6d-e93d-a8f7d0aea469.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 54
+        }
+      },
+      "fingerprint": "sha256:2529117f628aefb90096050152fcb9b8ed792d1e3d6c3c5dfdd1d16422d39fca"
+    },
+    {
+      "id": "d9f3b668-138d-ff6e-f44a-f0a86cb99e6f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:55Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2017-5638",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Struts2 OGNL RCE",
+      "description": "Struts2 OGNL RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2017-5638"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.8444
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d9f3b668-138d-ff6e-f44a-f0a86cb99e6f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 55
+        }
+      },
+      "fingerprint": "sha256:44602155d76c8f3fd8f12e0df0fae0092766a793d3a57fb8e6d02f02ffe3cf25"
+    },
+    {
+      "id": "03b6fb5e-a1c0-7d7a-66b1-7cb93b57dcb1",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:56Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "boolean-blind",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "title": "Boolean-based blind SQLi",
+      "description": "Boolean-based blind SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/03b6fb5e-a1c0-7d7a-66b1-7cb93b57dcb1.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 56
+        }
+      },
+      "fingerprint": "sha256:b62a665ce95cb9720eedcaa71d6b10437410f0e47e8e5191de10b16ec2dcf861"
+    },
+    {
+      "id": "44dcc576-b2e9-d79a-ba93-1a09cde65c16",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:57Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "title": "Discovered endpoint: /.git",
+      "description": "Discovered endpoint: /.git detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 403,
+        "content_length": 1025
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/44dcc576-b2e9-d79a-ba93-1a09cde65c16.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 57
+        }
+      },
+      "fingerprint": "sha256:b7b13023774d0dc388ec4fc54d5a510f755c420de78b48c300a46e2229a50017"
+    },
+    {
+      "id": "524f18d3-6936-67e7-1ca3-7cd9cfb264c6",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:58Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-877",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "TRACE method allowed",
+      "description": "TRACE method allowed detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/524f18d3-6936-67e7-1ca3-7cd9cfb264c6.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 58
+        }
+      },
+      "fingerprint": "sha256:ad5ffd191c81a923ed05d5a515082dc7f4bd0087bee26c303fe571582faaafd1"
+    },
+    {
+      "id": "a802b912-0d21-d995-f256-d3b6898429f0",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:00:59Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "RC4",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "title": "RC4 ciphers offered",
+      "description": "RC4 ciphers offered detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 8443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1059"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2059"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a802b912-0d21-d995-f256-d3b6898429f0.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 59
+        }
+      },
+      "fingerprint": "sha256:2551257d50376dcfee17e8c39a1b434cea2523cd6a8bb8bb2664de7c6c172457"
+    },
+    {
+      "id": "677ec86d-8c79-eb1e-727b-e849dababa60",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:00Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "jQuery known vulnerabilities",
+      "description": "jQuery known vulnerabilities detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "jquery",
+        "version": "1.7.1",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1060"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2060"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-003c-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "jquery",
+        "version": "1.7.1",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/677ec86d-8c79-eb1e-727b-e849dababa60.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 60
+        }
+      },
+      "fingerprint": "sha256:74033920aa51da46291929915afd87d1ebd4f4cd60ba32c246cea4cd885a11f3"
+    },
+    {
+      "id": "dab3693c-4031-8401-aedd-dbf859937f1b",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:01Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "GitHub",
+      "finding_type": "secret",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "verified": true,
+      "title": "GitHub token",
+      "description": "GitHub token detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/.env",
+        "line": 11,
+        "commit": "9ed1a2d8-9d1"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "GitHub",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/dab3693c-4031-8401-aedd-dbf859937f1b.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 61
+        }
+      },
+      "fingerprint": "sha256:25a8df8906bdf358f8170f8d4d07647f0c28763d38504733019cd5e32770225e"
+    },
+    {
+      "id": "acb073a4-7433-8c9c-c559-e69510c76469",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:02Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "low",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub62.target.example",
+        "ip": "203.0.113.63",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/acb073a4-7433-8c9c-c559-e69510c76469.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 62
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "a2f90daa-b9c2-8a24-fdc6-29fdf850446c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:03Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "90022",
+      "finding_type": "vulnerability",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "low",
+      "title": "Application error disclosure",
+      "description": "Application error disclosure detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a2f90daa-b9c2-8a24-fdc6-29fdf850446c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 63
+        }
+      },
+      "fingerprint": "sha256:6d9c7c7c7af8311038af54dad6ed014a68d67498c45b0662e2ae86b8ff1857bc"
+    },
+    {
+      "id": "cf6e76ed-f80e-b737-2440-f830a35f63bc",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:04Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2021-44228",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "Log4j JNDI RCE",
+      "description": "Log4j JNDI RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2021-44228"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 4.4,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.395
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/cf6e76ed-f80e-b737-2440-f830a35f63bc.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 64
+        }
+      },
+      "fingerprint": "sha256:e6033e933a9eeba72fc85f8fcb8750c3aa3bbc4f0299cf086b52cd36f760ae51"
+    },
+    {
+      "id": "1a7fbdd2-141d-a9ac-629f-6b5ae5d3c350",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:05Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "time-blind",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "title": "Time-based blind SQLi",
+      "description": "Time-based blind SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "PostgreSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/1a7fbdd2-141d-a9ac-629f-6b5ae5d3c350.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 65
+        }
+      },
+      "fingerprint": "sha256:3320b1b8af18d4012fbbb3fb348e07cc3346be4b38b400deb2d5f7ca4aecec02"
+    },
+    {
+      "id": "aa716910-4441-74e2-27df-2b575b667c9b",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:06Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Discovered endpoint: /backup",
+      "description": "Discovered endpoint: /backup detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 301,
+        "content_length": 1026
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/aa716910-4441-74e2-27df-2b575b667c9b.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 66
+        }
+      },
+      "fingerprint": "sha256:1f66373b838930a82bdf93b4753ba841a31ac74c26d45cd2dc46825881a65000"
+    },
+    {
+      "id": "9e3a5f13-bca7-3463-8b55-f3088c354e06",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:07Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-630",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Server leaks version",
+      "description": "Server leaks version detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/9e3a5f13-bca7-3463-8b55-f3088c354e06.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 67
+        }
+      },
+      "fingerprint": "sha256:1d6f5ad657823deba0f91ffae5a505ea18f02d47955f14c42a1bc7bdd1c406a4"
+    },
+    {
+      "id": "b22064d2-bcc0-224b-0c4b-1aedae7cf054",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:08Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "cert_expired",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Certificate expired",
+      "description": "Certificate expired detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b22064d2-bcc0-224b-0c4b-1aedae7cf054.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 68
+        }
+      },
+      "fingerprint": "sha256:7a453456f57968f19d4616aa77d683686a67951c67a770fb698bf93fc00eb1c7"
+    },
+    {
+      "id": "7a1e1025-dcbb-b564-08be-7c87e6dcf3de",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:09Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "title": "AngularJS XSS",
+      "description": "AngularJS XSS detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "angular",
+        "version": "1.5.0",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1069"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2069"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-0045-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "angular",
+        "version": "1.5.0",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/7a1e1025-dcbb-b564-08be-7c87e6dcf3de.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 69
+        }
+      },
+      "fingerprint": "sha256:cd71fff32ccdd1b7f4772ef450de33469353f09a3b20700807c328e4f25a99f3"
+    },
+    {
+      "id": "a94f8894-b562-0c07-d028-fca635de1489",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:10Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "Stripe",
+      "finding_type": "secret",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "verified": true,
+      "title": "Stripe API key",
+      "description": "Stripe API key detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/app.json",
+        "line": 12,
+        "commit": "2f9c9743-f0c"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "Stripe",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a94f8894-b562-0c07-d028-fca635de1489.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 70
+        }
+      },
+      "fingerprint": "sha256:c44d1fb3e310ba30a98e9db2a9569e691c08f9295e2179bc0ccf3aff6bcd7eed"
+    },
+    {
+      "id": "b1ae7f33-d109-7e93-1a8f-2e87c7942290",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:11Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "high",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub71.target.example",
+        "ip": "203.0.113.72",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/b1ae7f33-d109-7e93-1a8f-2e87c7942290.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 71
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "6e87cd1c-0b42-def9-a458-3ea51be47e1c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:12Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40012",
+      "finding_type": "vulnerability",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "medium",
+      "title": "Reflected XSS",
+      "description": "Reflected XSS detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/6e87cd1c-0b42-def9-a458-3ea51be47e1c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 72
+        }
+      },
+      "fingerprint": "sha256:e9b4697b9d7bd9bef59ea280896584c0ab56b15c235a591aba0047d7877aaed6"
+    },
+    {
+      "id": "e8e8974b-906d-029c-2e96-1be4505135b0",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:13Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2022-22965",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "Spring4Shell RCE",
+      "description": "Spring4Shell RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2022-22965"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 6.4,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.3992
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e8e8974b-906d-029c-2e96-1be4505135b0.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 73
+        }
+      },
+      "fingerprint": "sha256:ab7374f729964449594eb114e92e05aff9be97a966358970846620680cddc724"
+    },
+    {
+      "id": "d2c4d39a-88a7-cab5-d81c-ec7b20c4f4a2",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:14Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "union-query",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "UNION-query SQLi",
+      "description": "UNION-query SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MSSQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d2c4d39a-88a7-cab5-d81c-ec7b20c4f4a2.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 74
+        }
+      },
+      "fingerprint": "sha256:16a4882b016ae2b6d9bd9ec0b37dcfa45266d8bc81f300583c7b59bbcc6bf5af"
+    },
+    {
+      "id": "3d5034a6-19a1-71a6-a8c5-ec5731213909",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:15Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "Discovered endpoint: /api",
+      "description": "Discovered endpoint: /api detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1027
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3d5034a6-19a1-71a6-a8c5-ec5731213909.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 75
+        }
+      },
+      "fingerprint": "sha256:8c94eed25e44e07a6d669c35cdc7804a307fc733036fef716faad962acbc5644"
+    },
+    {
+      "id": "a31f02f3-df0f-0617-c92f-bb9ab5749815",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:16Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3092",
+      "finding_type": "misconfiguration",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "title": "/admin/ directory indexable",
+      "description": "/admin/ directory indexable detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a31f02f3-df0f-0617-c92f-bb9ab5749815.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 76
+        }
+      },
+      "fingerprint": "sha256:ad981c1bfefc0c9a4e866e9ac17e514766936b41b3578c872c1cd6f6f5132228"
+    },
+    {
+      "id": "99064611-bee7-9848-9f54-fd5b5a4201ec",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:17Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "heartbleed",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "Heartbleed",
+      "description": "Heartbleed detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 993,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/99064611-bee7-9848-9f54-fd5b5a4201ec.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 77
+        }
+      },
+      "fingerprint": "sha256:77a56deb00e3fde9cbe592c66a3a557693745f92dca171e9af42202f7926395a"
+    },
+    {
+      "id": "8547b8ea-b18b-d451-bbf2-3e7dde5c4364",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:18Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "lodash prototype pollution",
+      "description": "lodash prototype pollution detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1078"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2078"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-004e-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "lodash",
+        "version": "4.17.4",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/8547b8ea-b18b-d451-bbf2-3e7dde5c4364.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 78
+        }
+      },
+      "fingerprint": "sha256:c1ad870bb70c174b6f29a17cf97568799c0a397d9ed6067d981bdeb081453a89"
+    },
+    {
+      "id": "3a29ccfa-e0c2-6240-8bdb-1d403d19abf2",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:19Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "SlackWebhook",
+      "finding_type": "secret",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "verified": false,
+      "title": "Slack webhook",
+      "description": "Slack webhook detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/deploy.sh",
+        "line": 13,
+        "commit": "ef86d369-fd5"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "SlackWebhook",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/3a29ccfa-e0c2-6240-8bdb-1d403d19abf2.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 79
+        }
+      },
+      "fingerprint": "sha256:94e1ac2c3bf24c1bad0f9d1ae4f8fa8b6d267f714a2ea1580b24d955c59cfe02"
+    },
+    {
+      "id": "bc7fb883-a23f-6978-52c1-d996ddde96c6",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:20Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "low",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub80.target.example",
+        "ip": "203.0.113.81",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/bc7fb883-a23f-6978-52c1-d996ddde96c6.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 80
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "0e1c5e13-7dca-cddb-3592-385de753bd50",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:21Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40018",
+      "finding_type": "vulnerability",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "low",
+      "title": "SQL Injection",
+      "description": "SQL Injection detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/0e1c5e13-7dca-cddb-3592-385de753bd50.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 81
+        }
+      },
+      "fingerprint": "sha256:b08d4fd7d6e93d703c461582b1650b1bd6c8722c1aa917e857ab2b64985a722a"
+    },
+    {
+      "id": "6a040966-2bb9-13be-d2ec-d656f7c73ab2",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:22Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2023-23397",
+      "finding_type": "vulnerability",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "Outlook NTLM leak",
+      "description": "Outlook NTLM leak detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-23397"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 4.5,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.6381
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/6a040966-2bb9-13be-d2ec-d656f7c73ab2.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 82
+        }
+      },
+      "fingerprint": "sha256:2c07762ace371d636414c30343e9d95eb4c9874cc4c257428b73f8208b03d6e8"
+    },
+    {
+      "id": "ad5118f9-bde8-3baa-e93f-52f3a36603ed",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:23Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "error-based",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "Error-based SQLi",
+      "description": "Error-based SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/ad5118f9-bde8-3baa-e93f-52f3a36603ed.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 83
+        }
+      },
+      "fingerprint": "sha256:5ac89cd3ae796607d69d83f209c7c3a8d8d6c405289b934df355feb8ad88186f"
+    },
+    {
+      "id": "944d7585-e33b-9067-b742-10eabea1ebb9",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:24Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "low",
+      "title": "Discovered endpoint: /admin",
+      "description": "Discovered endpoint: /admin detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 200,
+        "content_length": 1024
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/944d7585-e33b-9067-b742-10eabea1ebb9.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 84
+        }
+      },
+      "fingerprint": "sha256:e3c914122d08886fffc01a73acfafa1032a665c7c0c50824409d578d25297e1e"
+    },
+    {
+      "id": "f93846e9-8e84-6e75-6860-43548e92d3a4",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:25Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-3268",
+      "finding_type": "misconfiguration",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Directory listing enabled",
+      "description": "Directory listing enabled detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f93846e9-8e84-6e75-6860-43548e92d3a4.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 85
+        }
+      },
+      "fingerprint": "sha256:c937183fd6343fb38dea5813ec169c74e986d141d6d04b64ec3776a0f2351ebb"
+    },
+    {
+      "id": "a2217fa5-1059-60dd-4f67-835097255ec5",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:26Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "POODLE",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "medium",
+      "title": "POODLE (SSLv3)",
+      "description": "POODLE (SSLv3) detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 8443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1086"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2086"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/a2217fa5-1059-60dd-4f67-835097255ec5.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 86
+        }
+      },
+      "fingerprint": "sha256:51e433d1eeadfab005f11b93850bd1ea88ae2ab15a8c28750249354a5b6dc912"
+    },
+    {
+      "id": "d247d0d5-f693-a554-6663-47cc5de76a2f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:27Z",
+      "probe": "sca",
+      "source_tool": "retirejs",
+      "finding_type": "outdated-component",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "title": "Bootstrap XSS",
+      "description": "Bootstrap XSS detected by retirejs on the authorized target.",
+      "location": {
+        "kind": "package",
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1087"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2087"
+        },
+        {
+          "type": "ghsa",
+          "value": "GHSA-0057-aaaa-bbbb"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-1104"
+        }
+      ],
+      "component": {
+        "name": "bootstrap",
+        "version": "3.3.7",
+        "ecosystem": "npm",
+        "cpe": null
+      },
+      "evidence": {
+        "identifiers_summary": "Known XSS in this version"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d247d0d5-f693-a554-6663-47cc5de76a2f.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 87
+        }
+      },
+      "fingerprint": "sha256:f24a957b6abb18f4013643eb7924ed934fcb32d460bc52f5ddefae057c4ad715"
+    },
+    {
+      "id": "be9f919e-1409-b348-1c40-58f0be2577b3",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:28Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "AWS",
+      "finding_type": "secret",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "verified": false,
+      "title": "AWS credentials",
+      "description": "AWS credentials detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/secrets.yml",
+        "line": 10,
+        "commit": "6d0f4ff2-269"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "AWS",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/be9f919e-1409-b348-1c40-58f0be2577b3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 88
+        }
+      },
+      "fingerprint": "sha256:9f32fa731e802188718fcf2e006d6fc158b3b8ac86780cd1c2dcc440bff55575"
+    },
+    {
+      "id": "5aa4394a-09e8-0372-125e-b8c4e8d09e01",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:29Z",
+      "probe": "asset-discovery",
+      "source_tool": "amass",
+      "finding_type": "asset",
+      "confidence": "high",
+      "title": "Subdomain discovered",
+      "description": "Subdomain discovered detected by amass on the authorized target.",
+      "location": {
+        "kind": "asset",
+        "domain": "sub89.target.example",
+        "ip": "203.0.113.90",
+        "record_type": "A"
+      },
+      "identifiers": [],
+      "evidence": {
+        "source": "crtsh"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5aa4394a-09e8-0372-125e-b8c4e8d09e01.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 89
+        }
+      },
+      "fingerprint": "sha256:35df56a20587b763ab36d16b48ec6095286d1cc41bc1fbf8a59fa392db5f6ba6"
+    },
+    {
+      "id": "6f3058ce-305d-0151-baea-cbb00f76a63d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:30Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "10202",
+      "finding_type": "vulnerability",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "low",
+      "title": "Anti-CSRF tokens absent",
+      "description": "Anti-CSRF tokens absent detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/6f3058ce-305d-0151-baea-cbb00f76a63d.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 90
+        }
+      },
+      "fingerprint": "sha256:2529117f628aefb90096050152fcb9b8ed792d1e3d6c3c5dfdd1d16422d39fca"
+    },
+    {
+      "id": "88aa2319-029d-c9af-be8f-e3d73481fde3",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:31Z",
+      "probe": "template-cve",
+      "source_tool": "nuclei",
+      "tool_check_id": "CVE-2017-5638",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "high",
+      "title": "Struts2 OGNL RCE",
+      "description": "Struts2 OGNL RCE detected by nuclei on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/api",
+        "method": "POST",
+        "parameter": "token"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2017-5638"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-94"
+        }
+      ],
+      "scores": {
+        "cvss_score": 6.1,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "epss_score": 0.4584
+      },
+      "evidence": {
+        "matcher_name": "word",
+        "extracted_results": [
+          "root:x:0:0"
+        ],
+        "curl_command": "curl ..."
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/88aa2319-029d-c9af-be8f-e3d73481fde3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 91
+        }
+      },
+      "fingerprint": "sha256:44602155d76c8f3fd8f12e0df0fae0092766a793d3a57fb8e6d02f02ffe3cf25"
+    },
+    {
+      "id": "6510ee57-56f6-0acf-0780-45959a5769f1",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:32Z",
+      "probe": "injection",
+      "source_tool": "sqlmap",
+      "tool_check_id": "boolean-blind",
+      "finding_type": "vulnerability",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "low",
+      "title": "Boolean-based blind SQLi",
+      "description": "Boolean-based blind SQLi detected by sqlmap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-89"
+        }
+      ],
+      "evidence": {
+        "payload": "1 AND SLEEP(5)",
+        "dbms": "MySQL"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/6510ee57-56f6-0acf-0780-45959a5769f1.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 92
+        }
+      },
+      "fingerprint": "sha256:b62a665ce95cb9720eedcaa71d6b10437410f0e47e8e5191de10b16ec2dcf861"
+    },
+    {
+      "id": "5dc513e1-80db-cbc7-7448-cb32cc4d963c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:33Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "medium",
+      "severity_source": "Medium",
+      "confidence": "high",
+      "title": "Discovered endpoint: /.git",
+      "description": "Discovered endpoint: /.git detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 403,
+        "content_length": 1025
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/5dc513e1-80db-cbc7-7448-cb32cc4d963c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 93
+        }
+      },
+      "fingerprint": "sha256:b7b13023774d0dc388ec4fc54d5a510f755c420de78b48c300a46e2229a50017"
+    },
+    {
+      "id": "da45f927-2a7d-74d6-c464-43e30206f65c",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:34Z",
+      "probe": "server-misconfig",
+      "source_tool": "nikto",
+      "tool_check_id": "OSVDB-877",
+      "finding_type": "misconfiguration",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "medium",
+      "title": "TRACE method allowed",
+      "description": "TRACE method allowed detected by nikto on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/admin",
+        "method": "GET",
+        "parameter": "user"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-16"
+        }
+      ],
+      "evidence": {
+        "message": "Server reveals information",
+        "method": "GET"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/da45f927-2a7d-74d6-c464-43e30206f65c.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 94
+        }
+      },
+      "fingerprint": "sha256:ad5ffd191c81a923ed05d5a515082dc7f4bd0087bee26c303fe571582faaafd1"
+    },
+    {
+      "id": "ce4c5e32-f6aa-a942-f966-be5a3927a2c1",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:35Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "BEAST",
+      "finding_type": "misconfiguration",
+      "severity": "info",
+      "severity_source": "Info",
+      "confidence": "high",
+      "title": "BEAST attack possible",
+      "description": "BEAST attack possible detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/ce4c5e32-f6aa-a942-f966-be5a3927a2c1.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 95
+        }
+      },
+      "fingerprint": "sha256:4f46bd6a8165aaf54d4a8543bdada48cf95acd19f4e5667955f96d5faed20dc8"
+    },
+    {
+      "id": "9e55afdb-cb50-5984-1b9d-e2cc5fed2226",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:36Z",
+      "probe": "web-dast",
+      "source_tool": "zap",
+      "tool_check_id": "40012",
+      "finding_type": "vulnerability",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "low",
+      "title": "Reflected XSS",
+      "description": "Reflected XSS detected by zap on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/search",
+        "method": "GET",
+        "parameter": "q"
+      },
+      "identifiers": [
+        {
+          "type": "cwe",
+          "value": "CWE-79"
+        }
+      ],
+      "evidence": {
+        "request": "GET /search?q=<script> HTTP/1.1",
+        "response": "HTTP/1.1 200",
+        "matcher": "reflected"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/e2ed4c2f-1bdf-a66f-45bf-7c1d2f00dd99.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 96,
+          "duplicate_of": "e2ed4c2f-1bdf-a66f-45bf-7c1d2f00dd99"
+        }
+      },
+      "fingerprint": "sha256:e9b4697b9d7bd9bef59ea280896584c0ab56b15c235a591aba0047d7877aaed6"
+    },
+    {
+      "id": "75a7c1d3-8b83-97bf-b688-fce0d84de85d",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:37Z",
+      "probe": "secrets",
+      "source_tool": "trufflehog",
+      "tool_check_id": "SlackWebhook",
+      "finding_type": "secret",
+      "severity": "high",
+      "severity_source": "High",
+      "confidence": "medium",
+      "verified": true,
+      "title": "Slack webhook",
+      "description": "Slack webhook detected by trufflehog on the authorized target.",
+      "location": {
+        "kind": "file",
+        "path": "config/deploy.sh",
+        "line": 13,
+        "commit": "ba91166e-ee1"
+      },
+      "identifiers": [],
+      "evidence": {
+        "detector_name": "SlackWebhook",
+        "redacted": "AKIA****************"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/d0e12d6b-c576-f70e-57fb-2008f1c2e6c7.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 97,
+          "duplicate_of": "d0e12d6b-c576-f70e-57fb-2008f1c2e6c7"
+        }
+      },
+      "fingerprint": "sha256:94e1ac2c3bf24c1bad0f9d1ae4f8fa8b6d267f714a2ea1580b24d955c59cfe02"
+    },
+    {
+      "id": "6e25e40d-facf-c18f-ba28-5fc7c7a9c01f",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:38Z",
+      "probe": "tls",
+      "source_tool": "testssl",
+      "tool_check_id": "RC4",
+      "finding_type": "misconfiguration",
+      "severity": "critical",
+      "severity_source": "Critical",
+      "confidence": "high",
+      "title": "RC4 ciphers offered",
+      "description": "RC4 ciphers offered detected by testssl on the authorized target.",
+      "location": {
+        "kind": "network",
+        "host": "target.example",
+        "port": 8443,
+        "protocol": "tls"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "value": "CVE-2023-1014"
+        },
+        {
+          "type": "cve",
+          "value": "CVE-2023-2014"
+        },
+        {
+          "type": "cwe",
+          "value": "CWE-326"
+        }
+      ],
+      "evidence": {
+        "protocol": "TLSv1.0",
+        "cipher": "ECDHE-RSA-AES128-SHA"
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/05a40c4d-f76a-a371-6310-7569c737d3c3.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 98,
+          "duplicate_of": "05a40c4d-f76a-a371-6310-7569c737d3c3"
+        }
+      },
+      "fingerprint": "sha256:2551257d50376dcfee17e8c39a1b434cea2523cd6a8bb8bb2664de7c6c172457"
+    },
+    {
+      "id": "a04b1695-8c13-7fa5-f63e-0b7b4848b8f9",
+      "scan_id": "00000000-0000-0000-0000-0000000c0d05",
+      "detected_at": "2026-06-29T12:01:39Z",
+      "probe": "content-discovery",
+      "source_tool": "ffuf",
+      "finding_type": "exposure",
+      "severity": "low",
+      "severity_source": "Low",
+      "confidence": "high",
+      "title": "Discovered endpoint: /.git",
+      "description": "Discovered endpoint: /.git detected by ffuf on the authorized target.",
+      "location": {
+        "kind": "web",
+        "url": "https://target.example/login",
+        "method": "POST",
+        "parameter": "id"
+      },
+      "identifiers": [],
+      "evidence": {
+        "status_code": 403,
+        "content_length": 1025
+      },
+      "raw_ref": "gs://synthetic-corpus/raw/realistic/f6f65fb2-d6d5-82d8-3d6f-11374b6c67af.json",
+      "ext": {
+        "synthetic": {
+          "generated": true,
+          "series": "realistic",
+          "index": 99,
+          "duplicate_of": "f6f65fb2-d6d5-82d8-3d6f-11374b6c67af"
+        }
+      },
+      "fingerprint": "sha256:b7b13023774d0dc388ec4fc54d5a510f755c420de78b48c300a46e2229a50017"
+    }
+  ]
+}
