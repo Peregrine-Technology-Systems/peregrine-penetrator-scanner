@@ -28,26 +28,22 @@ module ResultParsers
       vulnerabilities = data['vulnerabilities'] ||
                         data['host']&.flat_map { |h| h['vulnerabilities'] || [] } || []
 
-      vulnerabilities.map do |vuln|
-        {
-          source_tool: 'nikto',
-          severity: map_severity(vuln),
-          title: vuln['msg'] || vuln['description'],
-          url: vuln['url'],
-          parameter: nil,
-          cwe_id: nil,
-          cve_id: extract_cve(vuln),
-          evidence: {
-            id: vuln['id'],
-            osvdb: vuln['OSVDB'],
-            method: vuln['method'],
-            description: vuln['msg']
-          }.compact
-        }
-      end
+      vulnerabilities.map { |vuln| build(vuln) }
     rescue JSON::ParserError, Errno::ENOENT => e
       Penetrator.logger.error("[NiktoParser] Parse error: #{e.message}")
       []
+    end
+
+    def build(vuln)
+      Contract.finding(
+        source_tool: 'nikto', probe: 'server-misconfig', finding_type: 'misconfiguration',
+        tool_check_id: vuln['id'] || vuln['OSVDB'],
+        severity: map_severity(vuln),
+        title: vuln['msg'] || vuln['description'],
+        location: Contract.web(url: vuln['url']),
+        identifiers: [Contract.identifier('cve', extract_cve(vuln))],
+        evidence: { 'id' => vuln['id'], 'osvdb' => vuln['OSVDB'], 'method' => vuln['method'] }
+      )
     end
 
     private
