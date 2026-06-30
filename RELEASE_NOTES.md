@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.3.1 — 2026-06-30
 - fix: `ZapScanner` spawns the baked `zap` shim, not `zap.sh` (#980). The v1.3.0 reduced pilot caught `[zap] No such file or directory - zap.sh` — the org-native image puts `zap` (the exec-shim → zap.sh) on PATH, not `zap.sh` itself. One-word fix; testssl/nuclei/trufflehog already ran native on v1.3.0, ZAP now should too. (#980)
 - feat: add `.bake/run.sh` runtime entrypoint for the scan-launcher baked-app path (#995). When a request omits `bootstrap_artifact`, the launcher exports the scan env + owns VM self-delete and runs `/opt/app/.bake/run.sh` (`exec bundle exec bin/scan`) — retires the tarball-overlay. (#995)
 
