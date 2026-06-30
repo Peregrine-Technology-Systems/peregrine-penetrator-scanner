@@ -43,4 +43,52 @@ RSpec.describe InstanceMetadata do
       expect(stub).to have_been_requested.once
     end
   end
+
+  describe '.tp_id' do
+    let(:name_url) { "#{described_class::METADATA_BASE}/name" }
+
+    around do |example|
+      saved = ENV.fetch('HOSTNAME', nil)
+      example.run
+    ensure
+      saved.nil? ? ENV.delete('HOSTNAME') : ENV['HOSTNAME'] = saved
+    end
+
+    it 'returns the GCE instance name as the tp-id' do
+      stub_request(:get, name_url)
+        .with(headers: { 'Metadata-Flavor' => 'Google' })
+        .to_return(status: 200, body: 'txn-scanner-app-vm-1')
+
+      expect(described_class.tp_id).to eq('txn-scanner-app-vm-1')
+    end
+
+    it 'falls back to $HOSTNAME off-GCE (metadata unreachable)' do
+      stub_request(:get, name_url).to_return(status: 404)
+      ENV['HOSTNAME'] = 'local-box'
+
+      expect(described_class.tp_id).to eq('local-box')
+    end
+
+    it 'falls back to UNKNOWN off-GCE when $HOSTNAME is unset' do
+      stub_request(:get, name_url).to_return(status: 404)
+      ENV.delete('HOSTNAME')
+
+      expect(described_class.tp_id).to eq(described_class::UNKNOWN)
+    end
+
+    it 'never raises when the metadata server times out' do
+      stub_request(:get, name_url).to_timeout
+      ENV['HOSTNAME'] = 'local-box'
+
+      expect(described_class.tp_id).to eq('local-box')
+    end
+
+    it 'memoises — fetches the metadata server at most once' do
+      stub = stub_request(:get, name_url).to_return(status: 200, body: 'vm-9')
+
+      2.times { described_class.tp_id }
+
+      expect(stub).to have_been_requested.once
+    end
+  end
 end

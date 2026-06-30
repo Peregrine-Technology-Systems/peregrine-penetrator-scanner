@@ -26,9 +26,26 @@ class InstanceMetadata
       @boot_image = raw.nil? || raw.empty? ? UNKNOWN : raw.split('/').last
     end
 
-    # Test seam — clears the memoised value between examples.
+    # This scanner instance's bus identity (the `tp-id`, scanner#1005). Liveness
+    # heartbeats are keyed by tp-id alone (per the ratified bus scheme), so it must
+    # be stable for the life of the process and unique per instance. Uses the GCE
+    # instance name;
+    # fail-safe to $HOSTNAME, then UNKNOWN, off-GCE. Memoised.
+    def tp_id
+      return @tp_id if defined?(@tp_id) && !@tp_id.nil?
+
+      raw = fetch('name')
+      @tp_id = if raw.nil? || raw.empty?
+                 ENV.fetch('HOSTNAME', nil).then { |h| h.to_s.empty? ? UNKNOWN : h }
+               else
+                 raw
+               end
+    end
+
+    # Test seam — clears the memoised values between examples.
     def reset!
       @boot_image = nil
+      @tp_id = nil
     end
 
     private

@@ -324,4 +324,92 @@ RSpec.describe ScanOrchestrator do
 
     { passing: passing_scanner, failing: failing_scanner, working: working_scanner }
   end
+
+  describe 'bus-envelope identity (scanner#1005)' do
+    around do |example|
+      saved = ENV.fetch('TRANSACTION_ID', nil)
+      example.run
+    ensure
+      saved.nil? ? ENV.delete('TRANSACTION_ID') : ENV['TRANSACTION_ID'] = saved
+    end
+
+    it 'stamps the scan_started marker with bus-envelope identity' do
+      storage = instance_double(StorageService)
+      allow(StorageService).to receive(:new).and_return(storage)
+      allow(InstanceMetadata).to receive(:tp_id).and_return('tp-7')
+      ENV['TRANSACTION_ID'] = 'txn-42'
+
+      expect(storage).to receive(:upload_json).with(
+        a_string_matching(%r{\Acontrol/.+/scan_started\.json\z}),
+        hash_including(transaction_id: 'txn-42', tp_id: 'tp-7')
+      )
+
+      orchestrator.send(:write_started_marker)
+    end
+
+    it 'passes the same memoised identity to the control plane loop' do
+      allow(InstanceMetadata).to receive(:tp_id).and_return('tp-7')
+      loop_double = instance_double(ControlPlaneLoop, start: nil)
+      expect(ControlPlaneLoop).to receive(:new)
+        .with(hash_including(identity: an_instance_of(ScanIdentity)))
+        .and_return(loop_double)
+
+      orchestrator.send(:start_control_plane)
+    end
+
+    it 'warns but does not raise when the started-marker write fails' do
+      allow(InstanceMetadata).to receive(:tp_id).and_return('tp-7')
+      storage = instance_double(StorageService)
+      allow(StorageService).to receive(:new).and_return(storage)
+      allow(storage).to receive(:upload_json).and_raise('gcs down')
+      allow(Penetrator.logger).to receive(:warn)
+
+      expect { orchestrator.send(:write_started_marker) }.not_to raise_error
+      expect(Penetrator.logger).to have_received(:warn).with(/Started marker write failed/)
+    end
+  end
+
+  describe 'terminal + cancel paths' do
+    it 'marks the scan failed on a hard timeout' do
+      allow(orchestrator).to receive(:prepare_scan).and_raise(Timeout::Error)
+
+      orchestrator.execute
+
+      scan.refresh
+      expect(scan.status).to eq('failed')
+      expect(scan.error_message).to include('timed out')
+    end
+
+    it 'mark_cancelled sets cancelled status and a summary' do
+      orchestrator.send(:mark_cancelled)
+
+      scan.refresh
+      expect(scan.status).to eq('cancelled')
+      expect(scan.completed_at).not_to be_nil
+    end
+
+    it 'save_findings skips a duplicate finding (Sequel::ValidationFailed)' do
+      allow(Finding).to receive(:from_contract).and_raise(Sequel::ValidationFailed.new('dup'))
+      allow(Penetrator.logger).to receive(:warn)
+
+      orchestrator.send(:save_findings, [{ 'title' => 'x' }])
+
+      expect(Penetrator.logger).to have_received(:warn).with(/Duplicate finding skipped/)
+    end
+  end
+
+  describe 'smoke profile' do
+    it 'runs smoke checks and logs each result' do
+      smoke_profile = instance_double(ScanProfile, name: 'smoke', smoke: true, smoke_test: false, phases: [])
+      allow(ScanProfile).to receive(:load).and_return(smoke_profile)
+      checker = instance_double(SmokeChecker, run: { 'ok' => 1 }, passed?: true,
+                                              results: { 'db' => { status: 'ok', detail: 'reachable' } })
+      allow(SmokeChecker).to receive(:new).and_return(checker)
+      allow(Penetrator.logger).to receive(:info).and_call_original
+
+      described_class.new(scan).execute
+
+      expect(Penetrator.logger).to have_received(:info).with(/SmokeChecker.*db: ok/)
+    end
+  end
 end

@@ -48,6 +48,14 @@ RSpec.configure do |config|
     mocks.verify_partial_doubles = true
   end
 
+  # InstanceMetadata.{tp_id,boot_image} probe the GCE metadata server; off-GCE
+  # (CI/local/tests) that host is unreachable. Default every example to the off-GCE
+  # path so identity gathering degrades to its sentinel; instance_metadata_spec
+  # overrides this per-example (the last matching WebMock stub wins).
+  config.before do
+    stub_request(:get, /metadata\.google\.internal/).to_return(status: 404)
+  end
+
   config.shared_context_metadata_behavior = :apply_to_host_groups
   config.filter_run_when_matching :focus
   config.order = :random
