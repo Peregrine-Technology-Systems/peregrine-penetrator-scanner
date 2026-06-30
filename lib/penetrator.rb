@@ -10,6 +10,7 @@ require 'sequel'
 require 'active_support'
 require 'active_support/core_ext'
 require 'faraday'
+require 'peregrine/bus'
 
 module Penetrator
   VERSION = File.read(File.expand_path('../VERSION', __dir__)).strip.freeze
