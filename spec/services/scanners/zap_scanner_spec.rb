@@ -41,9 +41,9 @@ RSpec.describe Scanners::ZapScanner do
   end
 
   describe '#run (native daemon + API)' do
-    it 'spawns the zap.sh daemon (not zap-baseline.py)' do
+    it 'spawns the baked `zap` shim as a daemon (not zap.sh, not zap-baseline.py)' do
       scanner.run
-      expect(Process).to have_received(:spawn).with('zap.sh', '-daemon', any_args)
+      expect(Process).to have_received(:spawn).with('zap', '-daemon', any_args)
     end
 
     it 'runs spider + passive scan and does NOT active-scan in baseline mode' do
