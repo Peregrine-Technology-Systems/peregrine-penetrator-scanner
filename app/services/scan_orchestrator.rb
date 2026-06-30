@@ -74,13 +74,20 @@ class ScanOrchestrator
     Penetrator.logger.warn("[Fingerprint] Failed: #{e.message}")
   end
 
+  # Bus-envelope identity for this scan (scanner#1005). Memoised so the started
+  # marker, the heartbeat loop, and (later) bus publishes all stamp the same values.
+  def identity
+    @identity ||= ScanIdentity.from_env(scan_id: scan.id)
+  end
+
   def start_control_plane
     ControlPlaneLoop.new(
-      scan_uuid: ENV.fetch('SCAN_UUID', '').then { |v| v.present? ? v : scan.id },
+      scan_uuid: identity.scan_uuid,
       job_id: ENV.fetch('JOB_ID', nil),
       callback_url: ENV.fetch('CALLBACK_URL', ''),
       gcs_bucket: ENV.fetch('GCS_BUCKET', ''),
-      callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', '')
+      callback_secret: ENV.fetch('SCAN_CALLBACK_SECRET', ''),
+      identity:
     ).start
   end
 
@@ -134,15 +141,14 @@ class ScanOrchestrator
   end
 
   def write_started_marker
-    scan_uuid = ENV.fetch('SCAN_UUID', '').then { |v| v.present? ? v : scan.id }
     marker = {
-      scan_uuid:,
+      scan_uuid: identity.scan_uuid,
       job_id: ENV.fetch('JOB_ID', nil),
       started_at: Time.current.iso8601,
       vm_name: ENV.fetch('HOSTNAME', `hostname`.strip)
-    }.compact
+    }.merge(identity.to_h.except(:scan_uuid)).compact
 
-    StorageService.new.upload_json("control/#{scan_uuid}/scan_started.json", marker)
+    StorageService.new.upload_json("control/#{identity.scan_uuid}/scan_started.json", marker)
   rescue StandardError => e
     Penetrator.logger.warn("[ScanOrchestrator] Started marker write failed: #{e.message}")
   end
