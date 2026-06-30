@@ -6,7 +6,9 @@ module Scanners
   #
   # Replaces the Docker-era `zap-baseline.py`/`/zap/wrk` wrappers (which need
   # ZAP's docker/ python scripts on PATH — not present in the org-native image)
-  # with the raw `zap.sh` daemon, which the baked image provides (Java + zap.sh).
+  # with the ZAP daemon, started via the baked `zap` shim (the image puts `zap`
+  # on PATH → execs zap.sh; `zap.sh` itself is NOT on PATH — #4132 pilot caught
+  # the wrong name). Java + ZAP are baked in.
   #
   #   baseline → access + spider + passive scan   (no active attack)
   #   full     → baseline + active scan
@@ -83,7 +85,7 @@ module Scanners
 
     def spawn_daemon
       Process.spawn(
-        'zap.sh', '-daemon', '-host', DAEMON_HOST, '-port', DAEMON_PORT.to_s,
+        'zap', '-daemon', '-host', DAEMON_HOST, '-port', DAEMON_PORT.to_s,
         '-config', 'api.disablekey=true',
         '-config', 'api.addrs.addr.name=.*', '-config', 'api.addrs.addr.regex=true',
         %i[out err] => File::NULL, :pgroup => 0
