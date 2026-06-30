@@ -2,8 +2,13 @@ class ControlPlaneLoop
   INTERVAL = 30
   TICK_TIMEOUT = 10
 
-  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:)
+  # rubocop:disable Metrics/ParameterLists -- the callback_url/callback_secret/job_id
+  # trio is the HTTP-callback transport, removed at bus cutover (scanner#1005), which
+  # drops this back under the limit; not worth an options-object churn pre-cutover.
+  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:, identity: nil)
+    # rubocop:enable Metrics/ParameterLists
     @scan_uuid = scan_uuid
+    @identity = identity
     @heartbeat = HeartbeatSender.new(
       callback_url:, scan_uuid:, job_id:, callback_secret:
     )
@@ -76,6 +81,10 @@ class ControlPlaneLoop
       timestamp: Time.current.iso8601,
       **progress
     }
+    # Enrich the durable fallback the orchestrator watchdog polls with bus-envelope
+    # identity (transaction_id/environment/trace_id/tp_id). Additive + compacted:
+    # nil until the launcher injects it, so this is inert today.
+    payload.merge!(@identity.to_h.except(:scan_uuid)) if @identity
     @storage.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
   end
 
