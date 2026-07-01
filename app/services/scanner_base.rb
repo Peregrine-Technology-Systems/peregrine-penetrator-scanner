@@ -37,6 +37,15 @@ class ScannerBase
     raise NotImplementedError, 'Subclass must implement #tool_name'
   end
 
+  # The executable this scanner spawns — the SINGLE source of truth for both the
+  # command the scanner runs AND the smoke-test availability check. Subclasses set
+  # EXECUTABLE and build their command from it, and SmokeChecker derives its
+  # required-tools list from these, so the availability check can never drift from
+  # what actually runs (the `zap.sh` vs `zap` incident, #4132/#980).
+  def self.executable
+    self::EXECUTABLE
+  end
+
   protected
 
   def execute
