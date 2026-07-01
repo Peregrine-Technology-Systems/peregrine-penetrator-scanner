@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites errors="0" failures="5" skipped="7" tests="12" time="3.820029">
+  <testsuite name="schemathesis" hostname="proteus.local" errors="0" failures="5" skipped="7" tests="12" time="3.820029">
+    <testcase name="GET /pet/findByStatus" time="0.000702">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /pet/findByTags" time="0.000257">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /store/inventory" time="0.000180">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /user/login" time="0.000179">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /user/logout" time="0.000073">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /pet/{petId}" time="0.000482">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /pet/{petId}/uploadImage" time="0.000301">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /pet" time="1.804176">
+      <failure type="failure">1. Test Case ID: o4Axhq
+
+- Response violates schema
+
+    "photoUrls" is a required property
+
+    Schema at /components/schemas/Pet:
+
+        {
+            "required": [
+                "name",
+                "photoUrls"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "example": 10
+                },
+                "name": {
+                    "type": "string",
+                    "example": "doggie"
+                },
+                "category": {
+                    "$ref": "#/components/schemas/Category"
+                },
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "id": 10,
+            "name": "doggie",
+            "status": "sold"
+        }
+
+[200] OK:
+
+    `{"id":10,"name":"doggie","status":"sold"}`
+
+Reproduce with:
+
+    curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'id=10&amp;name=doggie&amp;category=id&amp;category=name&amp;status=sold' https://petstore3.swagger.io/api/v3/pet</failure>
+    </testcase>
+    <testcase name="POST /store/order" time="1.800999">
+      <failure type="failure">1. Test Case ID: FEaBBL
+
+- Server error
+
+[500] Internal Server Error:
+
+    `{"code":500,"message":"There was an error processing your request. It has been logged (ID: 6b19dfe1487d4d8f)"}`
+
+Reproduce with:
+
+    curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'id=10&amp;petId=198772&amp;quantity=7&amp;status=approved&amp;shipDate=2000-01-01T00%3A00%3A00Z&amp;complete=False' https://petstore3.swagger.io/api/v3/store/order</failure>
+    </testcase>
+    <testcase name="POST /user" time="0.059442">
+      <failure type="failure">1. Test Case ID: XF7WKP
+
+- Server error
+
+[500] Internal Server Error:
+
+    `{"code":500,"message":"There was an error processing your request. It has been logged (ID: e6c2a03d372e9573)"}`
+
+Reproduce with:
+
+    curl -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'id=10&amp;username=theUser&amp;firstName=John&amp;lastName=James&amp;email=john%40email.com&amp;password=12345&amp;phone=12345&amp;userStatus=1' https://petstore3.swagger.io/api/v3/user</failure>
+    </testcase>
+    <testcase name="POST /user/createWithList" time="0.062888">
+      <failure type="failure">1. Test Case ID: YIj8tB
+
+- Server error
+
+[500] Internal Server Error:
+
+    `{"code":500,"message":"There was an error processing your request. It has been logged (ID: e9d7b73edce037d2)"}`
+
+Reproduce with:
+
+    curl -X POST -H 'Content-Type: application/json' -d '[{"id": 10, "username": "theUser", "firstName": "John", "lastName": "James", "email": "john@email.com", "password": "12345", "phone": "12345", "userStatus": 1}]' https://petstore3.swagger.io/api/v3/user/createWithList</failure>
+    </testcase>
+    <testcase name="PUT /user/{username}" time="0.090352">
+      <failure type="failure">1. Test Case ID: nhvRbc
+
+- Server error
+
+[500] Internal Server Error:
+
+    `{"code":500,"message":"There was an error processing your request. It has been logged (ID: c356f95fd5bdb2ab)"}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Content-Type: application/x-www-form-urlencoded' -d 'id=10&amp;username=theUser&amp;firstName=John&amp;lastName=James&amp;email=john%40email.com&amp;password=12345&amp;phone=12345&amp;userStatus=1' https://petstore3.swagger.io/api/v3/user/0</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

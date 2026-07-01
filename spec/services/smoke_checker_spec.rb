@@ -47,9 +47,9 @@ RSpec.describe SmokeChecker do
   end
 
   describe '#required_tools (drift-proof, derived from SCANNER_MAP)' do
-    it 'covers the executable of every wired probe — all nine, correct binaries' do
+    it 'covers the executable of every wired probe — correct binaries' do
       expect(checker.required_tools).to contain_exactly(
-        'zap', 'nuclei', 'sqlmap', 'ffuf', 'nikto', 'testssl.sh', 'retire', 'trufflehog', 'amass'
+        'zap', 'nuclei', 'sqlmap', 'ffuf', 'nikto', 'testssl.sh', 'retire', 'trufflehog', 'amass', 'schemathesis'
       )
     end
 
