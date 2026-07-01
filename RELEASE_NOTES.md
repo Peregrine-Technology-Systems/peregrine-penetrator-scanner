@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.4.0 — 2026-07-01
 - feat: bus Transaction Processor prep — identity threading + an unwired publish seam (#1005). Groundwork for converting the scanner to a publish-side bus TP (orchestrator confirmed the scan-launcher is the consumer, not the app, so the scanner stays an ephemeral VM-per-scan batch job). Two safe, behaviourally-inert pieces, deliberately ahead of the bus: **(1) identity** — `ScanIdentity` (gathers the immutable `transaction_id`, `scan_uuid`, `environment`, `trace_id`, and `tp_id` from launch ENV + `InstanceMetadata.tp_id`, fail-safe to sentinels off-bus) now enriches the durable GCS `control/` writes the orchestrator watchdog polls (`heartbeat.json`, `scan_started.json`) — additive + compacted, so it carries nothing until the launcher injects `TRANSACTION_ID`/`ENVIRONMENT`/`TRACE_ID` (a companion change in the infrastructure repo). **(2) seam** — `Bus::Publisher`/`NullPublisher` + the ratified `Bus::Subjects` grammar (`data.task.penetrator.scan.{completed,failed}`, `telemetry.tp.scanner.heartbeat.<tp-id>` keyed by tp-id alone per the ratified bus scheme) built and unit-tested **in isolation, not wired** — infra owns the real publish signature (per-message rotating key + AEAD) and will review the concrete subjects before any call-site is wired. The `status.json` identity key + the actual heartbeat/completion publishes land together as a one-line add when the adapter ships (no live-path refactor now). Suite 472 green, 97.28%. (#1005)
 
 ## v1.3.1 — 2026-06-30
