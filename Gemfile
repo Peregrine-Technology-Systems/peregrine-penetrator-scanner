@@ -20,6 +20,14 @@ gem "google-cloud-bigquery", "~> 1.49"
 # HTTP client for CVE APIs and webhooks
 gem "faraday", "~> 2.7"
 
+# Bus-identity adapter — the scanner publishes scan.completed + heartbeats through
+# this, never raw Pub/Sub (scanner#1009, ADR 0004). Owns subjects/envelope/crypto
+# (XChaCha20-Poly1305 AEAD via rbnacl → needs libsodium) + the substrate mapping.
+gem "peregrine_bus",
+    git: "https://github.com/Peregrine-Technology-Systems/peregrine-bus.git",
+    glob: "ruby/*.gemspec",
+    tag: "v0.2.0"
+
 # UUID support
 gem "uuidtools", "~> 2.2"
 

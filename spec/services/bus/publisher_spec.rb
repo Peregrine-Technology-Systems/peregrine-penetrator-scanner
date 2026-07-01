@@ -3,67 +3,56 @@
 require 'sequel_helper'
 
 RSpec.describe Bus::Publisher do
+  let(:subject_name) { Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'completed') }
+
   describe '.build' do
-    it 'returns a NullPublisher until the bus-identity adapter is wired (scanner#1005)' do
-      expect(described_class.build).to be_a(Bus::NullPublisher)
+    it 'is disabled until the production substrate + keyset are wired (scanner#1009)' do
+      expect(described_class.build.enabled?).to be(false)
     end
   end
 
-  describe '#publish (base interface)' do
-    it 'is abstract — a bare Publisher cannot publish' do
-      expect { described_class.new.publish(subject: 'x', payload: {}) }
-        .to raise_error(NotImplementedError, /Publisher#publish/)
+  describe '.for' do
+    it 'constructs an enabled publisher over an injected substrate + key provider' do
+      publisher = described_class.for(substrate: Peregrine::Bus::MemorySubstrate.new,
+                                      key_provider: keyset_for(subject_name))
+      expect(publisher.enabled?).to be(true)
     end
   end
 
-  describe 'the Publisher contract (via a recording reference impl)' do
-    subject(:publisher) { recording_class.new }
+  describe '#publish (enabled, real adapter over MemorySubstrate)' do
+    it 'seals the payload to the subject so it round-trips through the adapter' do
+      publisher, adapter = bus_pair(subject_name)
 
-    # A minimal subclass proving the interface is satisfiable and documenting the
-    # publish contract the real adapter must honour: it records (subject, payload, key).
-    let(:recording_class) do
-      Class.new(described_class) do
-        attr_reader :sent
+      id = publisher.publish(subject_name, { 'state' => 'completed', 'scan_uuid' => 's1' })
 
-        def initialize
-          @sent = []
-          super
-        end
-
-        def publish(subject:, payload:, key: nil)
-          @sent << { subject:, payload:, key: }
-        end
-      end
+      expect(id).to be_a(String)
+      delivered = adapter.consume(subject_name).map { |pt| JSON.parse(pt) }
+      expect(delivered).to eq([{ 'state' => 'completed', 'scan_uuid' => 's1' }])
     end
 
-    it 'records subject, payload and key' do
-      publisher.publish(subject: 'data.task.penetrator.scan.completed', payload: { a: 1 }, key: 'tp-1')
-      expect(publisher.sent).to eq([{ subject: 'data.task.penetrator.scan.completed', payload: { a: 1 }, key: 'tp-1' }])
-    end
+    it 'fails soft — a publish error never propagates (GCS fallback owns durability)' do
+      publisher, = bus_pair(subject_name)
+      allow(Penetrator.logger).to receive(:warn)
+      # Publish to a subject with no key in the keyset → the adapter raises; we swallow.
+      unkeyed = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
 
-    it 'treats key as optional' do
-      publisher.publish(subject: 's', payload: {})
-      expect(publisher.sent.first[:key]).to be_nil
+      result = nil
+      expect { result = publisher.publish(unkeyed, {}) }.not_to raise_error
+      expect(result).to be_nil
+      expect(Penetrator.logger).to have_received(:warn).with(/publish failed/)
     end
   end
 
-  describe Bus::NullPublisher do
-    subject(:publisher) { described_class.new }
-
-    it 'drops the publish and returns nil (inert until the adapter is wired)' do
-      expect(publisher.publish(subject: 'data.task.penetrator.scan.completed', payload: { a: 1 }, key: 'tp-1')).to be_nil
+  describe '#publish (disabled)' do
+    it 'drops the publish and returns nil' do
+      publisher = described_class.new(nil)
+      expect(publisher.publish(subject_name, { a: 1 })).to be_nil
     end
 
-    it 'logs the dropped subject + key at debug for observability' do
+    it 'logs the dropped subject at debug' do
       allow(Penetrator.logger).to receive(:debug)
-      publisher.publish(subject: 'telemetry.tp.scanner.heartbeat.tp-1', payload: {}, key: 'tp-1')
-      expect(Penetrator.logger).to have_received(:debug).with(/drop subject=telemetry.tp.scanner.heartbeat.tp-1 key=tp-1/)
-    end
-
-    it 'renders a missing key as a dash in the log line' do
-      allow(Penetrator.logger).to receive(:debug)
-      publisher.publish(subject: 's', payload: {})
-      expect(Penetrator.logger).to have_received(:debug).with(/key=-/)
+      described_class.new(nil).publish(subject_name, {})
+      expect(Penetrator.logger).to have_received(:debug).with(/disabled — drop subject=#{Regexp.escape(subject_name)}/)
     end
   end
 end

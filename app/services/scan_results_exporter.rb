@@ -11,9 +11,22 @@ class ScanResultsExporter
 
   def export
     json = build_envelope.to_json
+    @exported_sha256 = Digest::SHA256.hexdigest(json)
     gcs_path = write_and_upload(json)
+    @exported_object = gcs_path
     Penetrator.logger.info("[ScanResultsExporter] Exported scan #{@scan.id} (v#{SCHEMA_VERSION}) to #{gcs_path}")
     gcs_path
+  end
+
+  # Claim-check pointer to the just-exported report blob, for the bus completion
+  # event (scanner#1009): bucket + object id + the sha256 of the exact bytes
+  # uploaded — never the bytes themselves. The digest is captured at export time
+  # (the envelope carries a `generated_at` timestamp, so recomputing would not
+  # match the stored object). Call after #export.
+  def claim_check
+    raise 'ScanResultsExporter#claim_check called before #export' unless @exported_object
+
+    { bucket: ENV.fetch('GCS_BUCKET', nil), object: @exported_object, sha256: @exported_sha256 }
   end
 
   def build_envelope

@@ -5,10 +5,12 @@ class ControlPlaneLoop
   # rubocop:disable Metrics/ParameterLists -- the callback_url/callback_secret/job_id
   # trio is the HTTP-callback transport, removed at bus cutover (scanner#1005), which
   # drops this back under the limit; not worth an options-object churn pre-cutover.
-  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:, identity: nil)
+  def initialize(scan_uuid:, job_id:, callback_url:, gcs_bucket:, callback_secret:,
+                 identity: nil, publisher: Bus::Publisher.build)
     # rubocop:enable Metrics/ParameterLists
     @scan_uuid = scan_uuid
     @identity = identity
+    @publisher = publisher
     @heartbeat = HeartbeatSender.new(
       callback_url:, scan_uuid:, job_id:, callback_secret:
     )
@@ -61,6 +63,7 @@ class ControlPlaneLoop
     progress = @mutex.synchronize { @progress.dup }
     safe_call('callback') { @heartbeat.send_heartbeat(status: 'running', **progress) }
     safe_call('GCS heartbeat') { write_gcs_heartbeat(progress) }
+    safe_call('bus heartbeat') { publish_bus_heartbeat(progress) }
     safe_call('cancel check') { check_cancel }
   end
 
@@ -86,6 +89,24 @@ class ControlPlaneLoop
     # nil until the launcher injects it, so this is inert today.
     payload.merge!(@identity.to_h.except(:scan_uuid)) if @identity
     @storage.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
+  end
+
+  # Publish liveness on the telemetry plane (scanner#1009), keyed by tp-id alone:
+  # one row per scanner instance, overwritten per beat, with the in-flight
+  # transaction_id(s) in the value. The watchdog reads this as a liveness KV. No-op
+  # when identity/tp_id is absent (off-bus) or the publisher is disabled; the GCS
+  # heartbeat above is the durable fallback.
+  def publish_bus_heartbeat(progress)
+    return if @identity.nil? || @identity.tp_id.to_s.empty?
+
+    subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(@identity.tp_id)
+    @publisher.publish(subject, {
+                         tp_id: @identity.tp_id,
+                         status: 'running',
+                         in_flight: @identity.in_flight,
+                         timestamp: Time.current.iso8601,
+                         **progress
+                       })
   end
 
   def check_cancel
