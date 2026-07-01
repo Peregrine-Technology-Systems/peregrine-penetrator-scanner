@@ -1,5 +1,4 @@
 class SmokeChecker
-  REQUIRED_TOOLS = %w[zap.sh nuclei sqlmap ffuf nikto].freeze
   REQUIRED_SECRETS = %w[GCS_BUCKET GOOGLE_CLOUD_PROJECT].freeze
 
   def initialize(scan)
@@ -20,14 +19,25 @@ class SmokeChecker
 
   attr_reader :results
 
+  # The probe executables to verify — derived from the orchestrator's scanner map
+  # (each scanner's EXECUTABLE, the same constant its command spawns), so this
+  # availability gate covers ALL wired probes and can never drift from what runs.
+  # A new probe added to SCANNER_MAP is checked automatically; no second list.
+  def required_tools
+    ScanOrchestrator::SCANNER_MAP.values.map(&:executable).uniq
+  end
+
   private
 
+  # Availability = present on PATH (not "verified working" — a present-but-broken
+  # binary is out of scope here and routed to a functional pilot / runtime check).
   def check_tools
-    missing = REQUIRED_TOOLS.reject { |tool| tool_available?(tool) }
+    tools = required_tools
+    missing = tools.reject { |tool| tool_available?(tool) }
     @results[:tools] = if missing.empty?
-                         { status: 'pass', detail: "All #{REQUIRED_TOOLS.length} tools available" }
+                         { status: 'pass', detail: "All #{tools.length} probe tools present on PATH: #{tools.join(', ')}" }
                        else
-                         { status: 'fail', detail: "Missing: #{missing.join(', ')}" }
+                         { status: 'fail', detail: "Missing from PATH: #{missing.join(', ')} (of #{tools.join(', ')})" }
                        end
   end
 
