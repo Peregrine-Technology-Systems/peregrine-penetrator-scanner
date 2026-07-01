@@ -94,8 +94,11 @@ For the full architecture reference, see [docs/ARCHITECTURE.md](docs/ARCHITECTUR
 | **Nikto** | Discovery | Server misconfiguration detection | — |
 | **retire.js** | Targeted | Vulnerable JS library detection | — |
 | **amass** | Discovery | Subdomain enumeration | — |
+| **schemathesis** | API Fuzz | Unauthenticated, schema-driven API fuzzing — auto-discovers a *publicly reachable* OpenAPI/GraphQL schema and fuzzes every operation it declares | — |
 
 > The **`reduced`** profile (below) is the org-native production profile today: it uses **only the baked tool set** (testssl + ZAP baseline + Nuclei + trufflehog). The remaining tools (`—`) are wired into the codebase and the fuller profiles, pending the bakery vendoring their apt/npm dependencies into the image.
+
+> **Testing posture — black-box, unauthenticated (policy).** Every probe runs against the target exactly as an unauthenticated external party would see it. The scanner performs **no authenticated testing** — no provisioned credentials, no login, no access-control (BOLA/IDOR) testing. This is a deliberate scope choice. Even the API-fuzz probe stays inside the boundary: it *discovers* a publicly reachable schema (a schema URL is data, not a credential) and reports **not-applicable** when none is reachable, rather than logging in. See [docs/probe_categories.md](docs/probe_categories.md).
 
 ---
 
@@ -211,6 +214,7 @@ CI runs on [Woodpecker CI](https://d3ci42.peregrinetechsys.net) (self-hosted). <
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full architecture with Mermaid diagrams — scan flow, control plane, VM lifecycle, data model, reliability |
 | [docs/SECURITY_ARCHITECTURE.md](docs/SECURITY_ARCHITECTURE.md) | Threat model, secrets management, container/network/control plane security |
 | [docs/probe_contract.md](docs/probe_contract.md) | **Canonical probe output contract** — the finding shape this probe emits for downstream analysis |
+| [docs/probe_categories.md](docs/probe_categories.md) | **Probe taxonomy** — the ten probes grouped by type of testing, and the black-box / no-authenticated-testing posture |
 | [docs/schema_versioning.md](docs/schema_versioning.md) | JSON envelope version contract + MINOR/MAJOR evolution rules |
 | [docs/data_retention_policy.md](docs/data_retention_policy.md) | Data retention: scanner retains nothing; downstream deletes scan records post-delivery; only a minimal audit record (18mo, SOC 2) is kept |
 | [docs/audit_logging.md](docs/audit_logging.md) | Audit event types, chain of custody, compliance (SOC 2, ISO 27001) |
