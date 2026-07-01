@@ -48,6 +48,8 @@ echo "==> Ruby: $(ruby -v)"
 # so BOTH `bundle install` and `bundle exec` honor it (else bundler setup tries
 # to load the uninstalled dev gems and fails). (#945)
 export BUNDLE_WITHOUT="development"
+# shellcheck source=scripts/woodpecker/lib/git-dep-auth.sh
+. "$(dirname "$0")/lib/git-dep-auth.sh"
 bundle install --jobs 4 --retry 3
 APP_ENV=test bundle exec rspec --format documentation
 

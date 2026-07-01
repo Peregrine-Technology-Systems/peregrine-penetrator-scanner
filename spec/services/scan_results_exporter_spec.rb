@@ -258,6 +258,46 @@ RSpec.describe ScanResultsExporter do
     end
   end
 
+  describe 'tool_chain when the profile fails to load' do
+    it 'falls back to a minimal tool_chain instead of raising' do
+      allow(ScanProfile).to receive(:load).and_raise(ArgumentError)
+
+      tool_chain = exporter.build_envelope[:tool_chain]
+
+      expect(tool_chain[:profile]).to eq(name: scan.profile)
+      expect(tool_chain[:planned]).to eq([])
+    end
+  end
+
+  describe '#claim_check' do
+    around do |example|
+      saved = ENV.fetch('GCS_BUCKET', nil)
+      ENV['GCS_BUCKET'] = 'reports-bucket'
+      example.run
+    ensure
+      saved.nil? ? ENV.delete('GCS_BUCKET') : ENV['GCS_BUCKET'] = saved
+    end
+
+    it 'raises before #export (nothing to point at yet)' do
+      expect { exporter.claim_check }.to raise_error(/before #export/)
+    end
+
+    it 'returns a pointer with the bucket, object id, and the sha256 of the exported bytes' do
+      captured = nil
+      allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
+        captured = File.read(local_path)
+        true
+      end
+
+      object = exporter.export
+      pointer = exporter.claim_check
+
+      expect(pointer[:bucket]).to eq('reports-bucket')
+      expect(pointer[:object]).to eq(object)
+      expect(pointer[:sha256]).to eq(Digest::SHA256.hexdigest(captured))
+    end
+  end
+
   describe 'with missing summary' do
     let(:scan) do
       create(:scan, :completed, target:, summary: nil, tool_statuses: {})
