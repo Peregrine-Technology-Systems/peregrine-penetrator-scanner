@@ -11,7 +11,8 @@ class ScanOrchestrator
     'testssl' => Scanners::TestsslScanner,
     'retirejs' => Scanners::RetirejsScanner,
     'trufflehog' => Scanners::TrufflehogScanner,
-    'amass' => Scanners::AmassScanner
+    'amass' => Scanners::AmassScanner,
+    'schemathesis' => Scanners::SchemathesisScanner
   }.freeze
 
   attr_reader :scan, :profile
