@@ -5,4 +5,24 @@ set -euo pipefail
 command -v ruby   >/dev/null || { echo "FAIL: ruby not on PATH"; exit 1; }
 test -f bin/scan          || { echo "FAIL: bin/scan missing"; exit 1; }
 bundle check              || { echo "FAIL: bundle check (gems not fully placed)"; exit 1; }
-echo "[.bake/verify] OK: $(ruby -v); gems satisfied; bin/scan present"
+
+# Assert every probe binary survived the post-scrub image (scanner#1012). The list
+# is derived from SCANNER_MAP (each scanner's EXECUTABLE — the same constant its
+# command spawns), so this gate can't drift from what actually runs. A missing
+# binary here means a base-install gap or a scrub over-reach; either fails the bake
+# now instead of surfacing as a mid-scan "command not found" in production.
+PROBE_TOOLS=$(bundle exec ruby -e '
+  require "./app/services/scanner_base"
+  Dir.glob("./app/services/scanners/*_scanner.rb").sort.each { |f| require f }
+  require "./app/services/scan_orchestrator"
+  require "./app/services/smoke_checker"
+  puts SmokeChecker.new(nil).required_tools.join("\n")
+') || { echo "FAIL: could not derive probe tool list"; exit 1; }
+
+MISSING=""
+for t in $PROBE_TOOLS; do
+  command -v "$t" >/dev/null 2>&1 || MISSING="$MISSING $t"
+done
+[ -n "$MISSING" ] && { echo "FAIL: probe binaries missing from PATH:$MISSING"; exit 1; }
+
+echo "[.bake/verify] OK: $(ruby -v); gems satisfied; bin/scan present; all probe tools on PATH ($(echo "$PROBE_TOOLS" | tr '\n' ' '))"
