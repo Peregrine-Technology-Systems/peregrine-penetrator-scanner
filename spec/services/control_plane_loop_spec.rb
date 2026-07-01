@@ -124,6 +124,42 @@ RSpec.describe ControlPlaneLoop do
 
       instance.send(:tick)
     end
+
+    it 'publishes a telemetry-plane heartbeat keyed by tp-id, carrying in_flight txn ids' do
+      identity = ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: 'txn-1',
+                                  environment: 'production', trace_id: nil, tp_id: 'tp-9')
+      subj = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat('tp-9')
+      publisher, adapter = bus_pair(subj)
+      allow(StorageService).to receive(:new).and_return(instance_double(StorageService, upload_json: nil))
+
+      instance = described_class.new(
+        scan_uuid: 'scan-123', job_id: 'job-456', callback_url: '',
+        gcs_bucket: 'test-bucket', callback_secret: 'secret', identity:, publisher:
+      )
+      instance.update_progress(current_tool: 'nuclei', findings_count: 2)
+      instance.send(:tick)
+
+      msg = JSON.parse(adapter.consume(subj).first)
+      expect(msg['tp_id']).to eq('tp-9')
+      expect(msg['in_flight']).to eq(['txn-1'])
+      expect(msg['current_tool']).to eq('nuclei')
+    end
+
+    it 'skips the bus heartbeat when identity has no tp_id (off-bus)' do
+      publisher = instance_double(Bus::Publisher)
+      allow(publisher).to receive(:publish)
+      allow(StorageService).to receive(:new).and_return(instance_double(StorageService, upload_json: nil))
+      instance = described_class.new(
+        scan_uuid: 'scan-123', job_id: 'j', callback_url: '',
+        gcs_bucket: 'test-bucket', callback_secret: 's',
+        identity: ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: nil, environment: 'test', trace_id: nil, tp_id: ''),
+        publisher:
+      )
+
+      instance.send(:tick)
+
+      expect(publisher).not_to have_received(:publish)
+    end
   end
 
   describe '#run_loop' do

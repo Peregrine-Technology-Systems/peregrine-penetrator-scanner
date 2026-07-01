@@ -64,21 +64,30 @@ end
 
 # Export versioned JSON to GCS
 puts "\n--- Scan Results Export ---"
-gcs_scan_results_path = ScanResultsExporter.new(scan).export
+exporter = ScanResultsExporter.new(scan)
+gcs_scan_results_path = exporter.export
 puts "  Exported v#{ScanResultsExporter::SCHEMA_VERSION} to #{gcs_scan_results_path}"
 audit.json_exported(scan, gcs_path: gcs_scan_results_path)
 
 # Write completion status to GCS — the consumer polls this to detect completion
-# (#906: GCS-only completion; ScanCallbackService removed).
-scan_uuid = ENV.fetch('SCAN_UUID', scan.id.to_s)
+# (#906: GCS-only completion; ScanCallbackService removed). Enriched with the bus
+# envelope identity (#1009) so the durable fallback carries transaction_id/trace id.
+identity = ScanIdentity.from_env(scan_id: scan.id)
+scan_uuid = identity.scan_uuid
 StorageService.new.upload_json("control/#{scan_uuid}/status.json", {
   phase: 'completed',
   timestamp: Time.now.utc.iso8601,
   results_path: gcs_scan_results_path,
   boot_image: ENV.fetch('BOOT_IMAGE', InstanceMetadata::UNKNOWN)
-})
+}.merge(identity.to_h.except(:scan_uuid)))
 puts "\n--- Completion Status ---"
 puts "  Written control/#{scan_uuid}/status.json (results_path: #{gcs_scan_results_path})"
+
+# Publish the bus completion event (#1009): a claim-check pointer to the report
+# blob, never the bytes. Inert until the bus substrate is wired at deploy; the GCS
+# status.json above stays the orchestrator's durable fallback.
+ScanCompletionPublisher.new(scan, exporter:, identity:).emit
+puts '  Published scan completion to the bus (no-op while the substrate is unwired)'
 
 # Audit: scan completed
 audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
