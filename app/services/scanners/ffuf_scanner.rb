@@ -2,6 +2,8 @@ require 'digest'
 
 module Scanners
   class FfufScanner < ScannerBase
+    EXECUTABLE = 'ffuf'.freeze
+
     def tool_name
       'ffuf'
     end
@@ -32,7 +34,7 @@ module Scanners
 
       rate = tool_config[:rate] || 10
 
-      cmd = "ffuf -u #{Shellwords.escape(fuzz_url)} -w #{wordlist} -o #{output_file} " \
+      cmd = "#{EXECUTABLE} -u #{Shellwords.escape(fuzz_url)} -w #{wordlist} -o #{output_file} " \
             "-of json -mc 200,201,301,302,403 -t #{threads} -rate #{rate} -s"
 
       cmd += " -e #{tool_config[:extensions]}" if tool_config[:extensions]

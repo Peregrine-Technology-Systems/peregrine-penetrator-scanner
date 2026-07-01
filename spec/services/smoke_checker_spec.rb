@@ -46,6 +46,42 @@ RSpec.describe SmokeChecker do
     end
   end
 
+  describe '#required_tools (drift-proof, derived from SCANNER_MAP)' do
+    it 'covers the executable of every wired probe — all nine, correct binaries' do
+      expect(checker.required_tools).to contain_exactly(
+        'zap', 'nuclei', 'sqlmap', 'ffuf', 'nikto', 'testssl.sh', 'retire', 'trufflehog', 'amass'
+      )
+    end
+
+    it 'reports each wired scanner as a class exposing its executable' do
+      ScanOrchestrator::SCANNER_MAP.each_value do |klass|
+        expect(klass.executable).to be_a(String).and(be_present)
+      end
+    end
+  end
+
+  describe '#check_tools' do
+    before do
+      storage = instance_double(StorageService)
+      allow(StorageService).to receive(:new).and_return(storage)
+      allow(storage).to receive(:upload)
+    end
+
+    it 'passes when every probe tool is present on PATH' do
+      allow(checker).to receive(:tool_available?).and_return(true)
+      checker.send(:check_tools)
+      expect(checker.results[:tools]).to include(status: 'pass')
+      expect(checker.results[:tools][:detail]).to include('present on PATH')
+    end
+
+    it 'fails and names the missing tool (e.g. a present-but-misnamed binary)' do
+      allow(checker).to receive(:tool_available?) { |t| t != 'amass' }
+      checker.send(:check_tools)
+      expect(checker.results[:tools]).to include(status: 'fail')
+      expect(checker.results[:tools][:detail]).to include('amass')
+    end
+  end
+
   describe '#passed?' do
     before do
       storage = instance_double(StorageService)

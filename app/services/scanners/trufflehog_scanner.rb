@@ -6,6 +6,8 @@ module Scanners
   # filesystem for hardcoded secrets (API keys, private keys, tokens, etc.).
   # Phase 3 (targeted). See #50.
   class TrufflehogScanner < ScannerBase
+    EXECUTABLE = 'trufflehog'.freeze
+
     def tool_name
       'trufflehog'
     end
@@ -41,7 +43,7 @@ module Scanners
     end
 
     def build_command(files_dir, output_file)
-      "trufflehog filesystem #{files_dir} --json --no-verification " \
+      "#{EXECUTABLE} filesystem #{files_dir} --json --no-verification " \
         "> #{output_file} 2>/dev/null"
     end
 

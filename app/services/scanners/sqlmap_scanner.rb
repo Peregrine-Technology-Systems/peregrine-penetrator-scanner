@@ -1,5 +1,7 @@
 module Scanners
   class SqlmapScanner < ScannerBase
+    EXECUTABLE = 'sqlmap'.freeze
+
     def tool_name
       'sqlmap'
     end
@@ -35,7 +37,7 @@ module Scanners
       threads = tool_config[:threads] || 1
       delay = tool_config[:delay]
 
-      cmd = "sqlmap -u #{Shellwords.escape(url)} --batch --level=#{level} --risk=#{risk} " \
+      cmd = "#{EXECUTABLE} -u #{Shellwords.escape(url)} --batch --level=#{level} --risk=#{risk} " \
             "--output-dir=#{output_dir_path} --forms --crawl=2 --threads=#{threads}"
       cmd += " --delay=#{delay}" if delay
 
