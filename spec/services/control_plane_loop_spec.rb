@@ -105,5 +105,73 @@ RSpec.describe ControlPlaneLoop do
 
       instance.send(:tick)
     end
+
+    it 'enriches the GCS heartbeat with bus-envelope identity when provided' do
+      storage = instance_double(StorageService)
+      allow(StorageService).to receive(:new).and_return(storage)
+
+      identity = ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: 'txn-1',
+                                  environment: 'production', trace_id: 'trace-1', tp_id: 'tp-9')
+      instance = described_class.new(
+        scan_uuid: 'scan-123', job_id: 'job-456', callback_url: '',
+        gcs_bucket: 'test-bucket', callback_secret: 'secret', identity:
+      )
+
+      expect(storage).to receive(:upload_json).with(
+        'control/scan-123/heartbeat.json',
+        hash_including(transaction_id: 'txn-1', environment: 'production', trace_id: 'trace-1', tp_id: 'tp-9')
+      )
+
+      instance.send(:tick)
+    end
+  end
+
+  describe '#run_loop' do
+    it 'ticks, then keeps ticking until stopped' do
+      allow(loop_instance).to receive(:tick)
+      allow(loop_instance).to receive(:sleep) { loop_instance.instance_variable_set(:@running, false) }
+      loop_instance.instance_variable_set(:@running, true)
+
+      loop_instance.send(:run_loop)
+
+      expect(loop_instance).to have_received(:tick).at_least(:once)
+    end
+
+    it 'logs and exits if the loop body crashes' do
+      allow(loop_instance).to receive(:sleep)
+      allow(loop_instance).to receive(:tick).and_raise('crash')
+      allow(Penetrator.logger).to receive(:error)
+      loop_instance.instance_variable_set(:@running, true)
+
+      loop_instance.send(:run_loop)
+
+      expect(Penetrator.logger).to have_received(:error).with(/Loop crashed: crash/)
+    end
+  end
+
+  describe '#safe_call' do
+    it 'logs and swallows a timeout' do
+      allow(Penetrator.logger).to receive(:warn)
+      loop_instance.send(:safe_call, 'thing') { raise Timeout::Error }
+      expect(Penetrator.logger).to have_received(:warn).with(/thing timed out/)
+    end
+
+    it 'logs and swallows a StandardError' do
+      allow(Penetrator.logger).to receive(:warn)
+      loop_instance.send(:safe_call, 'thing') { raise 'boom' }
+      expect(Penetrator.logger).to have_received(:warn).with(/thing error: boom/)
+    end
+  end
+
+  describe '#check_cancel' do
+    it 'flips cancelled? when the flag reader reports a cancel' do
+      allow(ControlFlagReader).to receive_messages(
+        enabled?: true, new: instance_double(ControlFlagReader, cancelled?: true)
+      )
+
+      loop_instance.send(:check_cancel)
+
+      expect(loop_instance.cancelled?).to be(true)
+    end
   end
 end
