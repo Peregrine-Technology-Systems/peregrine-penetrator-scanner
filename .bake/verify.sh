@@ -25,4 +25,15 @@ for t in $PROBE_TOOLS; do
 done
 [ -n "$MISSING" ] && { echo "FAIL: probe binaries missing from PATH:$MISSING"; exit 1; }
 
-echo "[.bake/verify] OK: $(ruby -v); gems satisfied; bin/scan present; all probe tools on PATH ($(echo "$PROBE_TOOLS" | tr '\n' ' '))"
+# Runtime dependencies the EXECUTABLE-derived list above can't capture — a probe's
+# shim can be on PATH while its interpreter/runtime is absent, so the binary check
+# passes but the probe dies at runtime (silent-OK). Assert them positively
+# (scanner#1026): `retire` is a Node tool (needs `node`), `zap` execs a JVM (needs
+# `java`), and `nmap` is the recon tool infra bakes for future recon use.
+MISSING_DEPS=""
+for d in node java nmap; do
+  command -v "$d" >/dev/null 2>&1 || MISSING_DEPS="$MISSING_DEPS $d"
+done
+[ -n "$MISSING_DEPS" ] && { echo "FAIL: probe runtime deps missing from PATH:$MISSING_DEPS"; exit 1; }
+
+echo "[.bake/verify] OK: $(ruby -v); gems satisfied; bin/scan present; all probe tools on PATH ($(echo "$PROBE_TOOLS" | tr '\n' ' ')); runtime deps present (node java nmap)"
