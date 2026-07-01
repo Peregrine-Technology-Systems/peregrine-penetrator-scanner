@@ -226,11 +226,19 @@ flowchart LR
         N1 ---|parallel| S1
     end
 
+    subgraph "Phase 4: API Fuzz"
+        direction TB
+        A1["SchemathesisScanner<br/>Unauthenticated, schema-driven<br/>API fuzzing (auto-discovered schema)"]
+    end
+
     F1 & F2 --> Z1
     Z1 --> N1 & S1
+    N1 & S1 --> A1
 ```
 
-Discovered URLs from Phase 1 are fed into subsequent phases, expanding the scan surface.
+Discovered URLs from Phase 1 are fed into subsequent phases, expanding the scan surface. The diagrams above show a representative subset of the fleet's **ten probes**; the full set and the tool→phase mapping live in the `thorough` profile (`config/scan_profiles/thorough.yml`) and [docs/probe_categories.md](probe_categories.md).
+
+**Black-box, unauthenticated by policy.** No phase authenticates to the target — every probe runs as an unauthenticated external party would. The **API-fuzz** phase stays inside that boundary: `SchemathesisScanner` *discovers* a publicly reachable OpenAPI/GraphQL schema (a schema URL is data, not a credential) and is honestly **not-applicable** — empty findings, logged — when no schema is reachable without logging in, rather than fabricating a pass.
 
 ---
 
