@@ -18,7 +18,7 @@ echo "[.bake/install] gems vendored: $(bundle list 2>/dev/null | grep -c '\*') g
 # (tracked in the infrastructure repo). Until then these are our app-layer deps,
 # like our gems. ──
 sudo apt-get update -qq
-sudo apt-get install -y -qq nikto nmap
+sudo apt-get install -y -qq nikto nmap python3-pip   # python3-pip: base image has no pip3 (#1030)
 sudo pip3 install --quiet --break-system-packages "schemathesis==4.22.1"   # pin 4.x → parser alignment (#1018/#1020)
 # retire.js needs Node 20+ (ubuntu 24.04 apt nodejs is too old) → NodeSource 22
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - >/dev/null
