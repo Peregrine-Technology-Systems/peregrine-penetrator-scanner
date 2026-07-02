@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites errors="0" failures="2" skipped="0" tests="2" time="4.620457">
+  <testsuite name="schemathesis" hostname="proteus.local" errors="0" failures="2" skipped="0" tests="2" time="4.620457">
+    <testcase name="GET /api/echo" time="2.432674">
+      <failure type="failure">1. Test Case ID: nGpfsu
+
+- Server error
+
+- Undocumented HTTP status code
+
+    Received: 500
+    Documented: 200
+
+[500] Internal Server Error:
+
+    `&lt;h1&gt;Internal Server Error&lt;/h1&gt;`
+
+Reproduce with:
+
+    curl -X GET https://generous-acc-labour-mapping.trycloudflare.com/api/echo</failure>
+    </testcase>
+    <testcase name="GET /api/user/{id}" time="2.187783">
+      <failure type="failure">1. Test Case ID: Bqbgi9
+
+- Unsupported methods
+
+    TRACE returned 405 without required `Allow` header
+
+    Add `Allow` header listing supported methods (required by RFC 9110)
+
+[405] Method Not Allowed:
+
+    `&lt;html&gt;
+    &lt;head&gt;&lt;title&gt;405 Not Allowed&lt;/title&gt;&lt;/head&gt;
+    &lt;body&gt;
+    &lt;center&gt;&lt;h1&gt;405 Not Allowed&lt;/h1&gt;&lt;/center&gt;
+    &lt;hr&gt;&lt;center&gt;cloudflare&lt;/center&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;`
+
+Reproduce with:
+
+    curl -X TRACE https://generous-acc-labour-mapping.trycloudflare.com/api/user/0</failure>
+      <failure type="failure">1. Test Case ID: Uxi88h
+
+- Response violates schema
+
+    "email" is a required property
+
+    Schema:
+
+        {
+            "required": [
+                "id",
+                "email"
+            ],
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                }
+            }
+        }
+
+    Value:
+
+        {
+            "id": 0
+        }
+
+[200] OK:
+
+    `{"id":0}`
+
+Reproduce with:
+
+    curl -X GET https://generous-acc-labour-mapping.trycloudflare.com/api/user/1</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

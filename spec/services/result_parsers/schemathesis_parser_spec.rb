@@ -46,6 +46,31 @@ RSpec.describe ResultParsers::SchemathesisParser do
     end
   end
 
+  describe '#parse against the real multi-failure scanme fixture (#1036)' do
+    # Real schemathesis output where one testcase has 2 <failure> elements and
+    # another bundles 2 check bullets in one <failure> — the case the earlier
+    # single-failure-per-testcase parser silently under-reported.
+    subject(:findings) { described_class.new(Penetrator.root.join('spec/fixtures/schemathesis_multifailure.xml')).parse }
+
+    it 'emits one finding per (failure x check), dropping nothing' do
+      expect(findings.length).to eq(4)
+      expect(findings.map { |f| f['tool_check_id'] }).to contain_exactly(
+        'server_error', 'status_code_conformance', 'unsupported_method_conformance', 'response_schema_conformance'
+      )
+    end
+
+    it 'captures BOTH bullets of a single multi-check failure (echo: server_error + undocumented status)' do
+      echo = findings.select { |f| f['title'].include?('/api/echo') }
+      expect(echo.map { |f| f['tool_check_id'] }).to contain_exactly('server_error', 'status_code_conformance')
+    end
+
+    it 'captures the schema-violation in the SECOND failure element (previously dropped)' do
+      schema = findings.find { |f| f['tool_check_id'] == 'response_schema_conformance' }
+      expect(schema).to include('finding_type' => 'misconfiguration', 'severity' => 'low')
+      expect(schema['title']).to include('/api/user/{id}')
+    end
+  end
+
   describe '#parse edge cases' do
     it 'returns [] for a suite with only skipped/passed testcases' do
       xml = <<~XML
