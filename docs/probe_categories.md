@@ -64,13 +64,22 @@ scope choice, not a limitation to be worked around.
 |---|---|---|
 | **trufflehog** | Scans page source + fetched files for hardcoded secrets (API keys, private keys, tokens) | `probe: secrets` → `secret` |
 
+## 6. API testing
+
+*Exercise a declared API surface against its own contract.*
+
+| Probe | What it does | Emits |
+|---|---|---|
+| **schemathesis** | Unauthenticated, schema-driven API fuzzing — auto-discovers a *publicly reachable* OpenAPI/GraphQL schema and fuzzes every operation it declares (server errors, response-schema violations, status/method conformance) | `probe: api-fuzz` → `vulnerability` (5xx) / `misconfiguration` (conformance) |
+
 ---
 
 ## The shape at a glance
 
-- **5 categories** across the nine probes.
+- **6 categories** across the ten probes.
 - **Recon (2)** feed → **DAST (3)** + **known-vuln matching (2)** test the app →
-  **crypto (1)** and **secrets (1)** cover two orthogonal exposure classes.
+  **crypto (1)**, **secrets (1)**, and **API testing (1)** cover three orthogonal
+  exposure classes.
 - Coverage spans the layers well: network/transport (testssl), web app
   (zap/sqlmap/nikto), dependencies (retire.js), known-CVE surface (nuclei), and
   data leakage (trufflehog) — with amass/ffuf widening the surface all the others test.
@@ -86,11 +95,12 @@ scope choice, not a limitation to be worked around.
   decision, not a gap to be filled. The credential-free slice (detecting *missing*
   authentication and exposed/unauth-reachable surface) is already covered by
   nuclei / ffuf / nikto / zap surfacing exposures.
-- **Roadmap — unauthenticated API-schema fuzzing.** The one genuine coverage
-  addition consistent with the posture: **schema-driven API fuzzing** (e.g.
-  schemathesis) run **unauthenticated** against a publicly reachable OpenAPI/GraphQL
-  schema. A schema-source URL is data, not a credential, so this stays inside the
-  black-box boundary. Tracked in scanner #1018.
+- **Delivered — unauthenticated API-schema fuzzing (Category 6, shipped v1.5.0).**
+  The fleet's first API-testing coverage: **schema-driven API fuzzing** (schemathesis)
+  runs **unauthenticated** against a publicly reachable OpenAPI/GraphQL schema. A
+  schema-source URL is data, not a credential, so this stays inside the black-box
+  boundary; when no schema is reachable unauthenticated it is honestly *not-applicable*
+  rather than logging in. (#1018)
 
 ---
 
@@ -107,3 +117,4 @@ scope choice, not a limitation to be worked around.
 | retire.js | Known-vuln matching (SCA) | sca | outdated-component |
 | testssl.sh | Transport / crypto | tls | misconfiguration |
 | trufflehog | Secrets exposure | secrets | secret |
+| schemathesis | API testing | api-fuzz | vulnerability / misconfiguration |
