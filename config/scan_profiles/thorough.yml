@@ -48,3 +48,14 @@ phases:
       - tool: trufflehog
         timeout: 600
     parallel: true
+  - name: api_fuzz
+    tools:
+      # Unauthenticated, schema-driven API fuzzing (#1018). Auto-discovers a
+      # publicly reachable OpenAPI schema; NOT-APPLICABLE (0 findings) if none is
+      # reachable without logging in. Optional `schema_url:` overrides discovery.
+      - tool: schemathesis
+        timeout: 1200
+        rate_limit: "5/s"
+        max_failures: 100
+        workers: 2
+        request_timeout: 10

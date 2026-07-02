@@ -1,28 +1,53 @@
 # frozen_string_literal: true
 
 module Bus
-  # Transport seam for bus publishes (scanner#1005). The scanner is publish-side
-  # only, so this is the single point the publish substrate is bound. Call-sites
-  # depend only on this interface, so the real bus-identity adapter (per-message
-  # rotating key + AEAD + subject-as-AAD) drops in behind `build` without touching
-  # ScanOrchestrator / ControlPlaneLoop / bin/scan.
+  # Scanner-side wrapper over the bus-identity adapter (peregrine_bus, scanner#1009).
+  # The scanner is publish-side only: it emits scan.completed + heartbeats through
+  # this, never raw Pub/Sub. The adapter owns subjects, envelope, crypto, and the
+  # substrate mapping; this wrapper adds the three scanner-side concerns:
   #
-  # NOT YET WIRED: this seam ships ahead of the adapter and ahead of infra's
-  # pre-wiring review of the concrete Subjects. `build` returns a NullPublisher, so
-  # constructing a publisher is inert; the durable GCS control/ writes remain the
-  # real signal until the adapter is wired and reviewed.
+  #   1. Disabled mode — the production substrate (peregrine_bus_gcs) and the
+  #      Monitor-injected keyset land at deploy and are not present yet, so `build`
+  #      returns a publisher with no adapter that no-ops. The durable GCS control/
+  #      writes remain the signal until the substrate + keys are injected.
+  #   2. Serialization — payload hashes are JSON-encoded to the bytes the adapter
+  #      seals (the adapter takes opaque plaintext).
+  #   3. Fail-soft — a bus publish must never fail a scan; on error we log and fall
+  #      back to the durable GCS control/ write.
   class Publisher
-    # @return [Publisher] the active publisher — NullPublisher until the adapter
-    #   ships and is wired here (the one line that changes at cutover).
+    # Env-driven default. Disabled (no adapter) until a substrate + keyset are
+    # wired at deploy. Tests and the deploy path use `.for` to inject a real adapter.
     def self.build
-      NullPublisher.new
+      new(AdapterEnv.adapter)
     end
 
-    # @param subject [String] a canonical Bus::Subjects subject
-    # @param payload [Hash] claim-check pointer + identity (never raw bytes)
-    # @param key [String, nil] partition/liveness key (tp-id for heartbeats)
-    def publish(subject:, payload:, key: nil)
-      raise NotImplementedError, "#{self.class}#publish"
+    # Construct a publisher over a concrete substrate + key provider — the seam the
+    # tests (MemorySubstrate + StaticKeyProvider) and the future deploy wiring use.
+    def self.for(substrate:, key_provider:, t_mode: false)
+      new(Peregrine::Bus::Adapter.new(substrate:, key_provider:, t_mode:))
+    end
+
+    def initialize(adapter)
+      @adapter = adapter
+    end
+
+    def enabled?
+      !@adapter.nil?
+    end
+
+    # Seal + write `payload` (a Hash) to a canonical subject. Returns the object id,
+    # or nil when disabled / on a publish error (the GCS control/ write is the
+    # durable fallback in both cases).
+    def publish(subject, payload)
+      unless @adapter
+        Penetrator.logger.debug("[Bus] disabled — drop subject=#{subject}")
+        return nil
+      end
+
+      @adapter.publish(subject, JSON.generate(payload))
+    rescue StandardError => e
+      Penetrator.logger.warn("[Bus] publish failed (#{subject}): #{e.message}")
+      nil
     end
   end
 end

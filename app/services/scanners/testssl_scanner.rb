@@ -5,6 +5,8 @@ module Scanners
   # certificate, known TLS vulnerabilities). Discovery-phase, one run per target
   # URL. Output normalized by ResultParsers::TestsslParser. See #48.
   class TestsslScanner < ScannerBase
+    EXECUTABLE = 'testssl.sh'.freeze
+
     def tool_name
       'testssl'
     end
@@ -29,7 +31,7 @@ module Scanners
       # --quiet: no banner; --color 0: no ANSI in output; --jsonfile: flat JSON.
       # NOT --fast: that flag distorts output (cipher-by-cipher skipped, emits
       # cmdline/engine noise) — let it run the full, accurate check within timeout.
-      cmd = "testssl.sh --jsonfile #{output_file} --quiet --color 0"
+      cmd = "#{EXECUTABLE} --jsonfile #{output_file} --quiet --color 0"
       cmd += " --severity #{tool_config[:severity]}" if tool_config[:severity]
       "#{cmd} #{Shellwords.escape(url)}"
     end

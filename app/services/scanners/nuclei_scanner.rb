@@ -4,6 +4,8 @@ module Scanners
       'wordpress' => %w[http/technologies/wordpress/ http/cves/wordpress/ http/vulnerabilities/wordpress/]
     }.freeze
 
+    EXECUTABLE = 'nuclei'.freeze
+
     def tool_name
       'nuclei'
     end
@@ -26,7 +28,7 @@ module Scanners
     private
 
     def build_command(urls_file, output_file)
-      cmd = "nuclei -l #{urls_file} -jsonl -o #{output_file} -silent"
+      cmd = "#{EXECUTABLE} -l #{urls_file} -jsonl -o #{output_file} -silent"
 
       cmd += " -severity #{tool_config[:severity_filter]}" if tool_config[:severity_filter]
 

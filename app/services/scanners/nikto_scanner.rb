@@ -2,6 +2,8 @@ require 'digest'
 
 module Scanners
   class NiktoScanner < ScannerBase
+    EXECUTABLE = 'nikto'.freeze
+
     def tool_name
       'nikto'
     end
@@ -26,7 +28,7 @@ module Scanners
     private
 
     def build_command(url, output_file)
-      cmd = "nikto -h #{Shellwords.escape(url)} -Format json -output #{output_file}"
+      cmd = "#{EXECUTABLE} -h #{Shellwords.escape(url)} -Format json -output #{output_file}"
 
       cmd += " -Tuning #{tool_config[:tuning]}" if tool_config[:tuning]
       cmd += " -Pause #{tool_config[:pause]}" if tool_config[:pause]

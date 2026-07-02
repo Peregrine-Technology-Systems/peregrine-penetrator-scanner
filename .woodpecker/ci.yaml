@@ -37,12 +37,19 @@ steps:
 
   - name: test
     image: bash
+    environment:
+      # Authenticates bundler's clone of the private peregrine_bus git-dep (#1009).
+      GH_TOKEN:
+        from_secret: gh_token
     commands:
       - scripts/woodpecker/test.sh
     depends_on: []
 
   - name: lint
     image: bash
+    environment:
+      GH_TOKEN:
+        from_secret: gh_token
     commands:
       - scripts/woodpecker/lint.sh
     depends_on: []

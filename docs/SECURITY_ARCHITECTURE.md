@@ -16,7 +16,7 @@ title: Security Architecture
 
 ## Threat Model
 
-This addresses risks to the scanning engine. The engine executes offensive security tooling against authorized target URLs and produces vulnerability findings. Notably, it operates with a **minimal secret surface**: it performs **unauthenticated** scanning (it holds no target credentials), and its CVE-enrichment lookups run **without an API key**.
+This addresses risks to the scanning engine. The engine executes offensive security tooling against authorized target URLs and produces vulnerability findings. Notably, it operates with a **minimal secret surface**: it performs **black-box, unauthenticated** scanning **as a matter of policy** — it holds no target credentials and never logs in. It also holds **no third-party API keys**: CVE/exploit enrichment is a downstream concern (removed from this engine in the thin-probe cutover), so no NVD-style key is provisioned here. Even the API-fuzz probe stays inside the boundary — it *discovers* a publicly reachable schema (a schema URL is data, not a credential) rather than authenticating.
 
 ### Assets
 
@@ -27,8 +27,9 @@ This addresses risks to the scanning engine. The engine executes offensive secur
 | Source code | Low/Medium | Public repository (intentionally — see below). |
 
 **Not assets for this engine (common misconceptions):**
-- **Target credentials** — the engine scans **unauthenticated**; it does not log in to targets and stores no target credentials. (A latent `auth_config` schema field exists but is **not used** by any scanner.)
-- **Tool/CVE API keys** — CVE enrichment runs **keyless**; no NVD (or similar) API key is provisioned or held.
+- **Target credentials** — the engine scans **black-box / unauthenticated as a matter of policy**; it does not log in to targets, performs no authenticated or access-control (BOLA/IDOR) testing, and stores no target credentials. (A latent `auth_config` schema field exists but is **not used** by any scanner.) This shrinks the blast radius: a compromised scanner VM leaks no target logins because it never held any.
+- **API schemas are not credentials** — the API-fuzz probe (schemathesis) discovers a *publicly reachable* OpenAPI/GraphQL schema and reports **not-applicable** when none is reachable unauthenticated; it never authenticates to obtain one.
+- **Tool/CVE API keys** — no third-party API key is provisioned or held; CVE/exploit enrichment is downstream, out of scope for this engine.
 
 ### Threat Actors
 

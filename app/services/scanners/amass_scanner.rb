@@ -6,6 +6,8 @@ module Scanners
   # results. Returns discovered_urls (not findings) — these feed into @discovered_urls
   # in ScanOrchestrator to expand the target surface for subsequent phases. See #47.
   class AmassScanner < ScannerBase
+    EXECUTABLE = 'amass'.freeze
+
     def tool_name
       'amass'
     end
@@ -39,11 +41,11 @@ module Scanners
     end
 
     def enum_command(domain, db_dir)
-      "amass enum -passive -d #{Shellwords.escape(domain)} -dir #{db_dir} -timeout 5"
+      "#{EXECUTABLE} enum -passive -d #{Shellwords.escape(domain)} -dir #{db_dir} -timeout 5"
     end
 
     def subs_command(domain, db_dir, subs_file)
-      "amass subs -d #{Shellwords.escape(domain)} -dir #{db_dir} > #{subs_file} 2>/dev/null"
+      "#{EXECUTABLE} subs -d #{Shellwords.escape(domain)} -dir #{db_dir} > #{subs_file} 2>/dev/null"
     end
 
     def subs_output_file(domain)

@@ -22,6 +22,7 @@ require 'faker'
 require 'webmock/rspec'
 
 Dir[Penetrator.root.join('spec', 'factories', '**', '*.rb')].each { |f| require f }
+Dir[Penetrator.root.join('spec', 'support', '**', '*.rb')].each { |f| require f }
 
 # Configure FactoryBot for Sequel (uses save instead of save!)
 FactoryBot.define do
@@ -30,6 +31,7 @@ end
 
 RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
+  config.include BusHelper
 
   config.before(:suite) do
     DatabaseCleaner[:sequel].strategy = :transaction

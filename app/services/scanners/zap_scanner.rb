@@ -25,6 +25,8 @@ module Scanners
 
     class ZapError < StandardError; end
 
+    EXECUTABLE = 'zap'.freeze
+
     def tool_name
       'zap'
     end
@@ -85,7 +87,7 @@ module Scanners
 
     def spawn_daemon
       Process.spawn(
-        'zap', '-daemon', '-host', DAEMON_HOST, '-port', DAEMON_PORT.to_s,
+        EXECUTABLE, '-daemon', '-host', DAEMON_HOST, '-port', DAEMON_PORT.to_s,
         '-config', 'api.disablekey=true',
         '-config', 'api.addrs.addr.name=.*', '-config', 'api.addrs.addr.regex=true',
         %i[out err] => File::NULL, :pgroup => 0
