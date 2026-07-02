@@ -23,6 +23,7 @@ module ResultParsers
       'undocumented http status code' => { id: 'status_code_conformance', severity: 'low', type: 'misconfiguration' },
       'malformed media type' => { id: 'content_type_conformance', severity: 'low', type: 'misconfiguration' },
       'missing content-type header' => { id: 'content_type_conformance', severity: 'low', type: 'misconfiguration' },
+      'unsupported methods' => { id: 'unsupported_method_conformance', severity: 'low', type: 'misconfiguration' },
       'response time exceeded' => { id: 'response_time', severity: 'medium', type: 'misconfiguration' }
     }.freeze
 
@@ -34,7 +35,7 @@ module ResultParsers
 
     def parse
       doc = REXML::Document.new(File.read(@output_file))
-      doc.get_elements('//testcase').filter_map { |tc| build(tc) }
+      doc.get_elements('//testcase').flat_map { |tc| findings_for(tc) }
     rescue REXML::ParseException, Errno::ENOENT => e
       Penetrator.logger.error("[SchemathesisParser] Parse error: #{e.message}")
       []
@@ -42,21 +43,29 @@ module ResultParsers
 
     private
 
-    # A testcase with no <failure> (passed or <skipped>) yields no finding.
-    def build(testcase)
-      failure = testcase.elements['failure']
-      return nil unless failure
-
+    # A testcase can carry MULTIPLE <failure> elements (one per failing scenario),
+    # and a single <failure> can bundle MULTIPLE check bullets (`- Server error`
+    # + `- Undocumented HTTP status code`). Emit one contract finding per
+    # (failure × check) so nothing is dropped — reading only the first failure /
+    # first bullet silently lost findings (#1036, caught by the scanme smoke).
+    # A testcase with no <failure> (passed or <skipped>) yields nothing.
+    def findings_for(testcase)
       operation = testcase.attribute('name')&.value.to_s
       method, path = operation.split(' ', 2)
-      body = failure.text.to_s
 
-      check = classify(body)
+      testcase.get_elements('failure').flat_map do |failure|
+        body = failure.text.to_s
+        check_labels(body).map { |label| build_finding(operation, method, path, body, label) }
+      end
+    end
+
+    def build_finding(operation, method, path, body, label)
+      check = classify(label)
       Contract.finding(
         source_tool: 'schemathesis', probe: 'api-fuzz', finding_type: check[:type],
         tool_check_id: check[:id],
         severity: check[:severity],
-        title: "#{check_label(body)} — #{operation}".strip,
+        title: "#{label} — #{operation}".strip,
         location: Contract.web(url: repro_url(body) || path, method: method, parameter: nil),
         evidence: {
           'status_code' => status_code(body),
@@ -67,18 +76,18 @@ module ResultParsers
       )
     end
 
-    def classify(body)
-      label = check_label(body).downcase
-      CHECK_MAP.fetch(label) do
+    def classify(label)
+      CHECK_MAP.fetch(label.downcase) do
         Penetrator.logger.warn("[SchemathesisParser] Unmapped check '#{label}' — defaulting to info; pin it in CHECK_MAP if it matters")
         DEFAULT_CHECK
       end
     end
 
-    # The check name is the first "- <text>" bullet after the Test Case ID line.
-    def check_label(body)
-      m = body.match(/^\s*-\s+(.+?)\s*$/)
-      m ? m[1] : 'API fuzz failure'
+    # Every "- <text>" bullet in the failure body is a distinct check the scenario
+    # tripped. Falls back to a single generic label when the body has no bullets.
+    def check_labels(body)
+      labels = body.scan(/^\s*-\s+(.+?)\s*$/).flatten
+      labels.empty? ? ['API fuzz failure'] : labels
     end
 
     def status_code(body)
