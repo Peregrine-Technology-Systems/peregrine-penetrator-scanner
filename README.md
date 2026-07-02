@@ -89,14 +89,14 @@ For the full architecture reference, see [docs/ARCHITECTURE.md](docs/ARCHITECTUR
 | **Nuclei** | Targeted | Template-based CVE scanning (11,000+ templates) | ✅ |
 | **testssl.sh** | Discovery | TLS/SSL configuration analysis | ✅ |
 | **trufflehog** | Targeted | Hardcoded secret / credential detection | ✅ |
-| **sqlmap** | Targeted | SQL injection detection | — |
-| **ffuf** | Discovery | Directory/endpoint enumeration | — |
-| **Nikto** | Discovery | Server misconfiguration detection | — |
-| **retire.js** | Targeted | Vulnerable JS library detection | — |
-| **amass** | Discovery | Subdomain enumeration | — |
-| **schemathesis** | API Fuzz | Unauthenticated, schema-driven API fuzzing — auto-discovers a *publicly reachable* OpenAPI/GraphQL schema and fuzzes every operation it declares | — |
+| **sqlmap** | Targeted | SQL injection detection | ✅ |
+| **ffuf** | Discovery | Directory/endpoint enumeration | ✅ |
+| **Nikto** | Discovery | Server misconfiguration detection | ✅ |
+| **retire.js** | Targeted | Vulnerable JS library detection | ✅ |
+| **amass** | Discovery | Subdomain enumeration | ✅ |
+| **schemathesis** | API Fuzz | Unauthenticated, schema-driven API fuzzing — auto-discovers a *publicly reachable* OpenAPI/GraphQL schema and fuzzes every operation it declares | ✅ |
 
-> The **`reduced`** profile (below) is the org-native production profile today: it uses **only the baked tool set** (testssl + ZAP baseline + Nuclei + trufflehog). The remaining tools (`—`) are wired into the codebase and the fuller profiles, pending the bakery vendoring their apt/npm dependencies into the image.
+> **As of v1.5.0, all ten probe tools are baked into `txn-scanner-app`** — the app-layer bake (`.bake/install.sh`) installs nikto, nmap, retire (+ Node), and schemathesis alongside the base image's tools, and `.bake/verify.sh` fails the bake if any is missing (drift-proof, derived from `SCANNER_MAP`). The fuller profiles (`standard`/`deep`/`thorough`) are therefore now runnable on the production image; the earlier `reduced`-only limitation (waiting on the bakery to vendor apt/npm deps) is lifted.
 
 > **Testing posture — black-box, unauthenticated (policy).** Every probe runs against the target exactly as an unauthenticated external party would see it. The scanner performs **no authenticated testing** — no provisioned credentials, no login, no access-control (BOLA/IDOR) testing. This is a deliberate scope choice. Even the API-fuzz probe stays inside the boundary: it *discovers* a publicly reachable schema (a schema URL is data, not a credential) and reports **not-applicable** when none is reachable, rather than logging in. See [docs/probe_categories.md](docs/probe_categories.md).
 
@@ -141,7 +141,7 @@ SCAN_PROFILE=standard TARGET_NAME="My App" TARGET_URLS='["https://example.com"]'
 | `smoke` | <30s | -- | -- | Infra validation (tools, GCS, secrets) |
 | `smoke-test` | <30s | -- | -- | Canned findings for deploy verification |
 
-> **`reduced` is the current org-native production profile** — its tool set matches exactly what is baked into `txn-scanner-app` (see [Security Tool Stack](#security-tool-stack)). The other profiles describe the full design intent; they become runnable on the baked image as the remaining tools are vendored in.
+> **As of v1.5.0 the full ten-probe toolchain is baked into `txn-scanner-app`** (see [Security Tool Stack](#security-tool-stack)), so every profile — including `standard`/`deep`/`thorough` — is runnable on the production image. `reduced` remains available as a lighter profile; it is no longer a baking-imposed ceiling.
 
 ---
 
