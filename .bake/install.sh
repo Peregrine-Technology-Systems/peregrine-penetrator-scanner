@@ -18,8 +18,17 @@ echo "[.bake/install] gems vendored: $(bundle list 2>/dev/null | grep -c '\*') g
 # (tracked in the infrastructure repo). Until then these are our app-layer deps,
 # like our gems. ──
 sudo apt-get update -qq
-sudo apt-get install -y -qq nikto nmap python3-pip   # python3-pip: base image has no pip3 (#1030)
-sudo pip3 install --quiet --break-system-packages "schemathesis==4.22.1"   # pin 4.x → parser alignment (#1018/#1020)
+sudo apt-get install -y -qq nikto nmap python3-venv
+# schemathesis in a dedicated venv (#1033), NOT a system pip install. Bare
+# `pip install --break-system-packages` fought Debian-managed site-packages
+# (typing_extensions had no RECORD → uninstall abort, #1033). A venv isolates
+# schemathesis + all its deps from system Python entirely — no --break-system /
+# --ignore-installed whack-a-mole — and matches the original intent (#1026). The
+# entrypoint is symlinked onto PATH so `command -v schemathesis` (verify.sh)
+# resolves. Pin 4.x → parser alignment (#1018/#1020).
+sudo python3 -m venv /opt/schemathesis
+sudo /opt/schemathesis/bin/pip install --quiet "schemathesis==4.22.1"
+sudo ln -sf /opt/schemathesis/bin/schemathesis /usr/local/bin/schemathesis
 # retire.js needs Node 20+ (ubuntu 24.04 apt nodejs is too old) → NodeSource 22
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - >/dev/null
 sudo apt-get install -y -qq nodejs
