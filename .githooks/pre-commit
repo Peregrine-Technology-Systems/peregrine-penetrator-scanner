@@ -45,6 +45,26 @@ if [ -x scripts/woodpecker/check-sensitive-content.sh ]; then
 fi
 
 # ============================================================
+# 1c. RuboCop must pass on staged Ruby files (#690)
+#     spec/test files are CODE, not docs — they get linted too. Catches lint
+#     offenses locally instead of letting them reach (and fail) CI. Runs even on
+#     a "docs-only" commit if any .rb/.rake is staged (a spec-only change is code).
+# ============================================================
+STAGED_RUBY=$(echo "$ALL_STAGED" | grep -E '\.(rb|rake)$' || true)
+if [ -n "$STAGED_RUBY" ]; then
+  echo "Running RuboCop on staged Ruby files..."
+  # --force-exclusion honors .rubocop.yml excludes (infra/**, bin/**) even for
+  # explicitly-named files, so this matches the CI `rubocop --parallel` verdict.
+  # shellcheck disable=SC2086
+  if bundle exec rubocop --force-exclusion --format simple $STAGED_RUBY; then
+    echo "✅ RuboCop passed"
+  else
+    echo "❌ RuboCop found offenses (spec/test files are linted too — they are code)"
+    FAILED=1
+  fi
+fi
+
+# ============================================================
 # 2. All tests must pass (skip for docs-only)
 # ============================================================
 if [ "$DOCS_ONLY" = false ]; then

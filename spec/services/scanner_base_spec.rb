@@ -146,6 +146,26 @@ RSpec.describe ScannerBase do
     end
   end
 
+  describe '#detect_rate_limiting (429 signal preserved after Slack removal, #816)' do
+    let(:scanner) { test_scanner_class.new(scan) }
+
+    it 'logs a warning when stderr reports HTTP 429 / rate limiting' do
+      expect(Penetrator.logger).to receive(:warn).with(/rate limit exceeded \(HTTP 429\)/)
+      scanner.send(:detect_rate_limiting, 'error: 429 Too Many Requests')
+    end
+
+    it 'does not warn when stderr has no rate-limit signal' do
+      expect(Penetrator.logger).not_to receive(:warn)
+      scanner.send(:detect_rate_limiting, 'some unrelated stderr output')
+    end
+
+    it 'does not warn on empty or nil stderr' do
+      expect(Penetrator.logger).not_to receive(:warn)
+      scanner.send(:detect_rate_limiting, '')
+      scanner.send(:detect_rate_limiting, nil)
+    end
+  end
+
   describe '#tool_name' do
     it 'raises NotImplementedError on the base class' do
       scanner = described_class.new(scan)

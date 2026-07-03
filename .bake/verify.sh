@@ -36,4 +36,14 @@ for d in node java nmap; do
 done
 [ -n "$MISSING_DEPS" ] && { echo "FAIL: probe runtime deps missing from PATH:$MISSING_DEPS"; exit 1; }
 
-echo "[.bake/verify] OK: $(ruby -v); gems satisfied; bin/scan present; all probe tools on PATH ($(echo "$PROBE_TOOLS" | tr '\n' ' ')); runtime deps present (node java nmap)"
+# Positively assert the baked sqlmap recognizes --report-json (scanner#822/#1069).
+# The SqlmapParser reads sqlmap's --report-json output; the flag is absent below
+# sqlmap 1.10.7. `command -v sqlmap` above only proves the binary exists — a base
+# pinned to the old 1.8.9 would pass every check above and then silently emit zero
+# SQLi findings in production (the flag would be an "unrecognized argument"). Grep
+# the advanced help so a base regression fails the bake HERE, loudly, instead of as
+# a silent-OK empty result in a real scan.
+sqlmap -hh 2>&1 | grep -q -- '--report-json' \
+  || { echo "FAIL: baked sqlmap does not support --report-json (base pin < 1.10.7); SqlmapParser would silently emit zero findings"; exit 1; }
+
+echo "[.bake/verify] OK: $(ruby -v); gems satisfied; bin/scan present; all probe tools on PATH ($(echo "$PROBE_TOOLS" | tr '\n' ' ')); runtime deps present (node java nmap); sqlmap supports --report-json"

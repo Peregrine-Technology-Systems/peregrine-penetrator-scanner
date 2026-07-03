@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Run RSpec natively on the Woodpecker agent — ruby 4.0.5 via chruby + .ruby-version
-# (parity with the txn-scanner-app baked image; no Docker). bundler ships with the ruby.
+# (parity with the txn-scanner-app baked image). bundler ships with the ruby.
 # Enforces: 100% test pass + 90% minimum line coverage
 MINIMUM_COVERAGE=90
 BRANCH="${CI_COMMIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"

@@ -17,6 +17,10 @@ RSpec.describe ScanOrchestrator do
     allow(ScanProfile).to receive(:load).and_return(mock_profile)
     stub_request(:head, 'https://example.com/').to_return(status: 200)
     stub_default_fingerprinter_registry
+    # Probe binaries aren't installed in the test env; assume present by default so
+    # standard-scan specs exercise the scan path. The dedicated #824 context below
+    # overrides this to test the real missing-binary preflight.
+    allow_any_instance_of(described_class).to receive(:tool_on_path?).and_return(true) # rubocop:disable RSpec/AnyInstance
   end
 
   def stub_default_fingerprinter_registry
@@ -198,6 +202,37 @@ RSpec.describe ScanOrchestrator do
 
       orchestrator.execute
       expect(WebMock).not_to have_requested(:head, 'https://example.com/')
+    end
+
+    context 'with the binary preflight on a standard scan (#824)' do
+      it 'fails fast — before probing the target — when a required binary is missing' do
+        allow(orchestrator).to receive(:tool_on_path?).and_return(false)
+
+        expect { orchestrator.execute }.to raise_error(/binaries missing from PATH: zap/)
+
+        scan.refresh
+        expect(scan.status).to eq('failed')
+        expect(scan.error_message).to include('scanner-base image')
+        # fail-fast: the target must not have been reached
+        expect(WebMock).not_to have_requested(:head, 'https://example.com/')
+      end
+
+      it 'proceeds when every required binary is present' do
+        allow(orchestrator).to receive(:tool_on_path?).and_return(true)
+        expect { orchestrator.execute }.not_to raise_error
+      end
+
+      it 'does not run the binary preflight for smoke_test profiles' do
+        # Stub the profile BEFORE the orchestrator is built — the constructor memoizes
+        # ScanProfile.load, so referencing `orchestrator` first would lock in the
+        # standard profile from the outer before block.
+        smoke_profile = instance_double(ScanProfile, name: 'smoke-test', smoke: false, smoke_test: true, phases: [])
+        allow(ScanProfile).to receive(:load).and_return(smoke_profile)
+        allow(SmokeTestRunner).to receive(:new).and_return(instance_double(SmokeTestRunner, run: nil))
+        allow(orchestrator).to receive(:tool_on_path?).and_return(false)
+
+        expect { orchestrator.execute }.not_to raise_error
+      end
     end
 
     it 'marks scan as failed on unrecoverable error' do
