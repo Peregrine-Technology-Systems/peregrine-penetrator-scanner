@@ -23,7 +23,6 @@ class ScannerBase
     else
       update_status('failed', result[:error], exit_code: result[:exit_code])
       logger.error("[#{tool_name}] Failed: #{result[:error]}")
-      alert_on_failure(result)
     end
 
     result
@@ -156,23 +155,15 @@ class ScannerBase
     end
   end
 
+  # Surface a target rate-limit (HTTP 429) in the logs. This used to fan out a Slack
+  # alert; Slack is decommissioned (#816), so the signal lives in the structured log
+  # (a candidate for a bus telemetry event later — tracked in #828).
   def detect_rate_limiting(stderr)
     return if stderr.nil? || stderr.empty?
     return unless stderr.match?(/429|rate.limit|too many requests/i)
 
-    Notifiers::SlackAlert.send_alert(
-      scan:, tool: tool_name, severity: :warning,
-      message: 'Receiving HTTP 429 responses — target rate limit exceeded',
-      action: 'Consider reducing rate_limit in scan profile'
-    )
-  end
-
-  def alert_on_failure(result)
-    Notifiers::SlackAlert.send_alert(
-      scan:, tool: tool_name, severity: :error,
-      message: result[:error] || 'Tool execution failed',
-      action: 'Check tool installation and configuration'
-    )
+    logger.warn("[#{tool_name}] Target rate limit exceeded (HTTP 429) — " \
+                'consider reducing rate_limit in the scan profile')
   end
 
   def update_status(status, error = nil, findings_count: nil, exit_code: nil, started_at: nil)

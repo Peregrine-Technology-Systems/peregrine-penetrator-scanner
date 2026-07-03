@@ -17,8 +17,17 @@ echo "[.bake/install] gems vendored: $(bundle list 2>/dev/null | grep -c '\*') g
 # home: the declarative oven catalog once its apt/pip/npm admission plane exists
 # (tracked in the infrastructure repo). Until then these are our app-layer deps,
 # like our gems. ──
+# Pinned probe-tool versions (#821) — deterministic, traceable scanner-base builds.
+# apt/npm fail loudly (set -e) if a pin is unavailable; that IS the signal to bump
+# deliberately rather than drift silently. Kept in lockstep with .bake/probe-versions.txt.
+# (The base-image tools — ZAP, sqlmap, nuclei, ffuf, trufflehog, testssl, amass — are
+# pinned in the infra oven catalog, not here; tracked in the infrastructure repo.)
+NIKTO_VERSION="1:2.1.5-3.1"   # Ubuntu 24.04 (noble) multiverse
+RETIRE_VERSION="5.4.3"        # npm
+SCHEMATHESIS_VERSION="4.22.1" # pip (parser alignment, #1018/#1020)
+
 sudo apt-get update -qq
-sudo apt-get install -y -qq nikto nmap python3-venv
+sudo apt-get install -y -qq "nikto=${NIKTO_VERSION}" nmap python3-venv
 # schemathesis in a dedicated venv (#1033), NOT a system pip install. Bare
 # `pip install --break-system-packages` fought Debian-managed site-packages
 # (typing_extensions had no RECORD → uninstall abort, #1033). A venv isolates
@@ -27,10 +36,10 @@ sudo apt-get install -y -qq nikto nmap python3-venv
 # entrypoint is symlinked onto PATH so `command -v schemathesis` (verify.sh)
 # resolves. Pin 4.x → parser alignment (#1018/#1020).
 sudo python3 -m venv /opt/schemathesis
-sudo /opt/schemathesis/bin/pip install --quiet "schemathesis==4.22.1"
+sudo /opt/schemathesis/bin/pip install --quiet "schemathesis==${SCHEMATHESIS_VERSION}"
 sudo ln -sf /opt/schemathesis/bin/schemathesis /usr/local/bin/schemathesis
 # retire.js needs Node 20+ (ubuntu 24.04 apt nodejs is too old) → NodeSource 22
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - >/dev/null
 sudo apt-get install -y -qq nodejs
-sudo npm install -g retire >/dev/null
-echo "[.bake/install] probe tools: nikto=$(command -v nikto || echo MISSING) schemathesis=$(schemathesis --version 2>/dev/null || echo MISSING) retire=$(command -v retire || echo MISSING) nmap=$(command -v nmap || echo MISSING)"
+sudo npm install -g "retire@${RETIRE_VERSION}" >/dev/null
+echo "[.bake/install] probe tools (pinned): nikto=$(nikto -Version 2>/dev/null | awk '/Nikto/{print $NF; exit}' || command -v nikto || echo MISSING) schemathesis=$(schemathesis --version 2>/dev/null || echo MISSING) retire=$(retire --version 2>/dev/null || echo MISSING) nmap=$(command -v nmap || echo MISSING)"
