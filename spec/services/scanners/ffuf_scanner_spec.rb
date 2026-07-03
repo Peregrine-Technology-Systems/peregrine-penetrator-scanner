@@ -61,6 +61,35 @@ RSpec.describe Scanners::FfufScanner do
       end
     end
 
+    context 'with a wordlist path containing shell metacharacters (#824)' do
+      let(:tool_config) { { wordlist: '/tmp/word list;$(id).txt', timeout: 300 } }
+
+      it 'shell-escapes the wordlist so the metacharacters cannot break or inject' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          # The raw path must NOT appear unescaped, and the escaped form must be present.
+          expect(cmd).to include("-w #{Shellwords.escape('/tmp/word list;$(id).txt')}")
+          expect(cmd).not_to include('-w /tmp/word list;$(id).txt')
+          success_result
+        end
+
+        scanner.run
+      end
+    end
+
+    context 'with a non-integer threads value (#824)' do
+      let(:tool_config) { { threads: '20; rm -rf /', timeout: 300 } }
+
+      it 'coerces threads to an integer, dropping the injected suffix' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include('-t 20')
+          expect(cmd).not_to include('rm -rf')
+          success_result
+        end
+
+        scanner.run
+      end
+    end
+
     it 'returns discovered_urls from findings' do
       parsed = [
         { source_tool: 'ffuf', url: 'https://example.com/admin', severity: 'info' },

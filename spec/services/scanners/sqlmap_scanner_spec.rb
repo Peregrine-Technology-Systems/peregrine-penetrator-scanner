@@ -67,6 +67,51 @@ RSpec.describe Scanners::SqlmapScanner do
         expect(scanner).to receive(:run_command).twice.and_return(success_result)
         scanner.run
       end
+
+      it 'caps the per-URL timeout by the aggregate remaining budget (#824)' do
+        expect(scanner).to receive(:run_command).twice do |_cmd, **opts|
+          # per_url_timeout is 600; remaining (of the 1800 default) is larger, so
+          # each call gets the per-URL cap, never an unbounded value.
+          expect(opts[:timeout]).to be <= 600
+          expect(opts[:timeout]).to be > 0
+          success_result
+        end
+        scanner.run
+      end
+
+      it 'stops the loop and logs when the aggregate deadline is exceeded (#824)' do
+        allow(scanner).to receive(:aggregate_timeout).and_return(0)
+        expect(scanner).not_to receive(:run_command)
+        expect(Penetrator.logger).to receive(:warn).with(/Aggregate timeout 0s reached.*skipping 2 remaining/)
+        result = scanner.run
+        expect(result[:success]).to be true
+        expect(result[:findings]).to eq([])
+      end
+    end
+
+    context 'with an output path / config containing shell metacharacters (#824)' do
+      it 'shell-escapes the output-dir path' do
+        weird = Pathname.new('/tmp/out dir;$(id)')
+        allow(scanner).to receive(:output_dir).and_return(weird)
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include("--output-dir=#{Shellwords.escape(weird.join('sqlmap_output').to_s)}")
+          expect(cmd).not_to include('--output-dir=/tmp/out dir;$(id)')
+          success_result
+        end
+        scanner.run
+      end
+
+      it 'coerces a non-integer level, dropping any injected suffix' do
+        scanner_cfg = described_class.new(scan, { level: '2; rm -rf /', timeout: 600 })
+        allow(scanner_cfg).to receive(:run_command).and_return(success_result)
+        allow(ResultParsers::SqlmapParser).to receive(:new).and_return(instance_double(ResultParsers::SqlmapParser, parse: []))
+        expect(scanner_cfg).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include('--level=2')
+          expect(cmd).not_to include('rm -rf')
+          success_result
+        end
+        scanner_cfg.run
+      end
     end
 
     it 'parses results for each URL' do
