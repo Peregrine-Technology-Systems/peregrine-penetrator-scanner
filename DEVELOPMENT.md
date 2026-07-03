@@ -9,7 +9,7 @@ Developer guide for the web application penetration testing platform.
 - **SQLite3** (development database)
 - **GCP CLI** (`gcloud`) -- only needed for GCS/BigQuery export and org-native ops
 
-> **No Docker.** The scanner runs **natively** — there is no `Dockerfile`, `docker-compose`, or container build. In production it executes on a single-use VM booted from a pre-baked GCE image (`txn-scanner-app`); see [README → Image Model](README.md#image-model). Report generation (PDF, etc.) lives in a separate Penetrator component, not this repo.
+> **Native (non-container).** The scanner runs **natively** — there is no container build of any kind. In production it executes on a single-use VM booted from a pre-baked GCE image (`txn-scanner-app`); see [README → Image Model](README.md#image-model). Report generation (PDF, etc.) lives in a separate Penetrator component, not this repo.
 
 ### Security Tools (for local scanning)
 
@@ -188,7 +188,7 @@ bundle exec rake scan:run
 bundle exec rake scan:generate_templates CVE_IDS=CVE-2024-1234,CVE-2024-5678
 ```
 
-## Production Execution (org-native, no Docker)
+## Production Execution (org-native, non-container)
 
 There is no container workflow. In production a scan runs **natively** on a single-use GCE VM booted from the pre-baked `txn-scanner-app` image (runtime + security tools + the app's gems all placed at bake time; nothing installed at scan time), as a dedicated non-root identity, and the VM self-deletes when done. Locally, run the app directly (`bundle exec rake scan:run` / `bin/scan`) with the env vars below — the same entrypoint the VM uses.
 

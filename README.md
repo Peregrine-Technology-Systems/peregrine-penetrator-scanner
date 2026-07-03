@@ -125,7 +125,7 @@ bin/scan --profile quick --name "My App" --urls '["https://example.com"]'
 SCAN_PROFILE=standard TARGET_NAME="My App" TARGET_URLS='["https://example.com"]' bin/scan
 ```
 
-> The scanner runs **natively — no Docker**. In production it executes on a **single-use VM booted from a pre-baked image** (`txn-scanner-app`); see [Image Model](#image-model) and [CI/CD](#cicd).
+> The scanner runs **natively (non-container)**. In production it executes on a **single-use VM booted from a pre-baked image** (`txn-scanner-app`); see [Image Model](#image-model) and [CI/CD](#cicd).
 
 ---
 
@@ -189,7 +189,7 @@ The scanner evolved from a Rails monolith into a lean Sequel CLI, and then into 
 
 ## Image Model
 
-The scanner is **not a Docker image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` a vetted base image via the infrastructure image-build pipeline — with the runtime, the security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). A scan boots a **single-use VM from the `txn-scanner-app` family**, runs natively as a dedicated non-root identity, and self-deletes. There is no per-environment image — environment is selected per scan via `SCAN_MODE`.
+The scanner is **not a container image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` a vetted base image via the infrastructure image-build pipeline — with the runtime, the security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). A scan boots a **single-use VM from the `txn-scanner-app` family**, runs natively as a dedicated non-root identity, and self-deletes. There is no per-environment image — environment is selected per scan via `SCAN_MODE`.
 
 ---
 

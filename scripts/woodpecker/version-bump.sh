@@ -11,7 +11,7 @@ set -euo pipefail
 #    ## Unreleased above so future PRs have a target section
 # 4. Commit + tag
 # 5. Create GitHub Release with the notes body (every tag gets a Release)
-# 6. Tag Docker image for traceability (scanner:staging → scanner:vX.Y.Z).
+# 6. The git tag fires the org-native image bake (bake.yaml) for traceability.
 #    Production promotion is owned by release.yaml on the Deployment event (#808).
 
 REPO="Peregrine-Technology-Systems/peregrine-penetrator-scanner"
@@ -347,7 +347,7 @@ fi
 
 # Production release is org-native: the git tag created above fires .woodpecker/
 # bake.yaml (repository_dispatch → infra TP baker), which bakes the gem-complete
-# txn-scanner-app GCE image FROM txn-scanner-base. No Docker image tagging here.
+# txn-scanner-app GCE image FROM txn-scanner-base. No container image tagging here.
 
 # Pipeline-status notification (tag / release) is published to the ci-events
 # Pub/Sub topic by the notify-status step (#780); Slack is deprecated, so no

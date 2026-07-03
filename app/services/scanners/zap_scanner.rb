@@ -2,10 +2,10 @@ require 'uri'
 require 'timeout'
 
 module Scanners
-  # Drives OWASP ZAP natively via the daemon + HTTP API (no Docker).
+  # Drives OWASP ZAP natively via the daemon + HTTP API.
   #
-  # Replaces the Docker-era `zap-baseline.py`/`/zap/wrk` wrappers (which need
-  # ZAP's docker/ python scripts on PATH — not present in the org-native image)
+  # Replaces the legacy `zap-baseline.py`/`/zap/wrk` wrappers (which need ZAP's
+  # bundled helper python scripts on PATH — not present in the org-native image)
   # with the ZAP daemon, started via the baked `zap` shim (the image puts `zap`
   # on PATH → execs zap.sh; `zap.sh` itself is NOT on PATH — #4132 pilot caught
   # the wrong name). Java + ZAP are baked in.
