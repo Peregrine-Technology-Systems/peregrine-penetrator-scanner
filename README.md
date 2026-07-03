@@ -44,8 +44,7 @@ flowchart TD
     B -->|smoke| D[SmokeChecker<br/>Infra validation]
     B -->|quick/standard/thorough| E[ScanOrchestrator]
 
-    E --> N[Slack: Scan Started]
-    N --> P[Preflight Check<br/>HTTP HEAD targets, 10s timeout]
+    E --> P[Preflight Check<br/>HTTP HEAD targets, 10s timeout]
     P -->|unreachable| X[Fail + self-terminate]
     P -->|reachable| F[Discovery tools]
     F -->|critical failure| X
@@ -179,7 +178,6 @@ The scanner evolved from a Rails monolith into a lean Sequel CLI, and then into 
 | Mechanism | Prevents |
 |-----------|---------|
 | Per-tool timeout (default 600s) | Individual tool hangs |
-| Scan-start Slack notification | Silent scan launches |
 | `scan_started.json` marker | Detect started-but-never-completed scans |
 | `control/<uuid>/status.json` completion (#906) | GCS-only completion signal (no callback) |
 | Cancel via GCS `control.json` | Stop stale/runaway scans |
