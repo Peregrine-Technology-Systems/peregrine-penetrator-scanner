@@ -1,10 +1,17 @@
 # Bake the gem-complete txn-scanner-app GCE image via infra's keyless TP baker.
-# Fires on release tags (after the release is cut). Scanner stays on Woodpecker
-# and holds no org identity — this only POSTs a repository_dispatch to the infra
-# baker, which federates (GitHub OIDC -> tp-baker@peregrine-production) and bakes txn-scanner-app FROM txn-scanner-base inside GCP via repository_dispatch (event_type=bake-tp). (scanner#927 / infra)
+# Fires on release tags (after the release is cut) and on manual runs. Scanner
+# stays on Woodpecker and holds no org identity — this only POSTs a
+# repository_dispatch to the infra baker, which federates (GitHub OIDC ->
+# tp-baker@peregrine-production) and bakes txn-scanner-app FROM txn-scanner-base
+# inside GCP via repository_dispatch (event_type=bake-tp). (scanner#927 / infra)
+#
+# The `event: manual` trigger runs a verification bake off a branch (e.g.
+# development) so the prod tag is never the first test of install.sh on a new
+# base image — the bake-verify-before-prod gate (#1069).
 when:
   - event: tag
     ref: refs/tags/v*
+  - event: manual
 
 labels:
   platform: linux
@@ -18,4 +25,5 @@ steps:
       - gsutil cp gs://ci-runners-de-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
       - chmod +x /tmp/get-gh-token.sh
       - eval "$(/tmp/get-gh-token.sh)"
-      - scripts/woodpecker/bake-dispatch.sh
+      # Bake the tag on release, else the branch on a manual verification run.
+      - scripts/woodpecker/bake-dispatch.sh "${CI_COMMIT_TAG:-$CI_COMMIT_BRANCH}"
