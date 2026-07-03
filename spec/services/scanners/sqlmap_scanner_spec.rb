@@ -33,6 +33,21 @@ RSpec.describe Scanners::SqlmapScanner do
       scanner.run
     end
 
+    it 'requests machine-readable output via --report-json (#822)' do
+      expect(scanner).to receive(:run_command) do |cmd, **_opts|
+        expect(cmd).to match(/--report-json=\S+sqlmap_report_[a-f0-9]+\.json/)
+        success_result
+      end
+
+      scanner.run
+    end
+
+    it 'warns loudly when no report is produced (unsupported flag / crash, #822)' do
+      # run_command is stubbed, so no report file is written — the guard should fire.
+      expect(Penetrator.logger).to receive(:warn).with(/no --report-json output.*may not support/)
+      scanner.run
+    end
+
     context 'with default level and risk' do
       let(:tool_config) { { timeout: 600 } }
 
