@@ -1,6 +1,6 @@
 name: quick
-description: "Fast baseline scan - testssl + ZAP baseline + Nuclei + Nikto + retire.js + trufflehog (~10 min)"
-estimated_duration_minutes: 10
+description: "Fast baseline scan - testssl + ZAP baseline + Nuclei + Nikto + retire.js + trufflehog + bounded sqlmap (~12 min)"
+estimated_duration_minutes: 12
 rate_limit: 10
 phases:
   - name: discovery
@@ -30,4 +30,11 @@ phases:
       - tool: nikto
         timeout: 90
         tuning: "123b"
+      - tool: sqlmap
+        # Bounded scope (#1086): query-param URLs only, no --forms/--crawl — fast
+        # SQLi triage on obvious injectable parameters.
+        level: 1
+        risk: 1
+        timeout: 120
+        threads: 1
     parallel: true
