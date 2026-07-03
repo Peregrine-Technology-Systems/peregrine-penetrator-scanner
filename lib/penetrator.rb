@@ -15,6 +15,10 @@ require 'peregrine/bus'
 module Penetrator
   VERSION = File.read(File.expand_path('../VERSION', __dir__)).strip.freeze
 
+  # Ruby's Logger emits WARN/FATAL; GCP Cloud Logging's severity enum uses
+  # WARNING/CRITICAL. Map them so log-based alerting keys on the right level (#887).
+  GCP_LOG_SEVERITY = { 'WARN' => 'WARNING', 'FATAL' => 'CRITICAL' }.freeze
+
   class << self
     attr_reader :db
 
@@ -100,10 +104,35 @@ module Penetrator
 
     def build_logger
       logger = Logger.new($stdout, level: ENV.fetch('LOG_LEVEL', 'INFO'))
-      logger.formatter = proc { |severity, time, _progname, msg|
-        "#{time.strftime('%H:%M:%S')} [#{severity}] #{msg}\n"
-      }
+      logger.formatter = log_formatter
       logger
+    end
+
+    # Structured JSON when LOG_FORMAT=json (the default on TP VMs, so GCP Cloud
+    # Logging parses each line into queryable jsonPayload fields); the human-readable
+    # line otherwise, so local dev is unchanged (#887). Tool-level log lines
+    # (`[ZapScanner] …`) are unchanged — the formatter wraps them.
+    def log_formatter
+      return json_log_formatter if ENV['LOG_FORMAT'] == 'json'
+
+      proc { |severity, time, _progname, msg| "#{time.strftime('%H:%M:%S')} [#{severity}] #{msg}\n" }
+    end
+
+    # One JSON object per line. Boot-time scan context (scan_uuid / environment /
+    # scan_profile) is read from the VM env per line and compacted out when absent,
+    # so a line carries a field only when the launcher injected it.
+    def json_log_formatter
+      proc do |severity, time, _progname, msg|
+        entry = {
+          severity: GCP_LOG_SEVERITY.fetch(severity, severity),
+          message: msg.to_s,
+          timestamp: time.utc.iso8601,
+          scan_uuid: ENV.fetch('SCAN_UUID', nil),
+          environment: ENV.fetch('SCAN_MODE', nil),
+          scan_profile: ENV.fetch('SCAN_PROFILE', nil)
+        }.compact
+        "#{JSON.generate(entry)}\n"
+      end
     end
   end
 end
