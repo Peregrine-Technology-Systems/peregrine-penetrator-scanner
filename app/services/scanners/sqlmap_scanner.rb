@@ -20,20 +20,19 @@ module Scanners
       output_dir_path = output_dir.join('sqlmap_output')
       all_findings = []
 
-      injectable_urls = target_urls.select { |url| url.include?('?') }
-
-      if injectable_urls.empty?
-        logger.info('[sqlmap] No URLs with query parameters found, skipping')
+      urls = candidate_urls
+      if urls.empty?
+        logger.info("[sqlmap] No candidate URLs for #{scope_label} scope, skipping")
         return { success: true, findings: [], skipped: true }
       end
 
       deadline = monotonic + aggregate_timeout
-      injectable_urls.each_with_index do |url, index|
+      urls.each_with_index do |url, index|
         remaining = deadline - monotonic
         if remaining <= 0
           # Loud, not silent: name how many URLs were dropped by the ceiling.
           logger.warn("[sqlmap] Aggregate timeout #{aggregate_timeout}s reached — " \
-                      "skipping #{injectable_urls.length - index} remaining injectable URL(s)")
+                      "skipping #{urls.length - index} remaining URL(s)")
           break
         end
 
@@ -72,10 +71,36 @@ module Scanners
       # points + DBMS) so the parser reads JSON, not the human log (#822).
       cmd = "#{EXECUTABLE} -u #{Shellwords.escape(url)} --batch --level=#{level} --risk=#{risk} " \
             "--output-dir=#{Shellwords.escape(output_dir_path.to_s)} " \
-            "--report-json=#{Shellwords.escape(report_path.to_s)} --forms --crawl=2 --threads=#{threads}"
+            "--report-json=#{Shellwords.escape(report_path.to_s)} --threads=#{threads}"
+      # Broad scope only: let sqlmap discover forms and crawl from the seed URL so
+      # form-based injection on a parameterless page (e.g. a POST login) is reachable.
+      # Omitted in bounded scope — the query-param filter already scoped the input,
+      # keeping the run fast and its coverage honest (#1086).
+      cmd += " --forms --crawl=#{crawl_depth}" if crawl_forms?
       cmd += " --delay=#{delay.to_i}" if delay
 
       cmd
+    end
+
+    # Bounded scope (default): only URLs that already carry a query parameter — the
+    # classic targeted case, fast. Broad scope (crawl_forms: true): every target URL
+    # is a seed and sqlmap's own --forms/--crawl expand the surface from there, so
+    # form-based injection on a parameterless URL is reachable. Per-profile (#1086):
+    # quick/standard are bounded, thorough/deep are broad.
+    def candidate_urls
+      crawl_forms? ? target_urls : target_urls.select { |url| url.include?('?') }
+    end
+
+    def crawl_forms?
+      tool_config[:crawl_forms] ? true : false
+    end
+
+    def crawl_depth
+      (tool_config[:crawl_depth] || 2).to_i
+    end
+
+    def scope_label
+      crawl_forms? ? 'broad (forms + crawl)' : 'query-param'
     end
 
     # One report file per URL so a multi-URL run doesn't clobber earlier results.

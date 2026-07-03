@@ -77,7 +77,7 @@ RSpec.describe ScanResultsExporter do
       it 'includes profile metadata' do
         expect(tool_chain[:profile][:name]).to eq('standard')
         expect(tool_chain[:profile][:description]).to be_present
-        expect(tool_chain[:profile][:estimated_duration_minutes]).to eq(40)
+        expect(tool_chain[:profile][:estimated_duration_minutes]).to eq(45)
       end
 
       it 'includes planned tools from profile YAML' do

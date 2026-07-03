@@ -38,6 +38,10 @@ phases:
         rate_limit: 5
         bulk_size: 2
       - tool: sqlmap
+        # Broad scope (#1086): seed every target URL and let --forms + --crawl
+        # expand the surface, so form-based injection on parameterless pages is
+        # reachable. Bounded by the aggregate timeout (#824).
+        crawl_forms: true
         level: 3
         risk: 2
         timeout: 1200

@@ -1,6 +1,6 @@
 name: standard
-description: "Standard scan - Subdomain discovery + Full ZAP + Nuclei + Nikto + ffuf + retire.js + trufflehog"
-estimated_duration_minutes: 40
+description: "Standard scan - Subdomain discovery + Full ZAP + Nuclei + Nikto + ffuf + retire.js + trufflehog + bounded sqlmap"
+estimated_duration_minutes: 45
 rate_limit: 8
 phases:
   - name: subdomain_discovery
@@ -38,4 +38,10 @@ phases:
         timeout: 300
       - tool: trufflehog
         timeout: 300
+      - tool: sqlmap
+        # Bounded scope (#1086): query-param URLs only, no --forms/--crawl.
+        level: 1
+        risk: 1
+        timeout: 300
+        threads: 1
     parallel: true
