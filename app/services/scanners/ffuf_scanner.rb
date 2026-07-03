@@ -51,8 +51,12 @@ module Scanners
       ResultParsers::FfufParser.new(output_file).parse
     end
 
+    # Contract findings are string-keyed with the URL nested under
+    # location.url (ResultParsers::Contract.web) — there is no top-level :url.
+    # A flat `pluck(:url)` returned all nils, silently emptying discovered_urls
+    # so ffuf's endpoints never reached the targeted phases (#1085).
     def extract_discovered_urls(findings)
-      findings.pluck(:url).compact.uniq
+      findings.filter_map { |f| f.dig('location', 'url') }.uniq
     end
   end
 end

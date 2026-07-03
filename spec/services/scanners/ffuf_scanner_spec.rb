@@ -7,6 +7,16 @@ RSpec.describe Scanners::FfufScanner do
   let(:scanner) { described_class.new(scan, tool_config) }
   let(:success_result) { { stdout: '', stderr: '', exit_code: 0, success: true } }
 
+  # Real Contract shape — string keys, url nested under location.url (not a flat
+  # top-level :url). A fixture with a top-level :url would mask #1085.
+  def ffuf_finding(url)
+    ResultParsers::Contract.finding(
+      source_tool: 'ffuf', probe: 'content-discovery', finding_type: 'exposure',
+      severity: 'info', title: "Discovered endpoint: #{url}",
+      location: ResultParsers::Contract.web(url:)
+    )
+  end
+
   describe '#tool_name' do
     it 'returns ffuf' do
       expect(scanner.tool_name).to eq('ffuf')
@@ -91,10 +101,7 @@ RSpec.describe Scanners::FfufScanner do
     end
 
     it 'returns discovered_urls from findings' do
-      parsed = [
-        { source_tool: 'ffuf', url: 'https://example.com/admin', severity: 'info' },
-        { source_tool: 'ffuf', url: 'https://example.com/login', severity: 'info' }
-      ]
+      parsed = [ffuf_finding('https://example.com/admin'), ffuf_finding('https://example.com/login')]
       # Create the output file so parse_results finds it
       url = 'https://example.com'
       output_file = scanner.send(:output_dir).join("ffuf_#{Digest::MD5.hexdigest(url)}.json")
@@ -109,10 +116,8 @@ RSpec.describe Scanners::FfufScanner do
     end
 
     it 'deduplicates discovered URLs' do
-      parsed = [
-        { source_tool: 'ffuf', url: 'https://example.com/admin', severity: 'info' },
-        { source_tool: 'ffuf', url: 'https://example.com/admin', severity: 'info' }
-      ]
+      admin = ffuf_finding('https://example.com/admin')
+      parsed = [admin, admin]
       url = 'https://example.com'
       output_file = scanner.send(:output_dir).join("ffuf_#{Digest::MD5.hexdigest(url)}.json")
       FileUtils.touch(output_file)
