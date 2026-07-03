@@ -92,10 +92,6 @@ puts '  Published scan completion to the bus (no-op while the substrate is unwir
 # Audit: scan completed
 audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
 
-# Send notifications
-puts "\n--- Notifications ---"
-NotificationService.new(scan).notify
-
 # Summary
 scan.refresh
 summary = scan.summary || {}

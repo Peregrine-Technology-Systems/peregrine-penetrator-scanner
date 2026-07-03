@@ -7,7 +7,7 @@ Developer guide for the web application penetration testing platform.
 - **Ruby 4.0.5** (managed via `chruby`/`rbenv`/`asdf`; the repo pins it in `.ruby-version`)
 - **Bundler** (`gem install bundler`)
 - **SQLite3** (development database)
-- **GCP CLI** (`gcloud`) -- only needed for GCS/BigQuery export and org-native ops
+- **GCP CLI** (`gcloud`) -- only needed for GCS output and org-native ops
 
 > **Native (non-container).** The scanner runs **natively** — there is no container build of any kind. In production it executes on a single-use VM booted from a pre-baked GCE image (`txn-scanner-app`); see [README → Image Model](README.md#image-model). Report generation (PDF, etc.) lives in a separate Penetrator component, not this repo.
 
@@ -176,8 +176,8 @@ TARGET_NAME="My App" \
 TARGET_URLS='["https://target.example.com"]' \
 bundle exec rake scan:run
 
-# With AI analysis enabled
-ANTHROPIC_API_KEY=your-key-here \
+# Run against GCS output (findings uploaded to the bucket + control/ artifacts)
+GCS_BUCKET=my-scan-bucket \
 SCAN_PROFILE=standard \
 TARGET_URLS='["https://target.example.com"]' \
 bundle exec rake scan:run
@@ -233,7 +233,7 @@ Follow these steps to integrate a new security tool:
 3. Map tool-specific fields to the Finding model attributes: `source_tool`, `severity`, `title`, `description`, `url`, `cwe_id`, `cve_id`, `evidence`
 4. Write specs with representative fixture data covering normal output, empty results, and malformed input
 
-Existing parsers for reference: `zap_parser.rb`, `nuclei_parser.rb`, `sqlmap_parser.rb`, `ffuf_parser.rb`, `nikto_parser.rb`, `dawn_parser.rb`.
+Existing parsers for reference: `zap_parser.rb`, `nuclei_parser.rb`, `sqlmap_parser.rb`, `ffuf_parser.rb`, `nikto_parser.rb`, `testssl_parser.rb` (all emit the shared `ResultParsers::Contract` shape).
 
 ## Git Workflow
 
@@ -272,96 +272,84 @@ gh pr create --base develop --title "feat: describe the change"
 
 ```
 peregrine-penetrator-scanner/
-  app/
-    controllers/          # Thin controllers (10-15 lines max)
-    models/               # Domain models with UUID PKs
-      target.rb           # Scan targets (name, urls, auth, scope)
-      scan.rb             # Scan execution records
-      finding.rb          # Vulnerability findings
-      report.rb           # Generated reports
-      scan_profile.rb     # Scan profile value object
-    services/             # Business logic layer
-      scan_orchestrator.rb      # Central scan coordinator
-      scanner_base.rb           # Base class for all scanners
-      finding_normalizer.rb     # SHA256 fingerprint dedup
-      cve_intelligence_service.rb  # NVD/CISA/EPSS/OSV enrichment
-      ai_analyzer.rb            # Claude API triage + summary
-      report_generator.rb       # JSON/HTML/PDF generation
-      notification_service.rb   # Slack + email notifications
-      storage_service.rb        # GCS/local file storage
-      nuclei_template_generator.rb  # Custom Nuclei templates
-      scanners/           # Tool-specific scanner implementations
-        zap_scanner.rb
-        nuclei_scanner.rb
-        sqlmap_scanner.rb
-        ffuf_scanner.rb
-        nikto_scanner.rb
-        dawn_scanner.rb
-      result_parsers/     # Tool output normalization
-        zap_parser.rb
-        nuclei_parser.rb
-        sqlmap_parser.rb
-        ffuf_parser.rb
-        nikto_parser.rb
-        dawn_parser.rb
-      ai/                 # AI analysis components
-        claude_client.rb
-        executive_summarizer.rb
-        finding_triager.rb
-      cve_clients/        # CVE intelligence API clients
-        nvd_client.rb
-        epss_client.rb
-        kev_client.rb
-        osv_client.rb
-      notifiers/          # Notification channel implementations
-        slack_notifier.rb
-        email_notifier.rb
-      report_generators/  # Report format implementations
-        json_report.rb
-        html_report.rb
-        pdf_report.rb
-        helpers.rb
-    views/
-      reports/
-        scan_report.html.erb   # HTML report template
-  config/
-    scan_profiles/        # YAML scan configurations
-      reduced.yml           # org-native production profile (baked-tools-only)
-      quick.yml
-      standard.yml
-      thorough.yml
-  custom_templates/
-    nuclei/               # Custom Nuclei templates
-  db/                     # Migrations (SQLite)
-  .bake/                  # Bake-time contract for the txn-scanner-app image (install.sh + verify.sh)
-  infra/                  # Pulumi IaC (Ruby) for GCP
-    main.rb
-    Pulumi.yaml
+  bin/
+    scan                        # Entrypoint — boots, runs ScanOrchestrator, exports to GCS
   lib/
+    penetrator.rb               # boot!/boot_services!; logger (JSON when LOG_FORMAT=json); SQLite DB
+    models/                     # Sequel ORM models (UUID PKs)
+      scan.rb                   # Scan execution records (belongs_to target, has findings)
+      finding.rb                # Findings (full probe contract in `data` + promoted columns)
+      target.rb                 # Scan targets (urls, auth, scope)
     tasks/
-      scan.rake           # Rake tasks for scan execution
-  spec/                   # RSpec test suite
-  storage/
-    reports/              # Local report storage
+      scan.rake                 # Rake wrapper around the bin/scan flow
+  app/
+    models/
+      scan_profile.rb           # Scan-profile value object (plain class, not Sequel)
+    services/                   # Business logic layer
+      scan_orchestrator.rb          # Central scan coordinator (phases + SCANNER_MAP)
+      scanner_base.rb               # Base class for all probe scanners (shell-out, timeouts, 429)
+      scan_results_exporter.rb      # Builds the v2.0 JSON envelope, uploads to GCS
+      scan_completion_publisher.rb  # Bus claim-check completion event (completed/failed)
+      scan_summary_builder.rb       # Severity/tool summary
+      scan_identity.rb              # Scan identity (uuid, transaction_id, trace)
+      storage_service.rb            # GCS blob storage (local fallback when GCS_BUCKET unset)
+      audit_logger.rb               # Structured audit events
+      control_plane_loop.rb         # 30s heartbeat + cancel loop (thread)
+      control_flag_reader.rb        # Reads GCS control.json (cancel signal)
+      heartbeat_sender.rb           # HTTP callback heartbeat (legacy transport)
+      instance_metadata.rb          # GCE metadata (boot image, VM name)
+      smoke_checker.rb              # `smoke` profile — tool/secret/GCS availability
+      smoke_test_runner.rb          # `smoke-test` profile — canned-findings E2E
+      scanners/                     # The 10 probe wrappers (one per tool)
+        zap_scanner.rb  nuclei_scanner.rb  sqlmap_scanner.rb  ffuf_scanner.rb
+        nikto_scanner.rb  testssl_scanner.rb  retirejs_scanner.rb
+        trufflehog_scanner.rb  amass_scanner.rb  schemathesis_scanner.rb
+      result_parsers/               # Tool output → probe-output-contract findings
+        <one parser per probe>.rb + contract.rb   # (10 parsers + shared contract helper)
+      fingerprinters/               # Passive CMS fingerprinting
+        fingerprinter_base.rb  fingerprinter_registry.rb
+        generic_fingerprinter.rb  wordpress_fingerprinter.rb
+      bus/                          # peregrine_bus publish adapter (inert until substrate wired)
+        publisher.rb  adapter_env.rb
+    assets/images/                  # Logo assets
+  config/
+    scan_profiles/              # YAML scan profiles (phases → tools)
+      quick.yml  standard.yml  thorough.yml
+      reduced.yml               # baked-tools-only production pilot profile
+      smoke.yml  smoke-test.yml
+      deep.yml                  # symlink → thorough.yml
+  db/
+    sequel_migrations/          # Sequel migrations (per-VM ephemeral SQLite)
+    seeds.rb
+  .bake/                        # Bake-time contract for the txn-scanner-app image
+    install.sh  run.sh  verify.sh  probe-versions.txt
+  infra/                        # Pulumi IaC (Ruby) for GCP
+    main.rb  Pulumi.yaml
+  spec/                         # RSpec test suite
+  storage/                      # Per-VM SQLite DB (<APP_ENV>.sqlite3) + scratch
 ```
 
 ## Environment Variables
 
 Reference from `.env.example` -- never commit actual secrets:
 
+Most of these are injected by the org-native launcher; a local run only needs `SCAN_PROFILE` + `TARGET_*`.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SCAN_PROFILE` | Scan profile to use | `standard` |
+| `SCAN_PROFILE` | Scan profile (`quick`/`standard`/`thorough`/`deep`/`reduced`/`smoke`/`smoke-test`) | `standard` |
 | `TARGET_NAME` | Name for the scan target | `Example Target` |
 | `TARGET_URLS` | JSON array of target URLs | `["https://example.com"]` |
-| `GOOGLE_CLOUD_PROJECT` | GCP project ID | -- |
-| `GCS_BUCKET` | GCS bucket for report storage | `pentest-reports` |
-| `SLACK_WEBHOOK_URL` | Slack incoming webhook URL | -- |
-| `SMTP_HOST` | SMTP server hostname | `mail.authsmtp.com` |
-| `SMTP_PORT` | SMTP server port | `2525` |
-| `SMTP_USERNAME` | SMTP authentication username | -- |
-| `SMTP_PASSWORD` | SMTP authentication password | -- |
-| `SMTP_FROM` | Sender email address | `pentest@peregrine-tech.com` |
-| `NOTIFICATION_EMAIL` | Recipient for scan reports | `security@peregrine-tech.com` |
-| `ANTHROPIC_API_KEY` | Claude API key for AI analysis | -- |
-| `NVD_API_KEY` | NVD API key for CVE lookups | -- |
+| `SCAN_UUID` | Scan identity (also the `Scan` primary key); launcher-injected | generated |
+| `SCAN_MODE` / `ENVIRONMENT` | Environment tag for audit + structured logs | -- |
+| `SCAN_TIMEOUT` | Whole-scan wall-clock timeout (seconds) | `3600` |
+| `GCS_BUCKET` | GCS bucket for scan output + `control/` artifacts (empty → local fallback) | -- |
+| `JOB_ID` | Launcher job id (audit correlation) | -- |
+| `CALLBACK_URL` | Optional HTTP heartbeat base (legacy transport, removed at bus cutover) | -- |
+| `SCAN_CALLBACK_SECRET` | Bearer token for the callback heartbeat | -- |
+| `LOG_FORMAT` | `json` for Cloud Logging (the baked default), else human-readable | -- |
+| `LOG_LEVEL` | Logger level | `INFO` |
+| `APP_ENV` | App environment (selects the per-VM SQLite DB file) | `development` |
+| `BOOT_IMAGE` / `GIT_COMMIT` | Image + commit stamps for the export envelope | metadata |
+
+> **No Slack / SMTP / email / AI / CVE-API env vars.** Those integrations were extracted from the scanner (Slack in #816; AI/CVE enrichment and report generation earlier) — the scanner is a headless probe-runner that emits findings to GCS + the bus. GCS resolves its GCP project from Application Default Credentials / the GCE metadata server, so there is **no** `GOOGLE_CLOUD_PROJECT` env var in the runtime.
