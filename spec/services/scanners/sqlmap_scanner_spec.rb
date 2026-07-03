@@ -25,8 +25,9 @@ RSpec.describe Scanners::SqlmapScanner do
         expect(cmd).to include('--batch')
         expect(cmd).to include('--level=2')
         expect(cmd).to include('--risk=2')
-        expect(cmd).to include('--forms')
-        expect(cmd).to include('--crawl=2')
+        # Default config is bounded scope (#1086): no crawl/forms expansion.
+        expect(cmd).not_to include('--forms')
+        expect(cmd).not_to include('--crawl')
         success_result
       end
 
@@ -62,7 +63,7 @@ RSpec.describe Scanners::SqlmapScanner do
       end
     end
 
-    context 'with no injectable URLs' do
+    context 'with no query-param URLs (bounded scope)' do
       let(:target) { create(:target, urls: ['https://example.com/page'].to_json) }
 
       it 'skips scan and returns empty findings' do
@@ -72,6 +73,41 @@ RSpec.describe Scanners::SqlmapScanner do
         expect(result[:success]).to be true
         expect(result[:findings]).to eq([])
         expect(result[:skipped]).to be true
+      end
+    end
+
+    context 'with crawl_forms enabled (broad scope, #1086)' do
+      let(:tool_config) { { crawl_forms: true, level: 3, risk: 2, timeout: 600 } }
+
+      it 'adds --forms and --crawl so sqlmap discovers forms and crawls from the seed' do
+        expect(scanner).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include('--forms')
+          expect(cmd).to include('--crawl=2')
+          success_result
+        end
+        scanner.run
+      end
+
+      it 'honors a configurable crawl_depth' do
+        scanner_cfg = described_class.new(scan, { crawl_forms: true, crawl_depth: 3, timeout: 600 })
+        allow(scanner_cfg).to receive(:run_command).and_return(success_result)
+        allow(ResultParsers::SqlmapParser).to receive(:new)
+          .and_return(instance_double(ResultParsers::SqlmapParser, parse: []))
+        expect(scanner_cfg).to receive(:run_command) do |cmd, **_opts|
+          expect(cmd).to include('--crawl=3')
+          success_result
+        end
+        scanner_cfg.run
+      end
+
+      context 'with only a parameterless URL' do
+        let(:target) { create(:target, urls: ['https://example.com/login'].to_json) }
+
+        it 'still runs sqlmap — broad scope seeds every URL, not just ?-params' do
+          expect(scanner).to receive(:run_command).once.and_return(success_result)
+          result = scanner.run
+          expect(result[:skipped]).to be_nil
+        end
       end
     end
 
