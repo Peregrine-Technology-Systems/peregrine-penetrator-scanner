@@ -15,7 +15,7 @@ OptionParser.new do |opts|
   opts.on('-h', '--help', 'Show help') { puts opts; exit }
 end.parse!
 
-# ENV vars take precedence (backward compat with Docker/VMs)
+# ENV vars take precedence (the launcher injects scan config via the VM environment)
 profile = ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
 target_name = ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
 target_urls = JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))

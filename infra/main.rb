@@ -7,14 +7,6 @@ gcp_config = Pulumi::Config.new("gcp")
 project = gcp_config.require("project")
 region = gcp_config.get("region") || "us-central1"
 
-# Artifact Registry
-registry = Gcp::ArtifactRegistry::Repository.new("pentest-registry",
-  repository_id: "pentest",
-  location: region,
-  format: "DOCKER",
-  description: "Penetration testing platform Docker images"
-)
-
 # Cloud Storage bucket for reports
 reports_bucket = Gcp::Storage::Bucket.new("pentest-reports",
   name: "#{project}-pentest-reports",
@@ -138,7 +130,6 @@ scavenger_schedule = Gcp::CloudScheduler::Job.new("vm-scavenger-schedule",
 )
 
 # Exports
-Pulumi.export("registry_url", registry.id.apply { |_| "#{region}-docker.pkg.dev/#{project}/pentest" })
 Pulumi.export("reports_bucket", reports_bucket.name)
 Pulumi.export("service_account", scanner_sa.email)
 Pulumi.export("scavenger_function", scavenger_function.name)

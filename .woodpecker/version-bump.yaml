@@ -1,5 +1,5 @@
 # Version bump on main merge — tag release, update RELEASE_NOTES, create GitHub
-# Release. The tag fires bake.yaml (org-native txn-scanner-app bake) — no Docker.
+# Release. The tag fires bake.yaml (org-native txn-scanner-app bake).
 when:
   - event: push
     branch: main

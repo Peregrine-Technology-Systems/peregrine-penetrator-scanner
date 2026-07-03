@@ -20,5 +20,5 @@ Brief description of the issue.
 ## Environment
 - OS:
 - Ruby version:
-- Docker version:
+- Scanner image / VERSION:
 - Scan profile:

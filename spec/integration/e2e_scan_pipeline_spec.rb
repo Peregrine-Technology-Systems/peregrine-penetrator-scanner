@@ -49,6 +49,10 @@ RSpec.describe 'E2E Scan Pipeline', :integration do # rubocop:disable RSpec/Desc
     # Mock storage (no GCS in tests)
     allow_any_instance_of(StorageService).to receive(:upload) # rubocop:disable RSpec/AnyInstance
 
+    # The scanner classes are mocked above, so their binaries aren't installed here —
+    # treat the binary preflight (#824) as satisfied for this pipeline test.
+    allow_any_instance_of(ScanOrchestrator).to receive(:tool_on_path?).and_return(true) # rubocop:disable RSpec/AnyInstance
+
     # Stub preflight reachability check
     stub_request(:head, 'http://dvwa/').to_return(status: 200)
 

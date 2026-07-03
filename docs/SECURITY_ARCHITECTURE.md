@@ -58,7 +58,7 @@ The engine's secret surface is deliberately small. Secrets are held in a **manag
 Scans run on **single-use, ephemeral VMs** that exist only for the scan's duration:
 
 - **No standing compute and no state between scans.** The VM self-deletes on completion *and* on failure (an exit trap owns teardown); orphans are reaped by an independent backstop.
-- **Native (non-container) execution.** The runtime executes the scanner natively; the containerized model has been **removed** (there are no `docker/` assets or `Dockerfile*` in the repo).
+- **Native (non-container) execution.** The runtime executes the scanner natively; the containerized model has been **removed** (there are no container-build assets in the repo).
 - **Dedicated, non-root service identity.** The scan process runs as a purpose-scoped, least-privilege identity — not root, and not a broad/shared identity.
 - **Vetted, content-addressed base image.** The VM image is produced by a build pipeline that pins and content-verifies every tool and dependency before placement, and **strips build tooling (compilers, package managers) from the runtime image**. The runtime never installs or compiles anything at boot.
 
@@ -115,7 +115,7 @@ All outbound connections are TLS. The VM exposes no inbound listeners.
 
 - **Ruby dependencies** are pinned via `Gemfile.lock` and **vendored into the image at build time** — the runtime never runs `bundle install` or compiles gems.
 - **Tool binaries** are sourced from a **vetted, content-addressed build pipeline** (pinned + content-verified before placement), not ad-hoc runtime downloads. Build tooling is stripped from the runtime image.
-- The legacy per-tool download model has been **removed** (no `Dockerfile*`); tools come only from the vetted baked image.
+- The legacy per-tool download model has been **removed** (no container build); tools come only from the vetted baked image.
 
 ---
 
