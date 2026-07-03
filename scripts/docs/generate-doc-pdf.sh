@@ -78,9 +78,14 @@ with open('$output_file', 'w') as f:
 " 2>&1
 }
 
+# Track per-file outcome so the script exits non-zero if ANY doc failed to render
+# (the whole point of #1019: a run that produced no PDF must not exit 0).
+FAILED=0
+
 for md_file in "$@"; do
     if [ ! -f "$REPO_ROOT/$md_file" ]; then
-        echo "  ⚠ $md_file not found — skipping"
+        echo "  ⚠ $md_file not found — skipping" >&2
+        FAILED=1
         continue
     fi
 
@@ -126,34 +131,50 @@ for md_file in "$@"; do
     RENDERED="${RENDERED//\{\{CLASSIFICATION\}\}/$CLASSIFICATION}"
     RENDERED="${RENDERED//\{\{LOGO_PATH\}\}/$LOGO_BASE64}"
 
-    # Inject body using python for reliable multiline replacement
-    python3 -c "
+    # Inject {{BODY}} into the (already scalar-filled) template. Both template and
+    # body are passed as FILES to python — no markdown content is interpolated into
+    # python source, so quotes / backticks / ''' in the body can't break the render
+    # (#1019). The template-with-scalars comes from the bash replacements above.
+    TEMPLATE_TMP="/tmp/doc-template-$$.html"
+    BODY_TMP="/tmp/doc-body-$$.html"
+    RENDER_HTML="/tmp/doc-pdf-render-$$.html"
+    printf '%s' "$RENDERED" > "$TEMPLATE_TMP"
+    printf '%s' "$BODY" > "$BODY_TMP"
+    if ! python3 - "$TEMPLATE_TMP" "$BODY_TMP" "$RENDER_HTML" <<'PYEOF'
 import sys
-template = sys.stdin.read()
-with open('/tmp/doc-body-$$.html', 'r') as f:
+template_path, body_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(template_path, encoding='utf-8') as f:
+    template = f.read()
+with open(body_path, encoding='utf-8') as f:
     body = f.read()
-print(template.replace('{{BODY}}', body))
-" <<< "$RENDERED" > "/tmp/doc-pdf-render-$$.html" 2>/dev/null <<< "$(echo "$BODY" > /tmp/doc-body-$$.html && echo "$RENDERED")" || {
-        # Simple approach
-        echo "$BODY" > /tmp/doc-body-$$.html
-        python3 << PYEOF > "/tmp/doc-pdf-render-$$.html"
-with open('/tmp/doc-body-$$.html') as bf:
-    body = bf.read()
-template = '''$(cat "$TEMPLATE")'''
-template = template.replace('{{TITLE}}', '$TITLE')
-template = template.replace('{{SUBTITLE}}', '$SUBTITLE')
-template = template.replace('{{DATE}}', '$DATE')
-template = template.replace('{{CLASSIFICATION}}', '$CLASSIFICATION')
-template = template.replace('{{LOGO_PATH}}', '$LOGO_BASE64')
-template = template.replace('{{BODY}}', body)
-print(template)
+with open(out_path, 'w', encoding='utf-8') as f:
+    f.write(template.replace('{{BODY}}', body))
 PYEOF
-    }
+    then
+        echo "  ✗ $md_file — HTML injection failed (see error above)" >&2
+        rm -f "$TEMPLATE_TMP" "$BODY_TMP"
+        FAILED=1
+        continue
+    fi
+    rm -f "$TEMPLATE_TMP" "$BODY_TMP"
 
-    # Render to PDF via Puppeteer
-    CHROMIUM_PATH=$(command -v chromium 2>/dev/null || echo "/opt/homebrew/bin/chromium")
-    node -e "
+    # Render to PDF via Puppeteer. Values (output path, title, render path, chromium)
+    # are passed via the ENVIRONMENT and read from process.env — never interpolated
+    # into the JS source — so a title with a quote/backtick can't break the script
+    # (#1019). Puppeteer stderr is captured and echoed on failure instead of being
+    # discarded, so a broken render is loud, not silent (silent-OK discipline).
+    # Honor a pre-set CHROMIUM_PATH; else discover `chromium` on PATH; else leave it
+    # empty so the node step falls back to its own default (Chrome.app on macOS).
+    # (Was hardcoded to a homebrew path that doesn't exist on every machine, which
+    # silently defeated node's default — another quiet-failure path.)
+    CHROMIUM_PATH="${CHROMIUM_PATH:-$(command -v chromium 2>/dev/null || true)}"
+    NODE_LOG="/tmp/doc-pdf-node-$$.log"
+    if ! DOC_OUTPUT="$OUTPUT" DOC_TITLE="$TITLE" DOC_RENDER="$RENDER_HTML" CHROMIUM_PATH="$CHROMIUM_PATH" \
+        node -e "
 const puppeteer = require('puppeteer-core');
+const out = process.env.DOC_OUTPUT;
+const title = process.env.DOC_TITLE || '';
+const renderPath = process.env.DOC_RENDER;
 (async () => {
     const browser = await puppeteer.launch({
         headless: 'new',
@@ -161,27 +182,43 @@ const puppeteer = require('puppeteer-core');
         args: ['--no-sandbox']
     });
     const page = await browser.newPage();
-    await page.goto('file:///tmp/doc-pdf-render-$$.html', {waitUntil: 'networkidle0', timeout: 60000});
+    await page.goto('file://' + renderPath, {waitUntil: 'networkidle0', timeout: 60000});
     await page.pdf({
-        path: '$OUTPUT',
+        path: out,
         format: 'Letter',
         printBackground: true,
         displayHeaderFooter: true,
         margin: {top: '20mm', bottom: '24mm', left: '20mm', right: '20mm'},
-        headerTemplate: '<div style=\"width:100%;font-size:7px;font-family:Inter,sans-serif;color:#94a3b8;padding:0 20mm;display:flex;justify-content:space-between;letter-spacing:0.08em;text-transform:uppercase\"><span>Peregrine Technology Systems LLC</span><span>$TITLE</span></div>',
+        headerTemplate: '<div style=\"width:100%;font-size:7px;font-family:Inter,sans-serif;color:#94a3b8;padding:0 20mm;display:flex;justify-content:space-between;letter-spacing:0.08em;text-transform:uppercase\"><span>Peregrine Technology Systems LLC</span><span>' + title + '</span></div>',
         footerTemplate: '<div style=\"width:100%;font-size:7px;font-family:Inter,sans-serif;color:#94a3b8;padding:0 20mm\"><div style=\"border-top:1px solid #e2e8f0;padding-top:6px;display:flex;justify-content:space-between\"><span>Company Confidential</span><span>Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span></span></div></div>',
     });
     await browser.close();
-})();
-" 2>/dev/null
+})().catch((err) => { console.error(err && err.stack ? err.stack : err); process.exit(1); });
+" 2>"$NODE_LOG"; then
+        echo "  ✗ $md_file — Puppeteer render failed:" >&2
+        sed 's/^/      /' "$NODE_LOG" >&2
+        rm -f "$NODE_LOG" "$RENDER_HTML"
+        FAILED=1
+        continue
+    fi
+    rm -f "$NODE_LOG"
 
-    if [ -f "$OUTPUT" ]; then
+    # Assert the PDF exists AND is non-trivially sized — a 0-byte / stub file is a
+    # failure even if the render exited 0 (silent-OK counterpart to "produces no PDF").
+    MIN_PDF_BYTES=1000
+    PDF_BYTES=$( [ -f "$OUTPUT" ] && wc -c < "$OUTPUT" | tr -d ' ' || echo 0 )
+    if [ "$PDF_BYTES" -ge "$MIN_PDF_BYTES" ]; then
         SIZE=$(du -h "$OUTPUT" | cut -f1)
         echo "  ✓ $md_file → $OUTPUT ($SIZE)"
     else
-        echo "  ✗ $md_file — PDF generation failed"
+        echo "  ✗ $md_file — PDF missing or too small (${PDF_BYTES}B < ${MIN_PDF_BYTES}B)" >&2
+        FAILED=1
     fi
+    rm -f "$RENDER_HTML"
 done
 
-# Clean up
-rm -f /tmp/doc-pdf-render-$$.html /tmp/doc-body-$$.html /tmp/doc-prerendered-$$.md
+# Clean up any stragglers
+rm -f /tmp/doc-pdf-render-$$.html /tmp/doc-body-$$.html /tmp/doc-template-$$.html \
+      /tmp/doc-prerendered-$$.md /tmp/doc-pdf-node-$$.log
+
+exit "$FAILED"
