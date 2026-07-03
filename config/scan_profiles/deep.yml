@@ -1,1 +1,69 @@
-thorough.yml
+name: deep
+# Formerly a symlink to thorough.yml; broken out (#1086) so deep can genuinely
+# out-scope thorough — a deeper sqlmap crawl (depth 3, level 4, risk 3). Keep the
+# rest in step with thorough.yml when that changes.
+description: "Deepest scan - thorough coverage plus a deeper sqlmap crawl (depth 3, level 4, risk 3)"
+estimated_duration_minutes: 240
+rate_limit: 5
+phases:
+  - name: subdomain_discovery
+    tools:
+      - tool: amass
+        timeout: 600
+  - name: discovery
+    tools:
+      - tool: ffuf
+        wordlist: /usr/share/seclists/Discovery/Web-Content/common.txt
+        timeout: 600
+        threads: 1
+        rate: 5
+        extensions: ".php,.asp,.aspx,.jsp,.html,.js,.json,.xml,.txt,.bak,.old,.conf,.sql,.log"
+      - tool: nikto
+        timeout: 600
+        tuning: "1234567890abc"
+        pause: 2
+      - tool: testssl
+        timeout: 600
+    parallel: true
+  - name: active_scan
+    tools:
+      - tool: zap
+        mode: full
+        timeout: 1800
+        ajax_spider: true
+        delay_ms: 500
+  - name: targeted
+    tools:
+      - tool: nuclei
+        severity_filter: critical,high,medium,low
+        timeout: 1200
+        templates: []
+        rate_limit: 5
+        bulk_size: 2
+      - tool: sqlmap
+        # Broad scope (#1086), deeper than thorough: crawl depth 3 and higher
+        # level/risk. Seeds every target URL and lets --forms + --crawl expand the
+        # surface. Bounded by the aggregate timeout (#824).
+        crawl_forms: true
+        crawl_depth: 3
+        level: 4
+        risk: 3
+        timeout: 1800
+        delay: 2
+        threads: 1
+      - tool: retirejs
+        timeout: 600
+      - tool: trufflehog
+        timeout: 600
+    parallel: true
+  - name: api_fuzz
+    tools:
+      # Unauthenticated, schema-driven API fuzzing (#1018). Auto-discovers a
+      # publicly reachable OpenAPI schema; NOT-APPLICABLE (0 findings) if none is
+      # reachable without logging in. Optional `schema_url:` overrides discovery.
+      - tool: schemathesis
+        timeout: 1200
+        rate_limit: "5/s"
+        max_failures: 100
+        workers: 2
+        request_timeout: 10
