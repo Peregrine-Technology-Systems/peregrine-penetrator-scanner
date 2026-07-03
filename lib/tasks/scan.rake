@@ -46,10 +46,6 @@ namespace :scan do
     # Audit: scan completed
     audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
 
-    # Send notifications
-    puts "\n--- Notifications ---"
-    NotificationService.new(scan).notify
-
     # Summary
     scan.refresh
     summary = scan.summary || {}
