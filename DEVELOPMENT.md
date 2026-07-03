@@ -31,6 +31,10 @@ cd peregrine-penetrator-scanner
 # Install dependencies
 bundle install
 
+# Wire the git hooks (once per clone — sets core.hooksPath to .githooks).
+# Without this, pre-commit checks (RuboCop, tests, coverage) silently don't run.
+make hooks
+
 # Migrate the database (Sequel migrations — this is not Rails)
 bundle exec rake db:migrate
 
