@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.6.2 — 2026-07-03
 - fix: ffuf-discovered URLs now actually feed the targeted phases — `extract_discovered_urls` read a flat `:url` the contract never emits (#1085). `FfufScanner#extract_discovered_urls` did `findings.pluck(:url)`, but `ResultParsers::Contract.finding` is **string-keyed** with the URL nested under `location.url` (there is no top-level `:url`), so it always returned `[]` — every endpoint ffuf discovered was **silently dropped** instead of expanding the scan surface (`ScanOrchestrator` feeds `discovered_urls` to the downstream targeted probes via `feed_discovered_urls`). Fixed to `f.dig('location', 'url')`. The existing test **passed against fake fixtures** (`{ source_tool:, url:, severity: }` — a shape the real parser never produces), giving false confidence; rewrote the fixtures to build real `Contract.finding` output (verified: the corrected test fails against the old `pluck(:url)` code, so it now actually guards the regression). Surfaced in a code review of the #824 hardening. A related sqlmap scan-scope question was filed separately (#1086, owner decision, not a blind fix). (#1085)
 
 ## v1.6.1 — 2026-07-03
