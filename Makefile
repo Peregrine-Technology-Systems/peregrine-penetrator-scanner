@@ -2,7 +2,14 @@ DOCS_DIR = docs
 PDF_DIR = docs/pdf
 DOCS = architecture data_flow data_retention_policy audit_logging separation_of_duties schema_versioning
 
-.PHONY: docs docs-html docs-pdf clean-docs
+.PHONY: docs docs-html docs-pdf clean-docs hooks
+
+# Wire git to the tracked hooks (#690). Sets core.hooksPath to the RELATIVE
+# `.githooks` path so a moved/re-cloned repo doesn't silently run no hooks (or an
+# old clone's hooks) via a stale absolute path. Run once per clone: `make hooks`.
+hooks:
+	@git config core.hooksPath .githooks
+	@echo "✅ core.hooksPath → .githooks ($$(git config core.hooksPath)); hooks: $$(ls .githooks | tr '\n' ' ')"
 
 docs: docs-html docs-pdf
 
