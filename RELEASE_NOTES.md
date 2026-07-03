@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.7.0 — 2026-07-03
 - feat: make sqlmap scan scope configurable per profile and run it across all scanning tiers (#1086). sqlmap previously ran only in `thorough`/`deep`, and it filtered to query-param (`?`) URLs while *also* passing `--forms --crawl` — an inconsistency where those flags implied form/crawl coverage the filter prevented (a parameterless POST login form was never tested). Added a `crawl_forms` tool-config flag (default `false`) that drives **both** halves consistently: **bounded** (`false`) tests only `?`-param URLs with no `--forms`/`--crawl`; **broad** (`true`) seeds every target URL and lets `--forms --crawl=<crawl_depth>` expand the surface so form-based injection on parameterless pages is reachable. Wired a monotonic coverage/cost gradient across the profiles: `quick` + `standard` now run **bounded** sqlmap (level 1, `?`-URLs only — fast SQLi triage, the first SQLi coverage those tiers have had); `thorough` runs **broad** (crawl depth 2, level 3); `deep` runs **broad and deeper** (crawl depth 3, level 4) — and `deep.yml` was **broken out of its symlink to `thorough.yml`** so it can genuinely out-scope thorough. Broad runs stay bounded by the aggregate timeout (#824); `reduced`/`smoke`/`smoke-test` are unchanged (no sqlmap). Bumped `quick`/`standard` duration estimates to reflect the added pass. Resolves the #1086 inconsistency surfaced in the #1085 code review. (#1086)
 
 ## v1.6.2 — 2026-07-03
