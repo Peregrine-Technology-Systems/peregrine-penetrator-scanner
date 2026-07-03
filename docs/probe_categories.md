@@ -1,11 +1,11 @@
 # Probe Categories — Types of Testing
 
-A high-level view of the nine probes in this repo, grouped by the *type of
+A high-level view of the ten probes in this repo, grouped by the *type of
 security testing* each performs. Every entry reflects the actual scanner
 implementation (`app/services/scanners/*_scanner.rb`) and the probe-contract
 values each emits (`probe` / `finding_type`, per `docs/probe_contract.md`).
 
-> The scanner is a **thin probe** in a fleet. These nine are standard OSS tools;
+> The scanner is a **thin probe** in a fleet. These ten are standard OSS tools;
 > first-party custom probes come later. Enrichment, dedup, and prioritization are
 > owned downstream by the Analyzer, not by the probes here.
 
