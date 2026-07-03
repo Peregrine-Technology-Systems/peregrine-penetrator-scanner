@@ -74,7 +74,7 @@ graph TB
 
 ## 2. Scan Lifecycle
 
-> **Note (org-native cutover):** the diagrams in §2–§4 below depict the **retired** containerized launch model (generic VM → `docker pull`/`docker run`, the legacy GCP Cloud Functions, the in-repo scavenger). That entire launch path has been **removed from this repository**. Scans now run **natively** on a single-use VM booted from the pre-baked `txn-scanner-app` image, **launched by a separate org-native launcher** (an infrastructure component, not in this repo). The scan *phases, normalization, enrichment, export, and self-delete* still apply; only the launch/packaging mechanism changed. See §6 → Image Model / Execution Model for the current model.
+> **Note (org-native cutover):** the diagrams in §2–§4 below depict the **retired** containerized launch model (generic VM → pull-and-run of a container image, the legacy GCP Cloud Functions, the in-repo scavenger). That entire launch path has been **removed from this repository**. Scans now run **natively** on a single-use VM booted from the pre-baked `txn-scanner-app` image, **launched by a separate org-native launcher** (an infrastructure component, not in this repo). The scan *phases, normalization, enrichment, export, and self-delete* still apply; only the launch/packaging mechanism changed. See §6 → Image Model / Execution Model for the current model.
 
 ### End-to-End Sequence
 
@@ -96,12 +96,12 @@ sequenceDiagram
 
     Note over VM: VM boots with vm-startup.sh
 
-    VM->>VM: Install Docker (if missing)
+    VM->>VM: Install container runtime (if missing)
     VM->>VM: Configure Artifact Registry auth
     VM->>VM: Set EXIT trap (self_terminate)
     VM->>VM: write_status("scanning")
     VM->>SM: Fetch secrets (NVD key, SMTP, callback secret)
-    VM->>AR: docker pull scanner image
+    VM->>AR: pull scanner image
 
     Note over VM: bin/scan starts inside container
 
@@ -289,7 +289,7 @@ flowchart TD
     Age -->|Yes| Skip1["SKIP<br/>(too young)"]
     Age -->|No| HardMax{"Age > 240 min?"}
     HardMax -->|Yes| Delete1["DELETE<br/>(hard max exceeded)"]
-    HardMax -->|No| SSH["SSH: docker ps"]
+    HardMax -->|No| SSH["SSH: check scanner process"]
     SSH --> Container{"Scan container<br/>running?"}
 
     Container -->|Yes| HB{"Has heartbeat?"}
@@ -313,7 +313,7 @@ flowchart TD
 stateDiagram-v2
     [*] --> Booting: Cloud Function creates VM
 
-    Booting --> Installing: Install Docker (if missing)
+    Booting --> Installing: Install container runtime (if missing)
     Installing --> Authenticating: Configure Artifact Registry
     Authenticating --> TrapSet: Set EXIT trap (self_terminate)
 
@@ -407,7 +407,7 @@ sequenceDiagram
     Note over GCE: VM boots asynchronously
     GCE->>GCE: Run vm-startup.sh from metadata
     GCE->>SM: Fetch secrets (API keys, callback secret)
-    GCE->>GCE: docker pull + docker run
+    GCE->>GCE: pull + run scanner image
 ```
 
 ### VM Instance Configuration
@@ -436,7 +436,7 @@ flowchart TD
 
     Each --> AgeCheck{"Age <= 10m?"}
     AgeCheck -->|Yes| NextVM["Skip (too young)"]
-    AgeCheck -->|No| SSHCheck["SSH: docker ps"]
+    AgeCheck -->|No| SSHCheck["SSH: check scanner process"]
     SSHCheck --> HBCheck["GCS: heartbeat.json"]
     HBCheck --> StatusCheck["GCS: status.json"]
     StatusCheck --> Decision["Apply decision matrix"]
@@ -622,7 +622,7 @@ flowchart TD
 
 ### Image Model (org-native)
 
-The scanner is **not packaged as a Docker image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` the vetted `txn-scanner-base` base via the infra TP baker — with the runtime, security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). The launcher boots a single-use VM from the `txn-scanner-app` family.
+The scanner is **not packaged as a container image**. A release **bakes a GCE image** — `txn-scanner-app`, built `FROM` the vetted `txn-scanner-base` base via the infra TP baker — with the runtime, security tools, **and the application's gems already placed** (build tooling stripped; nothing installed or compiled at scan time). The launcher boots a single-use VM from the `txn-scanner-app` family.
 
 ```mermaid
 flowchart LR
@@ -957,8 +957,8 @@ Two independent timeout mechanisms ensure no scan runs indefinitely:
 ```mermaid
 flowchart TD
     subgraph "Layer 1: Shell timeout (vm-startup.sh)"
-        ST["timeout --signal=TERM --kill-after=60 3600<br/>docker run ..."]
-        ST -->|"3600s exceeded"| TERM["SIGTERM to docker run"]
+        ST["timeout --signal=TERM --kill-after=60 3600<br/>scanner run ..."]
+        ST -->|"3600s exceeded"| TERM["SIGTERM to scanner run"]
         TERM -->|"60s grace"| KILL["SIGKILL (force kill)"]
     end
 
@@ -1028,7 +1028,6 @@ peregrine-penetrator-scanner/
     test_main.py              pytest tests (Flask test client)
   config/scan_profiles/       YAML scan profiles (quick, standard, thorough, etc.)
   db/sequel_migrations/       Sequel migrations
-  docker/                     Dockerfile, Dockerfile.base, docker-compose
   docs/                       Architecture and reference documentation
   infra/                      Pulumi Ruby IaC for GCP
   lib/

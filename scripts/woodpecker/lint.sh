@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run RuboCop natively on the agent (ruby 4.0.5 via chruby + .ruby-version; no Docker)
+# Run RuboCop natively on the agent (ruby 4.0.5 via chruby + .ruby-version)
 BRANCH="${CI_COMMIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 
 # Skip lint when code tree is identical to a target branch (promotion/sync-back).

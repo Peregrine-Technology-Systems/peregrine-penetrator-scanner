@@ -125,11 +125,15 @@ RSpec.describe ControlPlaneLoop do
       instance.send(:tick)
     end
 
-    it 'publishes the ratified telemetry heartbeat subject, carrying tp-id + in_flight txn ids in the value' do
+    it 'uses the ratified telemetry heartbeat subject' do
+      expect(Peregrine::Bus::Subjects.telemetry('penetrator', 'scan', 'heartbeat'))
+        .to eq('peregrine.telemetry.penetrator.scan.heartbeat')
+    end
+
+    it 'publishes the ratified telemetry heartbeat carrying tp-id + in_flight txn ids in the value' do
       identity = ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: 'txn-1',
                                   environment: 'production', trace_id: nil, tp_id: 'tp-9')
       subj = Peregrine::Bus::Subjects.telemetry('penetrator', 'scan', 'heartbeat')
-      expect(subj).to eq('peregrine.telemetry.penetrator.scan.heartbeat')
       publisher, adapter = bus_pair(subj)
       allow(StorageService).to receive(:new).and_return(instance_double(StorageService, upload_json: nil))
 

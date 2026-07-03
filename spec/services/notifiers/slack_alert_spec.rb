@@ -32,7 +32,7 @@ RSpec.describe Notifiers::SlackAlert do
       described_class.send_alert(
         scan:, tool: 'zap', severity: :error,
         message: 'Failed to start ZAP',
-        action: 'Check Docker image has ZAP installed'
+        action: 'Check the baked image has ZAP installed'
       )
 
       expect(stub).to have_been_requested
