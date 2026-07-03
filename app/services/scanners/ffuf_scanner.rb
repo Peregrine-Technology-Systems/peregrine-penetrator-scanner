@@ -30,14 +30,17 @@ module Scanners
     def build_command(url, output_file)
       fuzz_url = "#{url.chomp('/')}/FUZZ"
       wordlist = tool_config[:wordlist] || '/usr/share/seclists/Discovery/Web-Content/common.txt'
-      threads = tool_config[:threads] || 40
+      # Numerics coerced to Integer, string paths Shellwords-escaped: the command is
+      # a single string run via /bin/sh -c, so a config-supplied wordlist/extensions
+      # path with a space or shell metacharacter would otherwise break or inject (#824).
+      threads = (tool_config[:threads] || 40).to_i
+      rate = (tool_config[:rate] || 10).to_i
 
-      rate = tool_config[:rate] || 10
-
-      cmd = "#{EXECUTABLE} -u #{Shellwords.escape(fuzz_url)} -w #{wordlist} -o #{output_file} " \
+      cmd = "#{EXECUTABLE} -u #{Shellwords.escape(fuzz_url)} -w #{Shellwords.escape(wordlist)} " \
+            "-o #{Shellwords.escape(output_file.to_s)} " \
             "-of json -mc 200,201,301,302,403 -t #{threads} -rate #{rate} -s"
 
-      cmd += " -e #{tool_config[:extensions]}" if tool_config[:extensions]
+      cmd += " -e #{Shellwords.escape(tool_config[:extensions])}" if tool_config[:extensions]
 
       cmd
     end

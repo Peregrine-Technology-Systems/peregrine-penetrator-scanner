@@ -49,7 +49,6 @@ class ScanOrchestrator
   def prepare_scan
     mark_running
     write_started_marker
-    Notifiers::SlackNotifier.send_started(scan)
     @control_plane = start_control_plane
     Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
   end
@@ -60,9 +59,37 @@ class ScanOrchestrator
     elsif profile.smoke
       run_smoke_checks
     else
+      preflight_tools
       preflight_check
       fingerprint_target
       run_scan_phases
+    end
+  end
+
+  # Fail fast and loud if a binary this scan will spawn is missing from PATH (#824).
+  # Without this, a broken/renamed tool in the scanner-base image surfaces as an
+  # ENOENT mid-scan, per-tool, after the target has already been probed. Checks only
+  # the executables the profile actually uses (derived from each scanner's EXECUTABLE
+  # via SCANNER_MAP — the same source SmokeChecker uses, so it can't drift).
+  def preflight_tools
+    required = profile.phases.flat_map { |phase| phase.tools.map(&:tool) }.uniq
+    missing = required.filter_map do |tool|
+      klass = SCANNER_MAP[tool]
+      next if klass.nil? # unknown tools are logged (not fatal) at run time
+
+      klass.executable unless tool_on_path?(klass.executable)
+    end
+    return if missing.empty?
+
+    raise "Required scanner binaries missing from PATH: #{missing.join(', ')} " \
+          '— broken or incomplete scanner-base image'
+  end
+
+  # Pure-Ruby PATH lookup — no shell, cheap, deterministic.
+  def tool_on_path?(executable)
+    ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |dir|
+      candidate = File.join(dir, executable)
+      File.file?(candidate) && File.executable?(candidate)
     end
   end
 

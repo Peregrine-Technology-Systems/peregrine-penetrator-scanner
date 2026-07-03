@@ -1,0 +1,17 @@
+# Pinned probe-tool versions for the txn-scanner-app bake (#821).
+#
+# SOC 2 CC7.2 traceability: a finding must be tie-able to a known tool version, and
+# an upstream output-format change must be a deliberate, reviewable bump rather than
+# silent drift that breaks a parser. These are the versions .bake/install.sh installs;
+# keep this file in lockstep with the *_VERSION variables there.
+#
+# SCOPE: this file covers only the SCANNER-OWNED probe tools installed by
+# .bake/install.sh. The base-image tools (ZAP, sqlmap, nuclei, ffuf, trufflehog,
+# testssl, amass) live in the infra-owned txn-scanner-base oven catalog and are
+# pinned there — tracked in the infrastructure repo (see #821).
+#
+# Format: <tool> <version> <source>
+
+nikto         1:2.1.5-3.1   apt (Ubuntu 24.04 noble, multiverse)
+retire        5.4.3         npm
+schemathesis  4.22.1        pip (parser alignment, #1018/#1020)

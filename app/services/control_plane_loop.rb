@@ -91,15 +91,16 @@ class ControlPlaneLoop
     @storage.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
   end
 
-  # Publish liveness on the telemetry plane (scanner#1009), keyed by tp-id alone:
-  # one row per scanner instance, overwritten per beat, with the in-flight
-  # transaction_id(s) in the value. The watchdog reads this as a liveness KV. No-op
-  # when identity/tp_id is absent (off-bus) or the publisher is disabled; the GCS
-  # heartbeat above is the durable fallback.
+  # Publish liveness on the telemetry plane (scanner#1052, operator-ratified in
+  # the infrastructure repo): the canonical subject is `peregrine.telemetry.penetrator.scan.
+  # heartbeat` — one subject for the whole scan stage, with the tp-id and in-flight
+  # transaction_id(s) carried in the VALUE (not the subject), so the watchdog keys
+  # liveness by tp_id from the payload. No-op when identity/tp_id is absent (off-bus)
+  # or the publisher is disabled; the GCS heartbeat above is the durable fallback.
   def publish_bus_heartbeat(progress)
     return if @identity.nil? || @identity.tp_id.to_s.empty?
 
-    subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(@identity.tp_id)
+    subject = Peregrine::Bus::Subjects.telemetry('penetrator', 'scan', 'heartbeat')
     @publisher.publish(subject, {
                          tp_id: @identity.tp_id,
                          status: 'running',
