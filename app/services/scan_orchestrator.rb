@@ -49,7 +49,6 @@ class ScanOrchestrator
   def prepare_scan
     mark_running
     write_started_marker
-    Notifiers::SlackNotifier.send_started(scan)
     @control_plane = start_control_plane
     Penetrator.logger.info("[ScanOrchestrator] Starting #{profile.name} scan for #{scan.target.name}")
   end
