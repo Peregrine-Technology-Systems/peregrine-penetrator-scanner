@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.7.1 — 2026-07-04
 - fix: revert the accidental `deep`/`thorough` split and harden sqlmap broad-mode coverage (#1099). A code review of #1086 found it had **unilaterally split `deep` from `thorough`** — but `deep` was deliberately an **alias** for `thorough` (a symlink + a documented "(alias for thorough)"): two synonym-named profiles the design meant to be one. Restored `deep.yml` as a symlink to `thorough.yml` — they are one profile again — and added a `scan_profile_spec` guard asserting `deep == thorough` so the alias can't silently drift. Also fixed real broad-mode bugs the review surfaced: **(1)** broad scope now scans query-param URLs **first** (`candidate_urls` partitions `?`-URLs ahead of parameterless ones) so the aggregate deadline (#824) can't be exhausted crawling parameterless pages before the injectable targets run — coverage was previously seed-order-dependent; **(2)** `thorough` got `aggregate_timeout: 3600` (above its 1200s per-URL timeout) so broad mode covers several URLs, not just the first slow crawl — with the default 1800s ceiling one long crawl could starve the rest; **(3)** a run that **times out** before writing `--report-json` (exit_code −1, common in broad scope) now logs a timeout message instead of misattributing it to an unsupported sqlmap version (#822's warning); **(4)** bumped `thorough`'s duration estimate 150→180 for its broad sqlmap pass. Added tests for `?`-priority ordering, bounded-mode mixed-list filtering, the timeout-vs-missing-report branch, and a per-profile scope guard (quick/standard bounded · thorough broad + scaled aggregate · deep==thorough · reduced none). (#1099)
 
 ## v1.7.0 — 2026-07-03
