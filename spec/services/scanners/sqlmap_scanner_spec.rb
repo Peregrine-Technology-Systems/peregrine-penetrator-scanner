@@ -44,8 +44,17 @@ RSpec.describe Scanners::SqlmapScanner do
     end
 
     it 'warns loudly when no report is produced (unsupported flag / crash, #822)' do
-      # run_command is stubbed, so no report file is written — the guard should fire.
+      # run_command is stubbed (exit_code 0), so no report file is written — the
+      # genuine-missing-report guard should fire, not the timeout branch.
       expect(Penetrator.logger).to receive(:warn).with(/no --report-json output.*may not support/)
+      scanner.run
+    end
+
+    it 'attributes a missing report to the timeout, not an unsupported flag, when the run timed out (#1099)' do
+      timed_out = { stdout: '', stderr: 'Command timed out after 600s', exit_code: -1, success: false }
+      allow(scanner).to receive(:run_command).and_return(timed_out)
+      expect(Penetrator.logger).to receive(:warn).with(/timed out before writing --report-json/)
+      expect(Penetrator.logger).not_to receive(:warn).with(/may not support/)
       scanner.run
     end
 
@@ -73,6 +82,18 @@ RSpec.describe Scanners::SqlmapScanner do
         expect(result[:success]).to be true
         expect(result[:findings]).to eq([])
         expect(result[:skipped]).to be true
+      end
+    end
+
+    context 'with a mixed URL list in bounded scope (#1099)' do
+      let(:target) { create(:target, urls: ['https://example.com/login', 'https://example.com/p?id=1'].to_json) }
+
+      it 'runs sqlmap only on the query-param URL, filtering out the parameterless one' do
+        expect(scanner).to receive(:run_command).once do |cmd, **_opts|
+          expect(cmd).to include(Shellwords.escape('https://example.com/p?id=1'))
+          success_result
+        end
+        scanner.run
       end
     end
 
@@ -107,6 +128,24 @@ RSpec.describe Scanners::SqlmapScanner do
           expect(scanner).to receive(:run_command).once.and_return(success_result)
           result = scanner.run
           expect(result[:skipped]).to be_nil
+        end
+      end
+
+      context 'with query-param and parameterless URLs' do
+        # Parameterless URL listed FIRST — broad scope must still scan the
+        # injectable ?-URL first so it is covered before the aggregate deadline
+        # can be exhausted crawling the parameterless page (#1099).
+        let(:target) { create(:target, urls: ['https://example.com/home', 'https://example.com/p?id=1'].to_json) }
+
+        it 'seeds the query-param URL before the parameterless one' do
+          order = []
+          allow(scanner).to receive(:run_command) { |cmd, **_opts|
+            order << cmd
+            success_result
+          }
+          scanner.run
+          expect(order.length).to eq(2)
+          expect(order.first).to include(Shellwords.escape('https://example.com/p?id=1'))
         end
       end
     end

@@ -75,6 +75,37 @@ RSpec.describe ScanProfile do
     end
   end
 
+  describe 'sqlmap scope per profile (#1086/#1099)' do
+    def sqlmap_config(profile_name)
+      (ScanProfile.load(profile_name).phases || []).flat_map(&:tools)
+                                                   .find { |t| t.tool == 'sqlmap' }&.config
+    end
+
+    it 'runs bounded sqlmap in quick and standard (no crawl_forms)' do
+      %w[quick standard].each do |name|
+        cfg = sqlmap_config(name)
+        expect(cfg).not_to be_nil, "#{name} should run sqlmap"
+        expect(cfg[:crawl_forms]).to be_falsey, "#{name} sqlmap should be bounded (query-param only)"
+      end
+    end
+
+    it 'runs broad sqlmap in thorough, with aggregate_timeout scaled above the per-URL timeout' do
+      cfg = sqlmap_config('thorough')
+      expect(cfg[:crawl_forms]).to be true
+      # Guards #1099: if aggregate_timeout <= per-URL timeout, one slow crawl
+      # exhausts the ceiling and only the first URL is ever scanned.
+      expect(cfg[:aggregate_timeout]).to be > cfg[:timeout]
+    end
+
+    it 'treats deep as an alias of thorough (identical sqlmap scope, guarding symlink drift)' do
+      expect(sqlmap_config('deep')).to eq(sqlmap_config('thorough'))
+    end
+
+    it 'does not run sqlmap in the reduced profile' do
+      expect(sqlmap_config('reduced')).to be_nil
+    end
+  end
+
   describe ScanProfile::ToolConfig do
     it 'exposes the tool name' do
       profile = ScanProfile.load('standard')
