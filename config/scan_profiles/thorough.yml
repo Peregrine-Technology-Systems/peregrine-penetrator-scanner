@@ -1,6 +1,6 @@
 name: thorough
 description: "Comprehensive scan - All tools, all templates, deep crawl"
-estimated_duration_minutes: 150
+estimated_duration_minutes: 180
 rate_limit: 5
 phases:
   - name: subdomain_discovery
@@ -40,11 +40,14 @@ phases:
       - tool: sqlmap
         # Broad scope (#1086): seed every target URL and let --forms + --crawl
         # expand the surface, so form-based injection on parameterless pages is
-        # reachable. Bounded by the aggregate timeout (#824).
+        # reachable. aggregate_timeout scaled to the broad scope (#1099) so several
+        # URLs are covered, not just the first — the per-URL timeout alone would let
+        # one slow crawl exhaust the default 1800s ceiling.
         crawl_forms: true
         level: 3
         risk: 2
         timeout: 1200
+        aggregate_timeout: 3600
         delay: 2
         threads: 1
       - tool: retirejs
