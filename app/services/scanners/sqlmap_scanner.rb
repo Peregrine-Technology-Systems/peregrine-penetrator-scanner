@@ -22,7 +22,7 @@ module Scanners
 
       urls = candidate_urls
       if urls.empty?
-        logger.info("[sqlmap] No candidate URLs for #{scope_label} scope, skipping")
+        logger.info("[sqlmap] No candidate URLs for #{crawl_forms? ? 'broad' : 'query-param'} scope, skipping")
         return { success: true, findings: [], skipped: true }
       end
 
@@ -38,15 +38,25 @@ module Scanners
 
         report_path = report_path_for(url)
         cmd = build_command(url, output_dir_path, report_path)
-        run_command(cmd, timeout: [per_url_timeout, remaining.ceil].min)
+        result = run_command(cmd, timeout: [per_url_timeout, remaining.ceil].min)
 
         # --report-json writes the report even for a zero-injection run (confirmed
-        # against sqlmap 1.10.7), so a MISSING report after the run means sqlmap
-        # didn't honor the flag (unsupported version) or crashed — surface it loudly
-        # rather than letting parse return a silent empty (#822).
+        # against sqlmap 1.10.7), so a MISSING report after a SUCCESSFUL run means
+        # sqlmap didn't honor the flag (unsupported version) or crashed — surface it
+        # loudly rather than letting parse return a silent empty (#822). But a run
+        # that TIMED OUT (exit_code -1, killed mid-crawl — common in broad scope)
+        # legitimately never wrote the report; don't misattribute that to a version
+        # problem (#1099).
         unless File.exist?(report_path)
-          logger.warn("[sqlmap] no --report-json output at #{report_path} after run — " \
-                      'sqlmap may not support --report-json (check baked version) or crashed')
+          logger.warn(
+            if result[:exit_code] == -1
+              "[sqlmap] run for #{url} timed out before writing --report-json " \
+                '(crawl exceeded the per-URL budget); no findings for this URL'
+            else
+              "[sqlmap] no --report-json output at #{report_path} after run — " \
+                'sqlmap may not support --report-json (check baked version) or crashed'
+            end
+          )
         end
 
         findings = parse_results(report_path, url)
@@ -87,20 +97,21 @@ module Scanners
     # is a seed and sqlmap's own --forms/--crawl expand the surface from there, so
     # form-based injection on a parameterless URL is reachable. Per-profile (#1086):
     # quick/standard are bounded, thorough/deep are broad.
+    #
+    # In broad scope, scan the query-param URLs FIRST so the highest-value injection
+    # targets are covered before the aggregate deadline (#824) can be exhausted
+    # crawling parameterless pages — otherwise coverage is seed-order-dependent (#1099).
     def candidate_urls
-      crawl_forms? ? target_urls : target_urls.select { |url| url.include?('?') }
+      with_params, without = target_urls.partition { |url| url.include?('?') }
+      crawl_forms? ? with_params + without : with_params
     end
 
     def crawl_forms?
-      tool_config[:crawl_forms] ? true : false
+      tool_config[:crawl_forms] == true
     end
 
     def crawl_depth
       (tool_config[:crawl_depth] || 2).to_i
-    end
-
-    def scope_label
-      crawl_forms? ? 'broad (forms + crawl)' : 'query-param'
     end
 
     # One report file per URL so a multi-URL run doesn't clobber earlier results.
