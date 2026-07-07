@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.8.0 — 2026-07-07
 - feat: adopt `peregrine_bus_gcp` + `peregrine_bus_nats` and add the `scan.requested` consumer side of the bus Transaction Processor conversion (#1106). The core `peregrine_bus` API changed between the 0.2.0 git-dep this repo pinned and 0.4.0 (the version `peregrine_bus_nats`/`peregrine_bus_gcp` require): `Adapter.new` now takes a mandatory `transport:` (the substrate and the claim-check transport are separate planes), and `publish` takes `job_id:`/`status:` kwargs and returns a `ClaimCheck` (not a bare id) so a fan-out observer can read lifecycle off the pointer without opening the sealed blob. Updated `Bus::Publisher`/`Bus::AdapterEnv` to the new signatures and added `Bus::ScanRequestConsumer`, wired into `bin/scan` ahead of the existing ENV-injected launch path (bus takes precedence when present, ENV/CLI unchanged otherwise). Switched the Gemfile from the git-dep (fragile CI git credential) to the GitHub Packages registry `source` block per `peregrine-bus`'s own migration guidance — `scripts/woodpecker/lib/git-dep-auth.sh` now fetches the shared `peregrine-packages-read` secret via ambient `gcloud` creds instead of rewriting git URLs with `gh_token`. **Left disabled-by-default and NOT flipped**: `Bus::AdapterEnv.adapter` still returns `nil` until infra injects `BUS_BUCKET`/`BUS_KEYSET_PATH` at the `.stage` soak — the real-Synadia interop proof (peregrine-bus#22) is still open per that gem's own README ("no live credentials exist yet"), so this repo does not participate in a NATS soak or the coordinated Wave-A prod flip on its own. `BUS_TRANSPORT` selects Pub/Sub (prod, default) vs. NATS (`.stage` only) once infra enables it. (#1106)
 
 ## v1.7.1 — 2026-07-04
