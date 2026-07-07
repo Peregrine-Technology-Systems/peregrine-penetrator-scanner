@@ -69,7 +69,7 @@ RSpec.describe AuditLogger do
 
       expect(Penetrator.logger).to have_received(:info) do |msg|
         parsed = JSON.parse(msg)
-        expect(parsed['schema_version']).to eq('2.0')
+        expect(parsed['schema_version']).to eq('2.1')
       end
     end
   end
