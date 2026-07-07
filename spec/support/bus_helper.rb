@@ -10,7 +10,8 @@ module BusHelper
   # consuming what was published. Returns [publisher, adapter].
   def bus_pair(*subjects)
     substrate = Peregrine::Bus::MemorySubstrate.new
-    adapter = Peregrine::Bus::Adapter.new(substrate:, key_provider: keyset_for(*subjects))
+    transport = Peregrine::Bus::MemoryTransport.new
+    adapter = Peregrine::Bus::Adapter.new(substrate:, transport:, key_provider: keyset_for(*subjects))
     [Bus::Publisher.new(adapter), adapter]
   end
 
