@@ -23,7 +23,7 @@ RSpec.describe Bus::Publisher do
     it 'seals the payload to the subject so it round-trips through the adapter' do
       publisher, adapter = bus_pair(subject_name)
 
-      id = publisher.publish(subject_name, { 'state' => 'completed', 'scan_uuid' => 's1' })
+      id = publisher.publish(subject_name, { 'state' => 'completed', 'scan_uuid' => 's1' }, job_id: 's1', status: 'completed')
 
       expect(id).to be_a(String)
       delivered = adapter.consume(subject_name).map { |pt| JSON.parse(pt) }
