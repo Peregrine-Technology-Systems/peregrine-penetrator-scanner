@@ -95,8 +95,10 @@ class ControlPlaneLoop
   # the infrastructure repo): the canonical subject is `peregrine.telemetry.penetrator.scan.
   # heartbeat` — one subject for the whole scan stage, with the tp-id and in-flight
   # transaction_id(s) carried in the VALUE (not the subject), so the watchdog keys
-  # liveness by tp_id from the payload. No-op when identity/tp_id is absent (off-bus)
-  # or the publisher is disabled; the GCS heartbeat above is the durable fallback.
+  # liveness by tp_id from the payload. `Subjects::Penetrator.scanner_heartbeat` is
+  # a DRIFTED helper (tp-id in the subject) — do not switch to it; see #1052.
+  # No-op when identity/tp_id is absent (off-bus) or the publisher is disabled;
+  # the GCS heartbeat above is the durable fallback.
   def publish_bus_heartbeat(progress)
     return if @identity.nil? || @identity.tp_id.to_s.empty?
 
@@ -107,7 +109,7 @@ class ControlPlaneLoop
                          in_flight: @identity.in_flight,
                          timestamp: Time.current.iso8601,
                          **progress
-                       })
+                       }, job_id: @identity.in_flight.first, status: 'running')
   end
 
   def check_cancel
