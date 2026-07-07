@@ -15,13 +15,21 @@ OptionParser.new do |opts|
   opts.on('-h', '--help', 'Show help') { puts opts; exit }
 end.parse!
 
-# ENV vars take precedence (the launcher injects scan config via the VM environment)
-profile = ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
-target_name = ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
-target_urls = JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))
-
 Penetrator.boot!
 Penetrator.boot_services!
+
+# Bus request (scanner#1106) takes precedence over ENV, which takes precedence
+# over the CLI flags — the pre-bus launch path. Disabled (nil) until infra wires
+# BUS_BUCKET/BUS_KEYSET_PATH at the `.stage` soak, so this is inert on every
+# deploy today; the ENV-injected VM-metadata path below is unaffected.
+bus_request = Bus::ScanRequestConsumer.new.next_request
+
+profile = bus_request&.dig('profile') || ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
+target_name = bus_request&.dig('target_name') || ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
+target_urls = bus_request&.dig('urls') ||
+              JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))
+ENV['SCAN_UUID'] ||= bus_request&.dig('scan_uuid')
+ENV['TRANSACTION_ID'] ||= bus_request&.dig('transaction_id')
 
 # Stamp the VM's boot image (from the GCE metadata server) so audit events and
 # status.json carry it for version traceability (#951). Fail-safe to "unknown"

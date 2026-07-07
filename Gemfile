@@ -20,13 +20,19 @@ gem "google-cloud-bigquery", "~> 1.49"
 # HTTP client for CVE APIs and webhooks
 gem "faraday", "~> 2.7"
 
-# Bus-identity adapter — the scanner publishes scan.completed + heartbeats through
-# this, never raw Pub/Sub (scanner#1009, ADR 0004). Owns subjects/envelope/crypto
-# (XChaCha20-Poly1305 AEAD via rbnacl → needs libsodium) + the substrate mapping.
-gem "peregrine_bus",
-    git: "https://github.com/Peregrine-Technology-Systems/peregrine-bus.git",
-    glob: "ruby/*.gemspec",
-    tag: "v0.2.0"
+# Bus transaction-processor adapter (scanner#1106, ADR 0004). The scanner both
+# consumes scan.requested and publishes scan.completed/failed + heartbeats through
+# this, never raw Pub/Sub or NATS directly. Core stays cloud-neutral (crypto +
+# subjects + claim-check); the GCP sibling carries GcsSubstrate (Plane 1, prod +
+# stage) + PubSubTransport (Plane 2, prod); the NATS sibling carries NatsTransport
+# (Plane 2, `.stage` soak only — no live Synadia creds yet, peregrine-bus#22).
+# Registry source, not a git-dep — a git credential on a private repo is fragile on
+# cold CI agents; see scripts/woodpecker/lib/git-dep-auth.sh.
+source "https://rubygems.pkg.github.com/Peregrine-Technology-Systems" do
+  gem "peregrine_bus", "~> 0.4"
+  gem "peregrine_bus_gcp", "~> 0.1"
+  gem "peregrine_bus_nats", "~> 0.1"
+end
 
 # UUID support
 gem "uuidtools", "~> 2.2"
