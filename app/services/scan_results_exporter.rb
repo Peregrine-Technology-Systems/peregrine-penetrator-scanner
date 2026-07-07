@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ScanResultsExporter
-  SCHEMA_VERSION = '2.0'
+  SCHEMA_VERSION = '2.1'
 
   def initialize(scan)
     @scan = scan
@@ -45,10 +45,11 @@ class ScanResultsExporter
       profile: { name: profile.name, description: profile.description,
                  estimated_duration_minutes: profile.estimated_duration_minutes },
       planned: build_planned_tools(profile),
-      executed: build_executed_tools(profile)
+      executed: build_executed_tools(profile),
+      probe_accounting: build_probe_accounting(profile)
     }
   rescue ArgumentError
-    { profile: { name: @scan.profile }, planned: [], executed: build_executed_tools(nil) }
+    { profile: { name: @scan.profile }, planned: [], executed: build_executed_tools(nil), probe_accounting: [] }
   end
 
   private
@@ -72,7 +73,8 @@ class ScanResultsExporter
   def build_planned_tools(profile)
     profile.phases.flat_map do |phase|
       phase.tools.map do |tc|
-        { tool: tc.tool, phase: phase.name, parallel: phase.parallel, config: tc.config }
+        { tool: tc.tool, probe_id: Probes::Catalog.probe_id_for(tc.tool), phase: phase.name,
+          parallel: phase.parallel, config: tc.config }
       end
     end
   end
@@ -85,6 +87,7 @@ class ScanResultsExporter
       duration = started && completed ? time_diff(started, completed) : nil
       {
         tool: tool_name,
+        probe_id: Probes::Catalog.probe_id_for(tool_name),
         phase: find_phase(profile, tool_name),
         status: status['status'] || status[:status],
         started_at: started,
@@ -94,6 +97,24 @@ class ScanResultsExporter
         findings_count: status['findings_count'] || status[:findings_count],
         error: status['error'] || status[:error]
       }
+    end
+  end
+
+  # Explicit per-planned-probe run/not-run accounting (#1068) — the positive
+  # signal a "planned tool absent from tool_statuses" set-difference cannot
+  # give: every probe the profile planned gets an entry here, one way or the
+  # other, so the Analyzer's no-silent-coverage-loss guarantee has something
+  # to verify against instead of inferring absence. `executed` is keyed off
+  # tool_statuses having ANY entry (running/completed/failed all count as
+  # "attempted" — this is about whether the probe got a turn, not whether it
+  # succeeded; `status`/`error` on the `executed` list already carry outcome).
+  def build_probe_accounting(profile)
+    tool_statuses = @scan.tool_statuses || {}
+    planned_tools = profile.phases.flat_map { |phase| phase.tools.map(&:tool) }.uniq
+    planned_tools.map do |tool|
+      attempted = tool_statuses.key?(tool)
+      { probe_id: Probes::Catalog.probe_id_for(tool), tool:,
+        executed: attempted, skip_reason: attempted ? nil : 'not_attempted' }
     end
   end
 
