@@ -209,9 +209,9 @@ RSpec.describe 'Library integration smoke tests', :smoke do # rubocop:disable RS
                        epss_score: 0.5, kev_known_exploited: false, duplicate: false)
     end
 
-    it 'uses schema version 2.0' do
+    it 'uses schema version 2.1' do
       envelope = ScanResultsExporter.new(export_scan).build_envelope
-      expect(envelope[:schema_version]).to eq('2.0')
+      expect(envelope[:schema_version]).to eq('2.1')
     end
 
     it 'carries tool-reported scores in findings (no analyzer-owned kev)' do
