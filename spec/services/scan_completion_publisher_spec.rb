@@ -19,7 +19,7 @@ RSpec.describe ScanCompletionPublisher do
 
     msg = JSON.parse(adapter.consume(subj).first)
     expect(msg['state']).to eq('completed')
-    expect(msg['schema_version']).to eq('2.0')
+    expect(msg['schema_version']).to eq('2.1')
     expect(msg['scanner_result_uri']).to eq('bucket' => 'reports-bkt', 'object' => 'scan-results/t/s/scan_results.json', 'sha256' => 'deadbeef')
     expect(msg).to include('transaction_id' => 'txn-1', 'tp_id' => 'tp-1', 'scan_uuid' => 's1')
     expect(msg['completed_at']).to be_present

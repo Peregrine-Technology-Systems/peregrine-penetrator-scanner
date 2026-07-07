@@ -68,7 +68,7 @@ RSpec.describe ScanResultsExporter do
     let(:envelope) { exporter.build_envelope }
 
     it 'includes schema_version' do
-      expect(envelope[:schema_version]).to eq('2.0')
+      expect(envelope[:schema_version]).to eq('2.1')
     end
 
     describe 'tool_chain' do
@@ -99,6 +99,31 @@ RSpec.describe ScanResultsExporter do
       it 'includes status for each executed tool' do
         zap = tool_chain[:executed].find { |t| t[:tool] == 'zap' }
         expect(zap[:status]).to eq('completed')
+      end
+
+      it 'includes the durable probe_id on planned and executed entries' do
+        planned_zap = tool_chain[:planned].find { |t| t[:tool] == 'zap' }
+        executed_zap = tool_chain[:executed].find { |t| t[:tool] == 'zap' }
+        expect(planned_zap[:probe_id]).to eq('zap')
+        expect(executed_zap[:probe_id]).to eq('zap')
+      end
+
+      describe 'probe_accounting (#1068)' do
+        it 'marks a planned+executed probe as executed with no skip_reason' do
+          zap = tool_chain[:probe_accounting].find { |p| p[:tool] == 'zap' }
+          expect(zap).to include(probe_id: 'zap', executed: true, skip_reason: nil)
+        end
+
+        it 'marks a planned-but-never-attempted probe as not executed' do
+          skipped = tool_chain[:probe_accounting].find { |p| !%w[zap nuclei].include?(p[:tool]) }
+          expect(skipped).to include(executed: false, skip_reason: 'not_attempted')
+        end
+
+        it 'has one entry per planned tool, matching the planned list' do
+          planned_tools = tool_chain[:planned].pluck(:tool).uniq
+          accounted_tools = tool_chain[:probe_accounting].pluck(:tool)
+          expect(accounted_tools).to match_array(planned_tools)
+        end
       end
     end
 
@@ -236,7 +261,7 @@ RSpec.describe ScanResultsExporter do
       allow(storage_service).to receive(:upload) do |local_path, _remote, **_opts|
         content = File.read(local_path)
         parsed = JSON.parse(content)
-        expect(parsed['schema_version']).to eq('2.0')
+        expect(parsed['schema_version']).to eq('2.1')
         expect(parsed['findings'].size).to eq(2)
         true
       end
@@ -266,6 +291,7 @@ RSpec.describe ScanResultsExporter do
 
       expect(tool_chain[:profile]).to eq(name: scan.profile)
       expect(tool_chain[:planned]).to eq([])
+      expect(tool_chain[:probe_accounting]).to eq([])
     end
   end
 
