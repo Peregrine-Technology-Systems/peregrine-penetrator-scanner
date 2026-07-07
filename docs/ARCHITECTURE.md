@@ -36,7 +36,7 @@ graph TB
     end
 
     subgraph "Storage (GCS)"
-        GCS1["scan-results/<br/>(v2.0 JSON envelope)"]
+        GCS1["scan-results/<br/>(v2.1 JSON envelope)"]
         GCS2["control/<br/>(scan_started, heartbeat,<br/>status, control)"]
     end
 
@@ -95,7 +95,7 @@ sequenceDiagram
 
     Note over VM: Completion
 
-    VM->>G: ScanResultsExporter → scan-results/{target}/{scan}/scan_results.json (v2.0, SHA256)
+    VM->>G: ScanResultsExporter → scan-results/{target}/{scan}/scan_results.json (v2.1, SHA256)
     VM->>G: Write control/{uuid}/status.json (phase: completed, results_path, boot_image)
     VM-->>B: ScanCompletionPublisher → claim-check event (no-op today)
 ```
@@ -125,7 +125,7 @@ flowchart TD
     J --> SM["Resolve each tool via SCANNER_MAP (10 probes)<br/>ScannerBase subclass → Finding.from_contract"]
 
     SM --> P["mark_completed<br/>ScanSummaryBuilder"]
-    P --> Q["ScanResultsExporter<br/>v2.0 JSON envelope → GCS (SHA256 claim-check)"]
+    P --> Q["ScanResultsExporter<br/>v2.1 JSON envelope → GCS (SHA256 claim-check)"]
     Q --> ST["write control/{uuid}/status.json<br/>(phase: completed, results_path, boot_image)"]
     ST --> B2["ScanCompletionPublisher<br/>bus claim-check event (inert today)"]
 
@@ -351,13 +351,15 @@ The `smoke-test` profile runs `SmokeTestRunner`, which produces canned findings 
 
 ## 5. Data Flow
 
-### JSON Export Schema (v2.0)
+### JSON Export Schema (v2.1)
 
-`ScanResultsExporter#export` builds a versioned JSON envelope (`SCHEMA_VERSION = '2.0'`), writes it to a local temp file, uploads it to GCS at `scan-results/{target_id}/{scan_id}/scan_results.json`, and computes its SHA256 for the completion claim-check. The envelope has four top-level members: `schema_version`, `tool_chain` (profile + planned vs. executed tools), `metadata`, `summary`, and `findings`. Each finding is the stored probe-output **contract document** (`Finding#data`) stamped with the DB-owned provenance (`id`, `scan_id`, `detected_at`).
+`ScanResultsExporter#export` builds a versioned JSON envelope (`SCHEMA_VERSION = '2.1'`), writes it to a local temp file, uploads it to GCS at `scan-results/{target_id}/{scan_id}/scan_results.json`, and computes its SHA256 for the completion claim-check. The envelope has four top-level members: `schema_version`, `tool_chain` (profile + planned vs. executed tools + explicit per-probe run/not-run accounting), `metadata`, `summary`, and `findings`. Each finding is the stored probe-output **contract document** (`Finding#data`) stamped with the DB-owned provenance (`id`, `scan_id`, `detected_at`).
+
+`tool_chain.planned[]`/`executed[]` entries carry a durable `probe_id` (`Probes::Catalog`, `app/services/probes/catalog.rb`) — the stable identifier scan-profile consumers select/weight probes by, independent of the profile YAML `tool` key (#1068). `tool_chain.probe_accounting[]` makes coverage explicit: one entry per planned probe with `executed: true|false` and a `skip_reason` when not attempted, rather than requiring a consumer to diff `planned` against `executed`.
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "tool_chain": {
     "profile": {
       "name": "standard",
@@ -365,12 +367,15 @@ The `smoke-test` profile runs `SmokeTestRunner`, which produces canned findings 
       "estimated_duration_minutes": 40
     },
     "planned": [
-      {"tool": "zap", "phase": "active_scan", "parallel": false, "config": {}}
+      {"tool": "zap", "probe_id": "zap", "phase": "active_scan", "parallel": false, "config": {}}
     ],
     "executed": [
-      {"tool": "zap", "phase": "active_scan", "status": "completed",
+      {"tool": "zap", "probe_id": "zap", "phase": "active_scan", "status": "completed",
        "started_at": "...", "completed_at": "...", "duration_seconds": 900,
        "exit_code": 0, "findings_count": 15, "error": null}
+    ],
+    "probe_accounting": [
+      {"probe_id": "zap", "tool": "zap", "executed": true, "skip_reason": null}
     ]
   },
   "metadata": {
@@ -424,7 +429,7 @@ gs://{bucket}/
     control.json               # Cancel signal (written by the control plane)
     status.json                # Authoritative completion signal (phase, results_path, boot_image)
   scan-results/{target_id}/{scan_id}/
-    scan_results.json          # Versioned JSON envelope (v2.0)
+    scan_results.json          # Versioned JSON envelope (v2.1)
 ```
 
 `StorageService` writes to GCS when `GCS_BUCKET` is set (otherwise a local fallback for development). A **failed GCS upload raises** — there is no silent local fallback in the scan path. The scanner does **not** write to BigQuery; any downstream warehouse load happens out-of-repo from the exported envelope.
@@ -550,7 +555,7 @@ peregrine-penetrator-scanner/
     models/scan_profile.rb      Plain value object (not Sequel)
     services/
       scan_orchestrator.rb      Phase routing + SCANNER_MAP (10 probes)
-      scan_results_exporter.rb  v2.0 JSON envelope → GCS (SHA256 claim-check)
+      scan_results_exporter.rb  v2.1 JSON envelope → GCS (SHA256 claim-check)
       scan_completion_publisher.rb  Bus completion claim-check (inert today)
       control_plane_loop.rb     30s heartbeat + cancel-check thread
       heartbeat_sender.rb       Legacy HTTP callback heartbeat
