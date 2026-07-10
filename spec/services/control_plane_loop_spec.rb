@@ -30,6 +30,42 @@ RSpec.describe ControlPlaneLoop do
       thread = loop_instance.instance_variable_get(:@thread)
       expect(thread).not_to be_alive
     end
+
+    it 'skips the bus start signal when identity has no tp_id (off-bus)' do
+      publisher = instance_double(Bus::Publisher)
+      allow(publisher).to receive(:publish)
+      instance = described_class.new(
+        scan_uuid: 'scan-123', job_id: 'j', callback_url: '',
+        gcs_bucket: '', callback_secret: 's',
+        identity: ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: nil, environment: 'test', trace_id: nil, tp_id: ''),
+        publisher:
+      )
+
+      instance.start
+      instance.stop
+
+      expect(publisher).not_to have_received(:publish)
+    end
+
+    it 'publishes a one-shot tp.scanner start signal keyed on the processor instance' do
+      identity = ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: 'txn-1',
+                                  environment: 'production', trace_id: nil, tp_id: 'tp-9')
+      subj = Peregrine::Bus::Subjects.telemetry('tp', 'scanner', 'start', 'tp-9')
+      publisher, adapter = bus_pair(subj)
+      allow(StorageService).to receive(:new).and_return(instance_double(StorageService, upload_json: nil))
+
+      instance = described_class.new(
+        scan_uuid: 'scan-123', job_id: 'job-456', callback_url: '',
+        gcs_bucket: 'test-bucket', callback_secret: 'secret', identity:, publisher:
+      )
+      instance.start
+      instance.stop
+
+      msg = JSON.parse(adapter.consume(subj).first)
+      expect(msg['tp_id']).to eq('tp-9')
+      expect(msg['status']).to eq('started')
+      expect(msg['in_flight']).to eq(['txn-1'])
+    end
   end
 
   describe '#cancelled?' do
@@ -125,15 +161,15 @@ RSpec.describe ControlPlaneLoop do
       instance.send(:tick)
     end
 
-    it 'uses the ratified telemetry heartbeat subject' do
-      expect(Peregrine::Bus::Subjects.telemetry('penetrator', 'scan', 'heartbeat'))
-        .to eq('peregrine.telemetry.penetrator.scan.heartbeat')
+    it 'uses the grammar-locked tp.scanner heartbeat subject, keyed on the processor instance' do
+      expect(Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat('tp-9'))
+        .to eq('peregrine.telemetry.tp.scanner.heartbeat.tp-9')
     end
 
-    it 'publishes the ratified telemetry heartbeat carrying tp-id + in_flight txn ids in the value' do
+    it 'publishes the tp.scanner heartbeat carrying tp-id + in_flight txn ids in the value' do
       identity = ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: 'txn-1',
                                   environment: 'production', trace_id: nil, tp_id: 'tp-9')
-      subj = Peregrine::Bus::Subjects.telemetry('penetrator', 'scan', 'heartbeat')
+      subj = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat('tp-9')
       publisher, adapter = bus_pair(subj)
       allow(StorageService).to receive(:new).and_return(instance_double(StorageService, upload_json: nil))
 
