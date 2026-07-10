@@ -11,8 +11,12 @@ module Bus
   #
   # Transport is chosen by BUS_TRANSPORT (default "pubsub"):
   #   pubsub -> Peregrine::Bus::Gcp::PubSubTransport   (production concrete)
-  #   nats   -> Peregrine::Bus::Nats::NatsTransport    (`.stage` soak only — no
-  #             live Synadia creds are provisioned yet, peregrine-bus#22)
+  #   nats   -> Peregrine::Bus::Nats::NatsTransport    (interim corporate-bus
+  #             flip, scanner#1135). The launcher injects NATS_URL + a
+  #             Synadia .creds file at NATS_CREDS (same metadata->tmpfs->clear
+  #             discipline as KEYSET). A nats launch with no NATS_CREDS
+  #             degrades to no adapter rather than attempting an
+  #             unauthenticated connect NGS would refuse anyway.
   #
   # The Substrate (Plane 1, sealed blobs) is always GCS regardless of transport —
   # only the clear claim-check pointer's carrier (Plane 2) changes.
@@ -60,9 +64,12 @@ module Bus
         require 'google/cloud/pubsub'
         Peregrine::Bus::Gcp::PubSubTransport.new(client: Google::Cloud::PubSub.new)
       when 'nats'
+        creds = ENV.fetch('NATS_CREDS', nil)
+        return nil if creds.to_s.empty?
+
         require 'peregrine/bus/nats'
         require 'nats/client'
-        js = NATS.connect(ENV.fetch('NATS_URL')).jetstream
+        js = NATS.connect(ENV.fetch('NATS_URL'), user_credentials: creds).jetstream
         Peregrine::Bus::Nats::NatsTransport.new(client: js)
       end
     end
