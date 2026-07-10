@@ -15,12 +15,12 @@ module BusHelper
     [Bus::Publisher.new(adapter), adapter]
   end
 
-  # A static keyset holding a current key for each subject (+ its .stage sibling).
+  # A static keyset holding a current key for each subject (+ its staging sibling).
   def keyset_for(*subjects, version: 1)
     current = {}
     keys = {}
     subjects.each do |s|
-      [s, Peregrine::Bus::Subjects.stage(s)].uniq.each do |subj|
+      [s, Peregrine::Bus::Subjects.tee_to_staging(s)].uniq.each do |subj|
         current[subj] = version
         keys["#{subj}:#{version}"] = Base64.strict_encode64(Peregrine::Bus::Sealer.random_key)
       end

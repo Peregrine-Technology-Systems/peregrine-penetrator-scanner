@@ -29,7 +29,7 @@ gem "faraday", "~> 2.7"
 # Registry source, not a git-dep — a git credential on a private repo is fragile on
 # cold CI agents; see scripts/woodpecker/lib/git-dep-auth.sh.
 source "https://rubygems.pkg.github.com/Peregrine-Technology-Systems" do
-  gem "peregrine_bus", "~> 0.4"
+  gem "peregrine_bus", "~> 0.5"
   gem "peregrine_bus_gcp", "~> 0.1"
   gem "peregrine_bus_nats", "~> 0.1"
 end
