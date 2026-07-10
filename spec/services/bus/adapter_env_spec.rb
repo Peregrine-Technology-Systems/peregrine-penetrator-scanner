@@ -12,11 +12,11 @@ require 'tempfile'
 # `stub_const` double pattern for every spec file loaded after this one.
 RSpec.describe Bus::AdapterEnv do
   around do |example|
-    saved = ENV.to_h.slice('BUS_BUCKET', 'BUS_KEYSET_PATH', 'BUS_TRANSPORT', 'BUS_T_MODE', 'NATS_URL')
+    saved = ENV.to_h.slice('BUS_BUCKET', 'BUS_KEYSET_PATH', 'BUS_TRANSPORT', 'BUS_T_MODE', 'NATS_URL', 'NATS_CREDS')
     example.run
   ensure
     saved.each { |k, v| ENV[k] = v }
-    (%w[BUS_BUCKET BUS_KEYSET_PATH BUS_TRANSPORT BUS_T_MODE NATS_URL] - saved.keys).each { |k| ENV.delete(k) }
+    (%w[BUS_BUCKET BUS_KEYSET_PATH BUS_TRANSPORT BUS_T_MODE NATS_URL NATS_CREDS] - saved.keys).each { |k| ENV.delete(k) }
   end
 
   before do
@@ -33,6 +33,21 @@ RSpec.describe Bus::AdapterEnv do
     gcs_class = Class.new { def bucket(*); end }
     stub_const('Google::Cloud::Storage', gcs_class)
     allow(gcs_class).to receive(:new).and_return(instance_double(gcs_class, bucket: double('bucket')))
+  end
+
+  def stub_nats_connect!
+    nats_class = Class.new { def self.connect(*); end }
+    stub_const('NATS', nats_class)
+    allow(nats_class).to receive(:connect).and_return(double('nats connection', jetstream: double('jetstream context')))
+    nats_class
+  end
+
+  def set_nats_env!(keyset_path, creds: '/dev/shm/peregrine/synadia.creds')
+    ENV['BUS_BUCKET'] = 'bucket'
+    ENV['BUS_KEYSET_PATH'] = keyset_path
+    ENV['BUS_TRANSPORT'] = 'nats'
+    ENV['NATS_URL'] = 'nats://example.invalid:4222'
+    creds ? (ENV['NATS_CREDS'] = creds) : ENV.delete('NATS_CREDS')
   end
 
   describe '.adapter' do
@@ -62,23 +77,32 @@ RSpec.describe Bus::AdapterEnv do
       end
     end
 
-    it 'selects the NATS transport when BUS_TRANSPORT=nats' do
+    it 'selects the NATS transport and passes user_credentials when BUS_TRANSPORT=nats + NATS_CREDS is set' do
       Tempfile.create(['keyset', '.json']) do |f|
         f.write('{"current":{},"keys":{}}')
         f.flush
-        ENV['BUS_BUCKET'] = 'bucket'
-        ENV['BUS_KEYSET_PATH'] = f.path
-        ENV['BUS_TRANSPORT'] = 'nats'
-        ENV['NATS_URL'] = 'nats://example.invalid:4222'
-
+        set_nats_env!(f.path)
         stub_gcs_storage!
-        nats_class = Class.new { def self.connect(*); end }
-        stub_const('NATS', nats_class)
-        nats_conn = double('nats connection', jetstream: double('jetstream context'))
-        allow(nats_class).to receive(:connect).and_return(nats_conn)
+        nats_class = stub_nats_connect!
 
         adapter = described_class.adapter
+
         expect(adapter).to be_a(Peregrine::Bus::Adapter)
+        expect(nats_class).to have_received(:connect)
+          .with('nats://example.invalid:4222', user_credentials: '/dev/shm/peregrine/synadia.creds')
+      end
+    end
+
+    it 'degrades to no adapter (fail-soft) when BUS_TRANSPORT=nats but NATS_CREDS is unset' do
+      Tempfile.create(['keyset', '.json']) do |f|
+        f.write('{"current":{},"keys":{}}')
+        f.flush
+        set_nats_env!(f.path, creds: nil)
+        stub_gcs_storage!
+        nats_class = stub_nats_connect!
+
+        expect(described_class.adapter).to be_nil
+        expect(nats_class).not_to have_received(:connect)
       end
     end
 
