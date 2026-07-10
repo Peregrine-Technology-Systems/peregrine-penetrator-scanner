@@ -89,6 +89,13 @@ if [ "$DOCS_ONLY" = false ]; then
       FAILED=1
     else
       echo "✅ Coverage: ${COVERAGE}%"
+      # Keep the README badge in sync with what we just measured — no live
+      # coverage endpoint exists (Woodpecker only badges CI status), so this
+      # static badge is refreshed by every commit that runs the full suite.
+      if [ -f README.md ] && grep -q 'coverage-badge: kept in sync' README.md; then
+        perl -pi -e "s/coverage-[0-9.]+%25-brightgreen\) <!-- coverage-badge/coverage-${COVERAGE}%25-brightgreen) <!-- coverage-badge/" README.md
+        git add README.md
+      fi
     fi
   fi
 fi
