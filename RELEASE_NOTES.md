@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.11.1 — 2026-07-10
 - docs: restore a coverage badge in README.md, kept in sync by pre-commit (#1144). README carried a `![Coverage](...)` badge until the #961 history-collapse baseline dropped it — since then there's been no coverage signal visible without running the suite yourself. Added the badge back, and since Woodpecker has no live coverage endpoint to badge against (only CI status), `.githooks/pre-commit` now rewrites the badge's percentage from the `$COVERAGE` it already computes on every commit that runs the full suite, and stages the updated `README.md` alongside. Docs-only commits (no test run) leave the badge at its last-measured value rather than going stale silently in the other direction. (#1144)
 - chore: follow `peregrine_bus`'s `Subjects.stage`/`staged?` → `tee_to_staging`/`staging?` rename (#1134). `peregrine-bus#45` retired the after-plane `stage` token (`peregrine.data.stage.task.x`) in favor of a before-plane `staging` token (`peregrine.staging.data.task.x`) matching the bus-subject-grammar's env-token shape — "soak has no separate concept — it IS the staging environment." Bumped `peregrine_bus` `~> 0.4` → `~> 0.5` (0.4.0 → 0.5.0; verified live on the registry, not just merged to the gem's main branch — an earlier attempt at this swap hit a version that didn't actually exist yet, see #1134's comment thread) and swapped the one call site, `spec/support/bus_helper.rb`'s `keyset_for` — test-support only, no production call site. Full suite green (562 examples, 97.52% coverage) against the new gem version. (#1134)
 
