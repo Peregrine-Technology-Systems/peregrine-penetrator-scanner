@@ -25,12 +25,10 @@ module Bus
       transport = build_transport
       return nil unless transport
 
-      require 'peregrine/bus/gcp'
-      require 'google/cloud/storage'
       Peregrine::Bus::Adapter.new(
-        substrate: Peregrine::Bus::Gcp::GcsSubstrate.new(client: Google::Cloud::Storage.new, bucket: ENV.fetch('BUS_BUCKET')),
+        substrate: substrate,
         transport: transport,
-        key_provider: Peregrine::Bus::StaticKeyProvider.from_file(ENV.fetch('BUS_KEYSET_PATH')),
+        key_provider: key_provider,
         t_mode: ENV['BUS_T_MODE'] == 'true'
       )
     rescue StandardError => e
@@ -40,6 +38,19 @@ module Bus
 
     def enabled?
       ENV['BUS_BUCKET'].to_s.present? && ENV['BUS_KEYSET_PATH'].to_s.present?
+    end
+
+    # The GCS substrate (Plane 1, sealed blobs) — shared by #adapter and by
+    # Bus::JobPointerResolver (scanner#1124), which only needs substrate +
+    # key_provider (no transport) to open an already-known claim-check pointer.
+    def substrate
+      require 'peregrine/bus/gcp'
+      require 'google/cloud/storage'
+      Peregrine::Bus::Gcp::GcsSubstrate.new(client: Google::Cloud::Storage.new, bucket: ENV.fetch('BUS_BUCKET'))
+    end
+
+    def key_provider
+      Peregrine::Bus::StaticKeyProvider.from_file(ENV.fetch('BUS_KEYSET_PATH'))
     end
 
     def build_transport

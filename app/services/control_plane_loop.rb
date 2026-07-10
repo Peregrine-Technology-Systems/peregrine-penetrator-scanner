@@ -23,6 +23,7 @@ class ControlPlaneLoop
   end
 
   def start
+    safe_call('bus start') { publish_bus_start }
     @running = true
     @thread = Thread.new { run_loop }
     self
@@ -91,18 +92,21 @@ class ControlPlaneLoop
     @storage.upload_json("control/#{@scan_uuid}/heartbeat.json", payload)
   end
 
-  # Publish liveness on the telemetry plane (scanner#1052, operator-ratified in
-  # the infrastructure repo): the canonical subject is `peregrine.telemetry.penetrator.scan.
-  # heartbeat` — one subject for the whole scan stage, with the tp-id and in-flight
-  # transaction_id(s) carried in the VALUE (not the subject), so the watchdog keys
-  # liveness by tp_id from the payload. `Subjects::Penetrator.scanner_heartbeat` is
-  # a DRIFTED helper (tp-id in the subject) — do not switch to it; see #1052.
+  # Publish liveness on the telemetry plane, keyed on the PROCESSOR (this scanner
+  # instance), not the transaction it happens to be running (scanner#1127, org-wide
+  # org-wide bus-grammar lock-in): `telemetry.tp.scanner.heartbeat.<tp-id>` —
+  # this supersedes the flat `telemetry.penetrator.scan.heartbeat` subject
+  # scanner#1052 previously ratified, which put the transaction class+stage in a
+  # telemetry subject instead of the processor class; that shape is what the new
+  # grammar's §3 rules out. In-flight transaction_id(s) still ride in the VALUE,
+  # not the subject — the watchdog keys liveness by tp-id from the subject and
+  # reads in_flight from the payload for correlation.
   # No-op when identity/tp_id is absent (off-bus) or the publisher is disabled;
   # the GCS heartbeat above is the durable fallback.
   def publish_bus_heartbeat(progress)
     return if @identity.nil? || @identity.tp_id.to_s.empty?
 
-    subject = Peregrine::Bus::Subjects.telemetry('penetrator', 'scan', 'heartbeat')
+    subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(@identity.tp_id)
     @publisher.publish(subject, {
                          tp_id: @identity.tp_id,
                          status: 'running',
@@ -110,6 +114,23 @@ class ControlPlaneLoop
                          timestamp: Time.current.iso8601,
                          **progress
                        }, job_id: @identity.in_flight.first, status: 'running')
+  end
+
+  # One-shot liveness signal at successful startup (scanner#1127): seeds the
+  # fleet-roster KV entry the heartbeat above renews, so the tp-monitor can tell
+  # "never started" apart from "started, then went dark". No dedicated
+  # `Subjects::Penetrator` helper exists for this yet — the grammar's generic
+  # `telemetry.tp.<class>.<event>.<instance>` shape is built directly.
+  def publish_bus_start
+    return if @identity.nil? || @identity.tp_id.to_s.empty?
+
+    subject = Peregrine::Bus::Subjects.telemetry('tp', 'scanner', 'start', @identity.tp_id)
+    @publisher.publish(subject, {
+                         tp_id: @identity.tp_id,
+                         status: 'started',
+                         in_flight: @identity.in_flight,
+                         timestamp: Time.current.iso8601
+                       }, job_id: @identity.in_flight.first, status: 'started')
   end
 
   def check_cancel
