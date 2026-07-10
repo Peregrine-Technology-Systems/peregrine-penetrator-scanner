@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.11.0 — 2026-07-10
 - feat: pass `user_credentials` to `NATS.connect` for the interim corporate NATS flip (#1135). `Bus::AdapterEnv#build_transport`'s `nats` branch connected with no credentials — NGS (`connect.ngs.global`) requires a `.creds` (JWT + nkey) and refuses an uncredentialed connect, so the transport would have failed the moment infra's launcher wiring went live. Now reads the Synadia creds file path from `NATS_CREDS` (the launcher injects it via the same metadata → tmpfs → clear discipline as `KEYSET`) and passes it as `user_credentials:`. Fail-soft: a `nats`-transport launch with `NATS_CREDS` unset degrades to no adapter (GCS `control/` writes stay the fallback) instead of attempting a connect NGS would reject anyway — belt-and-suspenders for a partial rollout. Last scanner-side piece for the interim flip; the remaining gates (launcher wiring, tp-mon's keyset mint) are infra-owned and in progress. (#1135)
 
 ## v1.10.0 — 2026-07-10
