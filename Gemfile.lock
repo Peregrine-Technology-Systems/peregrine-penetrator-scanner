@@ -322,7 +322,7 @@ GEM
 GEM
   remote: https://rubygems.pkg.github.com/Peregrine-Technology-Systems/
   specs:
-    peregrine_bus (0.4.0)
+    peregrine_bus (0.5.0)
       rbnacl (~> 7.1)
     peregrine_bus_gcp (0.1.0)
       google-cloud-pubsub (~> 2.21)
@@ -354,7 +354,7 @@ DEPENDENCIES
   faraday (~> 2.7)
   google-cloud-bigquery (~> 1.49)
   google-cloud-storage (~> 1.44)
-  peregrine_bus (~> 0.4)!
+  peregrine_bus (~> 0.5)!
   peregrine_bus_gcp (~> 0.1)!
   peregrine_bus_nats (~> 0.1)!
   rspec (~> 3.13)
