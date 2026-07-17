@@ -3,12 +3,12 @@
 module Bus
   # Scanner-side wrapper over the bus-identity adapter (peregrine_bus, scanner#1106).
   # The scanner emits scan.completed/failed + heartbeats through this, never raw
-  # Pub/Sub or NATS — it does not consume from the bus (per the cross-TP landing-zone
-  # decision: the launcher
-  # consumes scan.requested and hands the job to the VM via instance metadata; the
-  # VM never subscribes to anything). The adapter owns subjects, envelope, crypto,
-  # and the substrate/transport mapping; this wrapper adds the three scanner-side
-  # concerns:
+  # Pub/Sub or NATS. Consuming scan.requested is Bus::ScanRequestConsumer's job
+  # (restored by #1152 — the worker pulls, processes, and acks its own subject
+  # directly, per tp-monitor#733's reversal of the earlier launcher-hands-off
+  # model this comment used to describe). The adapter owns subjects, envelope,
+  # crypto, and the substrate/transport mapping; this wrapper adds the three
+  # scanner-side concerns:
   #
   #   1. Disabled mode — until infra injects BUS_BUCKET/BUS_KEYSET_PATH at the
   #      `.stage` soak (#1106), `build` returns a publisher with no adapter that
