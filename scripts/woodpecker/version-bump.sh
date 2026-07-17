@@ -24,6 +24,28 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
+# Retries a transient non-JSON GitHub API response (e.g. GitHub's "Unicorn" 503
+# HTML page — confirmed root cause, not gzip). Always returns whatever was LAST
+# received — never hard-fails on its own, so callers keep their existing
+# pass/fail handling unchanged. Canonical: peregrine-messaging PR #323. This
+# script creates the release tag + GitHub Release, so a silent bad-JSON parse
+# here is the highest-stakes case in the estate-wide broadcast (#1153): it can
+# strand an orphan tag (tag with no Release, SOC 2 CC7.2 gap).
+gh_api() {
+  local response attempt
+  for attempt in 1 2 3; do
+    response=$(curl -s --compressed -H "$AUTH" "$@")
+    if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+      printf '%s' "$response"
+      return 0
+    fi
+    echo "WARNING: non-JSON response from GitHub API, attempt ${attempt}/3 (first 300 chars):" >&2
+    printf '%s\n' "${response:0:300}" >&2
+    [ "$attempt" -lt 3 ] && sleep 3
+  done
+  printf '%s' "$response"
+}
+
 # Guard: skip version bump for automated commits (prevents infinite loop).
 # Anchor on the SUBJECT line only (head -n1) — matching the full multi-line
 # message fires the guard on any merge commit whose body happens to contain
@@ -188,7 +210,7 @@ Co-Authored-By: woodpecker-ci[bot] <woodpecker-ci[bot]@users.noreply.github.com>
 git push origin "${RELEASE_BRANCH}"
 
 # Create the release PR via API
-PR_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+PR_RESPONSE=$(gh_api -X POST -H "Content-Type: application/json" \
   "${API}/repos/${REPO}/pulls" \
   -d "$(jq -n --arg t "release: ${TAG}" --arg h "${RELEASE_BRANCH}" \
     --arg b "Automated version bump: ${BUMP_TYPE} (${CURRENT} → ${NEW_VERSION})" \
@@ -214,7 +236,7 @@ echo "Created release PR #${PR_NUMBER}"
 # gate it — the exact failure that stalled v0.19.0 (#775). `blocked`/`dirty`/
 # `behind` are NOT accepted and keep polling until the window expires.
 for attempt in $(seq 1 30); do
-  PR_STATE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/pulls/${PR_NUMBER}")
+  PR_STATE=$(gh_api "${API}/repos/${REPO}/pulls/${PR_NUMBER}")
   MERGEABLE=$(echo "$PR_STATE" | jq -r '.mergeable')
   MSTATE=$(echo "$PR_STATE" | jq -r '.mergeable_state')
   if [ "$MERGEABLE" = "true" ] && { [ "$MSTATE" = "clean" ] || [ "$MSTATE" = "unstable" ]; }; then
@@ -231,7 +253,7 @@ done
 MERGED=""
 MERGE_RESPONSE=""
 for attempt in 1 2 3; do
-  MERGE_RESPONSE=$(curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+  MERGE_RESPONSE=$(gh_api -X PUT -H "Content-Type: application/json" \
     "${API}/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
     -d "{\"merge_method\": \"merge\", \"commit_title\": \"release: ${TAG}\"}")
   MERGED=$(echo "$MERGE_RESPONSE" | jq -r '.merged')
@@ -255,7 +277,7 @@ if ! echo "$MERGE_SHA" | grep -qE '^[0-9a-f]{40}$'; then
   echo "ERROR: invalid merge SHA '${MERGE_SHA}' from merge response — refusing to tag" >&2
   exit 1
 fi
-TAG_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+TAG_RESPONSE=$(gh_api -X POST -H "Content-Type: application/json" \
   "${API}/repos/${REPO}/git/refs" \
   -d "$(jq -n --arg ref "refs/tags/${TAG}" --arg sha "${MERGE_SHA}" '{ref: $ref, sha: $sha}')")
 if echo "$TAG_RESPONSE" | jq -e '.ref == "refs/tags/'"${TAG}"'"' >/dev/null 2>&1; then
@@ -333,7 +355,7 @@ DEPLOY_PAYLOAD=$(jq -n --arg ref "$TAG" --arg desc "Auto-deploy of ${TAG} trigge
   description: $desc,
   production_environment: true
 }')
-DEPLOY_RESPONSE=$(curl -sS -X POST -H "$AUTH" -H "Accept: application/vnd.github+json" \
+DEPLOY_RESPONSE=$(gh_api -X POST -H "Accept: application/vnd.github+json" \
   -H "Content-Type: application/json" \
   "${API}/repos/${REPO}/deployments" \
   -d "$DEPLOY_PAYLOAD")

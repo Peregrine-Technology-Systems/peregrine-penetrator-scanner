@@ -19,6 +19,28 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
+# Retries a transient non-JSON GitHub API response (e.g. GitHub's "Unicorn" 503
+# HTML page — confirmed root cause, not gzip; --compressed is cheap insurance
+# either way). Always returns whatever was LAST received — never hard-fails on
+# its own, so callers keep their existing pass/fail handling (bare `set -e`
+# assignment OR a tolerant `if ... jq -e` retry loop) unchanged. Canonical
+# version: peregrine-messaging PR #323 (not the superseded #322 draft, which
+# hard-failed and broke retry loops like the mergeability-poll below). #1153.
+gh_api() {
+  local response attempt
+  for attempt in 1 2 3; do
+    response=$(curl -s --compressed -H "$AUTH" "$@")
+    if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+      printf '%s' "$response"
+      return 0
+    fi
+    echo "WARNING: non-JSON response from GitHub API, attempt ${attempt}/3 (first 300 chars):" >&2
+    printf '%s\n' "${response:0:300}" >&2
+    [ "$attempt" -lt 3 ] && sleep 3
+  done
+  printf '%s' "$response"
+}
+
 # Determine promotion target
 case "$BRANCH" in
   development) BASE="staging";  MODE="auto" ;;
@@ -38,7 +60,7 @@ if echo "$COMMIT_MSG" | grep -qE '^release: v[0-9]'; then
 fi
 
 # ── Guard: skip if sync-back or release PRs target our base branch ──
-INFLIGHT=$(curl -s -H "$AUTH" \
+INFLIGHT=$(gh_api \
   "${API}/repos/${REPO}/pulls?state=open&base=${BASE}&per_page=100" \
   | jq '[.[] | select(
       (.title | test("^Sync:"))
@@ -52,7 +74,7 @@ fi
 
 # ── Guard: skip if promotion PR already exists ──
 MERGE_BRANCH="merge/${BRANCH}-to-${BASE}"
-EXISTING=$(curl -s -H "$AUTH" \
+EXISTING=$(gh_api \
   "${API}/repos/${REPO}/pulls?base=${BASE}&state=open" \
   | jq "[.[] | select(
       (.head.ref == \"${BRANCH}\")
@@ -65,7 +87,7 @@ if [ "$EXISTING" -gt 0 ]; then
 fi
 
 # ── Guard: skip if no new commits ──
-COMPARE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/compare/${BASE}...${BRANCH}" | jq -r '.ahead_by // 0')
+COMPARE=$(gh_api "${API}/repos/${REPO}/compare/${BASE}...${BRANCH}" | jq -r '.ahead_by // 0')
 if [ "$COMPARE" = "0" ]; then
   echo "No new commits to promote (${BRANCH} is up to date with ${BASE})"
   exit 0
@@ -145,7 +167,7 @@ fi
 git push origin "$MERGE_BRANCH"
 
 # ── Create PR ──
-PR_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+PR_RESPONSE=$(gh_api -X POST -H "Content-Type: application/json" \
   "${API}/repos/${REPO}/pulls" \
   -d "{
     \"title\": \"Promote ${BRANCH} → ${BASE}\",
@@ -176,7 +198,7 @@ if [ "$MODE" = "auto" ]; then
   # polling. The merge-branch flow is idempotent, so a failed run re-runs cleanly.
   echo "Waiting for PR #${PR_NUMBER} to become mergeable..."
   for i in $(seq 1 6); do
-    MERGE_STATE=$(curl -s -H "$AUTH" "${API}/repos/${REPO}/pulls/${PR_NUMBER}" \
+    MERGE_STATE=$(gh_api "${API}/repos/${REPO}/pulls/${PR_NUMBER}" \
       | jq -r '.mergeable_state // "unknown"')
     if [ "$MERGE_STATE" = "clean" ] || [ "$MERGE_STATE" = "unstable" ]; then break; fi
     echo "  mergeability: ${MERGE_STATE} — retrying in 5s (attempt ${i}/6)"
@@ -185,7 +207,7 @@ if [ "$MODE" = "auto" ]; then
 
   MERGED=false
   for ATTEMPT in 1 2 3; do
-    MERGE_RESULT=$(curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+    MERGE_RESULT=$(gh_api -X PUT -H "Content-Type: application/json" \
       "${API}/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
       -d '{"merge_method": "merge"}')
     if echo "$MERGE_RESULT" | jq -e '.merged' > /dev/null 2>&1; then
@@ -204,7 +226,7 @@ if [ "$MODE" = "auto" ]; then
     exit 1
   fi
 else
-  REPO_OWNER=$(curl -s -H "$AUTH" "${API}/repos/${REPO}" | jq -r '.owner.login // empty')
+  REPO_OWNER=$(gh_api "${API}/repos/${REPO}" | jq -r '.owner.login // empty')
   if [ -n "$REPO_OWNER" ] && [ "$REPO_OWNER" != "null" ]; then
     curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
       "${API}/repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers" \
