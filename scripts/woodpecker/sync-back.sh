@@ -22,6 +22,25 @@ fi
 
 AUTH="Authorization: Bearer ${GH_TOKEN}"
 
+# Retries a transient non-JSON GitHub API response (e.g. GitHub's "Unicorn" 503
+# HTML page — confirmed root cause, not gzip). Always returns whatever was LAST
+# received — never hard-fails on its own, so callers keep their existing
+# pass/fail handling unchanged. Canonical: peregrine-messaging PR #323. #1153.
+gh_api() {
+  local response attempt
+  for attempt in 1 2 3; do
+    response=$(curl -s --compressed -H "$AUTH" "$@")
+    if printf '%s' "$response" | jq -e . >/dev/null 2>&1; then
+      printf '%s' "$response"
+      return 0
+    fi
+    echo "WARNING: non-JSON response from GitHub API, attempt ${attempt}/3 (first 300 chars):" >&2
+    printf '%s\n' "${response:0:300}" >&2
+    [ "$attempt" -lt 3 ] && sleep 3
+  done
+  printf '%s' "$response"
+}
+
 git config user.name "woodpecker-ci[bot]"
 git config user.email "woodpecker-ci[bot]@users.noreply.github.com"
 git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
@@ -36,7 +55,7 @@ for BRANCH in development staging; do
   echo "=== Syncing to ${BRANCH} ==="
 
   # Check for existing sync PR
-  EXISTING=$(curl -s -H "$AUTH" \
+  EXISTING=$(gh_api \
     "${API}/repos/${REPO}/pulls?state=open&base=${BRANCH}" \
     | jq "[.[] | select(.title | contains(\"${VERSION}\"))] | length")
 
@@ -104,7 +123,7 @@ for BRANCH in development staging; do
 
   git push origin "$MERGE_BRANCH"
 
-  PR_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+  PR_RESPONSE=$(gh_api -X POST -H "Content-Type: application/json" \
     "${API}/repos/${REPO}/pulls" \
     -d "{
       \"title\": \"Sync: ${VERSION} version files to ${BRANCH}\",
@@ -119,7 +138,7 @@ for BRANCH in development staging; do
     echo "Created sync PR #${PR_NUMBER}: ${PR_URL}"
 
     # Auto-merge
-    MERGE_RESULT=$(curl -s -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+    MERGE_RESULT=$(gh_api -X PUT -H "Content-Type: application/json" \
       "${API}/repos/${REPO}/pulls/${PR_NUMBER}/merge" \
       -d '{"merge_method": "merge"}')
     if echo "$MERGE_RESULT" | jq -e '.merged' > /dev/null 2>&1; then

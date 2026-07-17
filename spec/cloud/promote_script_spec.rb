@@ -21,4 +21,16 @@ RSpec.describe 'promote.sh' do # rubocop:disable RSpec/DescribeClass
   it 'uses the correct repo path' do
     expect(script).to include('Peregrine-Technology-Systems/peregrine-penetrator-scanner')
   end
+
+  it 'guards every GitHub API read/write through gh_api(), not a bare curl|jq (#1153)' do
+    expect(script).to include('gh_api()')
+    # No remaining call site should still parse a bare `curl | jq` response —
+    # every jq-consuming call must go through the retry-guarded helper.
+    expect(script).not_to match(/curl -s(?! --compressed)[^\n]*\|\s*jq/)
+  end
+
+  it 'retries on non-JSON gh_api response instead of hard-failing (#1153)' do
+    expect(script).not_to match(/gh_api\(\).*?\breturn 1\b/m)
+    expect(script).to include('jq -e . >/dev/null 2>&1')
+  end
 end
