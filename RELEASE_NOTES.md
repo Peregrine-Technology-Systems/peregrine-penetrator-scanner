@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.11.2 — 2026-07-17
 - fix: guard `scripts/woodpecker/{promote,sync-back,version-bump}.sh` against a transient non-JSON GitHub API response (#1153). All three piped raw `curl -s ... | jq ...` — a degraded response (confirmed root cause estate-wide: GitHub's "Unicorn" 503 outage HTML page) either hard-failed `jq` with a cryptic `Invalid numeric literal`, or worse, silently resolved a `// 0`/`// empty` default: `promote.sh`'s `.ahead_by // 0` would read a degraded compare-response as "0 commits ahead" and exit 0 declaring "nothing to promote" — a silent-OK that skips a real promotion with no error. Added a shared `gh_api()` helper (canonical version, peregrine-messaging PR #323) to all three scripts: retries 3x with backoff on non-JSON, never hard-fails on its own so existing caller retry loops (mergeability poll, merge-attempt loop) keep behaving exactly as before. `version-bump.sh` was the highest-stakes site — it mints the release tag + GitHub Release, so a silent bad parse there risks an orphan tag (SOC 2 CC7.2 gap). Cross-repo broadcast: amalc/global-claude#220. (#1153)
 
 ## v1.11.1 — 2026-07-10
