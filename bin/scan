@@ -18,11 +18,23 @@ end.parse!
 Penetrator.boot!
 Penetrator.boot_services!
 
-# Bus job pointer (scanner#1124): the launcher-consumes landing zone hands the
-# VM a claim-check via BUS_JOB_POINTER instead of injecting scan config
-# directly. Resolve it — no-op (and today's ONLY live path) when no pointer
-# file exists; raises if the file exists but can't be opened (no other source
-# of truth to fall back to for a real bus-triggered launch).
+# Bus request (scanner#1106, restored by #1152): the fleet controller
+# reversed the interim launcher-consumes-and-hands-off model that PR #1117
+# was built against — the canonical worker contract is now "the worker pulls,
+# processes, and acks its own subject directly." The VM pulls its own
+# scan.requested claim-check here, taking precedence over ENV/CLI. Disabled
+# (nil) until infra wires BUS_BUCKET/BUS_KEYSET_PATH + a live transport, so
+# this is inert until the substrate is live; the ENV-injected VM-metadata path
+# below stays the fallback.
+bus_request = Bus::ScanRequestConsumer.new.next_request
+ENV['SCAN_UUID'] ||= bus_request&.dig('scan_uuid')
+ENV['TRANSACTION_ID'] ||= bus_request&.dig('transaction_id')
+
+# Bus job pointer (scanner#1124): built for the now-superseded launcher-hands-
+# off model — the launcher no longer hands the VM a claim-check pointer once
+# the VM consumes its own subject directly (above). Left as a harmless no-op
+# fallback (the pointer file will simply never exist under the restored model)
+# pending a follow-up cleanup issue rather than mixing that removal into #1152.
 job_detail = Bus::JobPointerResolver.new.resolve
 if job_detail
   ENV['SCAN_UUID'] ||= job_detail['job_id']
@@ -30,10 +42,11 @@ if job_detail
   ENV['ENVIRONMENT'] ||= job_detail['environment']
 end
 
-# ENV vars take precedence (the launcher injects scan config via the VM environment)
-profile = ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
-target_name = ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
-target_urls = JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))
+# Bus request takes precedence over ENV, which takes precedence over CLI flags.
+profile = bus_request&.dig('profile') || ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
+target_name = bus_request&.dig('target_name') || ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
+target_urls = bus_request&.dig('urls') ||
+              JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))
 
 # Stamp the VM's boot image (from the GCE metadata server) so audit events and
 # status.json carry it for version traceability (#951). Fail-safe to "unknown"
