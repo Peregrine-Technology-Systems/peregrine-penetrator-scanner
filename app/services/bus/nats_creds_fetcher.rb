@@ -6,17 +6,19 @@ require 'fileutils'
 module Bus
   # Self-fetches the Synadia NATS .creds file from Secret Manager via the
   # instance SA's ADC (scanner#1182) and writes it to the same tmpfs path +
-  # mode-0600 discipline the launcher used to inject it at — only the SOURCE
+  # mode-0600 discipline the launcher used to inject it at -- only the SOURCE
   # changes (Secret Manager instead of boot metadata), not the security
   # posture: never touches persistent disk, cleared with the rest of
   # /dev/shm/peregrine on VM teardown.
   #
-  # PLACEHOLDER secret_id, pending infra confirmation.
+  # Confirmed against infra directly (2026-07-20): one shared secret,
+  # peregrine-production--synadia-creds, project peregrine-production. Payload
+  # IS the raw .creds content (JWT+nkey) -- used directly, no JSON wrap.
   class NatsCredsFetcher
-    SECRET_ID = 'scanner-tp-synadia-creds'
+    SECRET_ID = 'peregrine-production--synadia-creds'
     DEFAULT_PATH = '/dev/shm/peregrine/synadia.creds'
 
-    def initialize(project: ENV.fetch('BUS_KEYSET_PROJECT', 'peregrine-pts-penetrator'),
+    def initialize(project: ENV.fetch('BUS_KEYSET_PROJECT', 'peregrine-production'),
                    client: Google::Cloud::SecretManager.secret_manager_service,
                    path: DEFAULT_PATH)
       @project = project
@@ -24,7 +26,7 @@ module Bus
       @path = path
     end
 
-    # Fetches the creds content and writes it to `path`. Returns the path —
+    # Fetches the creds content and writes it to `path`. Returns the path --
     # the shape NATS.connect(user_credentials:) expects. Fail-loud: any
     # Secret Manager error (missing secret, denied grant) raises rather than
     # degrading to a nil/unauthenticated connect.
