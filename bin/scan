@@ -27,8 +27,10 @@ Penetrator.boot_services!
 # this is inert until the substrate is live; the ENV-injected VM-metadata path
 # below stays the fallback.
 bus_request = Bus::ScanRequestConsumer.new.next_request
-ENV['SCAN_UUID'] ||= bus_request&.dig('scan_uuid')
-ENV['TRANSACTION_ID'] ||= bus_request&.dig('transaction_id')
+bus_payload = Bus::ScanRequestPayload.new(bus_request)
+ENV['SCAN_UUID'] ||= bus_payload.job_id
+ENV['TRANSACTION_ID'] ||= bus_payload.transaction_id
+ENV['ENVIRONMENT'] ||= bus_payload.environment
 
 # Bus job pointer (scanner#1124): built for the now-superseded launcher-hands-
 # off model — the launcher no longer hands the VM a claim-check pointer once
@@ -43,9 +45,9 @@ if job_detail
 end
 
 # Bus request takes precedence over ENV, which takes precedence over CLI flags.
-profile = bus_request&.dig('profile') || ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
-target_name = bus_request&.dig('target_name') || ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
-target_urls = bus_request&.dig('urls') ||
+profile = bus_payload.profile || ENV.fetch('SCAN_PROFILE', options[:profile] || 'standard')
+target_name = bus_payload.target_name || ENV.fetch('TARGET_NAME', options[:target_name] || 'Default Target')
+target_urls = bus_payload.target_urls ||
               JSON.parse(ENV.fetch('TARGET_URLS', (options[:urls] || ['http://localhost:8080']).to_json))
 
 # Stamp the VM's boot image (from the GCE metadata server) so audit events and
