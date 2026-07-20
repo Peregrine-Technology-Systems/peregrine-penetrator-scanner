@@ -27,13 +27,28 @@ module Bus
     # The oldest unconsumed scan.requested payload (a Hash), or nil when disabled,
     # empty, or the adapter refuses every pending message (malformed/undecryptable
     # — refuse-don't-deliver, never raised to the caller).
+    #
+    # `smoke: true` messages are ack'd (via Adapter#consume's ack-regardless
+    # semantics) and DROPPED here rather than returned — per the orchestrator's
+    # payload contract (scanner#1164), `smoke` is a message-provenance marker
+    # meaning "synthetic transport-probe, discard without acting", orthogonal to
+    # `profile`. A real observer must never scan a target for a message meant to
+    # be discarded. Expected to be rare-to-never on this subject in practice
+    # (today's only smoke:true producer publishes on a different, terminal
+    # subject) — this is belt-and-suspenders, not a live path.
     def next_request
       return nil unless @adapter
 
       plaintext = @adapter.consume(SUBJECT).first
       return nil if plaintext.nil?
 
-      JSON.parse(plaintext)
+      payload = JSON.parse(plaintext)
+      if payload['smoke'] == true
+        Penetrator.logger.info('[Bus] scan.requested dropped — smoke:true (provenance marker, not a real scan)')
+        return nil
+      end
+
+      payload
     rescue StandardError => e
       Penetrator.logger.warn("[Bus] scan.requested consume failed: #{e.message}")
       nil
