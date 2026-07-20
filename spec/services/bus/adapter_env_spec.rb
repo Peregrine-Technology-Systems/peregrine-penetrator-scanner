@@ -125,13 +125,16 @@ RSpec.describe Bus::AdapterEnv do
       expect(described_class.enabled?).to be(true)
     end
 
-    it '.key_provider self-fetches via KeysetFetcher for the data-plane subjects' do
-      provider = instance_double(Peregrine::Bus::StaticKeyProvider)
-      fetcher = instance_double(Bus::KeysetFetcher, fetch: provider)
-      allow(Bus::KeysetFetcher).to receive(:new).and_return(fetcher)
+    it '.key_provider self-fetches via CompositeKeyProvider spanning the data-plane subjects (peregrine-bus#70)' do
+      provider = instance_double(Bus::CompositeKeyProvider)
+      allow(Bus::CompositeKeyProvider).to receive(:for_subjects).and_return(provider)
 
       expect(described_class.key_provider).to eq(provider)
-      expect(fetcher).to have_received(:fetch).with(*Bus::AdapterEnv::DATA_PLANE_SUBJECTS)
+      expect(Bus::CompositeKeyProvider).to have_received(:for_subjects).with(
+        *Bus::AdapterEnv::DATA_PLANE_SUBJECTS,
+        provider_class: Peregrine::Bus::Gcp::SmKeyProvider,
+        project: Peregrine::Bus::Gcp::SmKeyProvider::DEFAULT_PROJECT
+      )
     end
 
     it '.build_transport defaults to nats (not pubsub) and self-fetches creds, connecting direct to Synadia' do
@@ -149,7 +152,7 @@ RSpec.describe Bus::AdapterEnv do
       stub_gcs_storage!
       stub_nats_connect!
       allow(Bus::NatsCredsFetcher).to receive(:new).and_return(instance_double(Bus::NatsCredsFetcher, fetch: '/dev/shm/peregrine/synadia.creds'))
-      allow(Bus::KeysetFetcher).to receive(:new).and_raise(StandardError, 'no grant')
+      allow(Bus::CompositeKeyProvider).to receive(:for_subjects).and_raise(StandardError, 'no grant')
 
       expect { described_class.adapter }.to raise_error(StandardError, 'no grant')
     end
