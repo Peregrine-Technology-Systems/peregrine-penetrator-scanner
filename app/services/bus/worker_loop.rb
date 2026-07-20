@@ -19,7 +19,7 @@ module Bus
     DEFAULT_DRAIN_IDLE_SECONDS = 480
 
     def initialize(consumer: ScanRequestConsumer.new, publisher: Publisher.build,
-                   drain_idle_seconds: ENV.fetch('SCANNER_DRAIN_IDLE_SECONDS', DEFAULT_DRAIN_IDLE_SECONDS).to_i,
+                   drain_idle_seconds: self.class.default_drain_idle_seconds,
                    poll_interval: POLL_INTERVAL_SECONDS, clock: -> { Time.now })
       @consumer = consumer
       @publisher = publisher
@@ -27,6 +27,17 @@ module Bus
       @poll_interval = poll_interval
       @clock = clock
       @draining = false
+    end
+
+    # Precedence: per-class override -> shared fleet-wide override -> default.
+    # Matches analyzer#243's convention so infra/tp-monitor can tune the whole
+    # TP fleet via TP_DRAIN_IDLE_SECONDS without touching each repo, while a
+    # single class can still override just its own default via
+    # SCANNER_DRAIN_IDLE_SECONDS.
+    def self.default_drain_idle_seconds
+      ENV.fetch('SCANNER_DRAIN_IDLE_SECONDS') do
+        ENV.fetch('TP_DRAIN_IDLE_SECONDS', DEFAULT_DRAIN_IDLE_SECONDS)
+      end.to_i
     end
 
     # Called from a SIGTERM trap — never interrupts an in-flight job, only
@@ -79,14 +90,22 @@ module Bus
       ENV.delete('ENVIRONMENT')
     end
 
+    # Rides the SAME heartbeat subject as ControlPlaneLoop's own heartbeats —
+    # never a separate `.exiting.` subject. Confirmed against analyzer#243 and
+    # tp-monitor#764 directly: their WorkerRegistry consumer filters
+    # `telemetry.tp.<class>.heartbeat.<instance>` and reads the lifecycle
+    # state from the PAYLOAD (arch#649's "state is a payload branch-point, not
+    # a subject segment"); a `.exiting.<id>` subject would be silently dropped
+    # by that filter, never reaching the consumer at all.
     def publish_exiting
       tp_id = InstanceMetadata.tp_id
       return if tp_id.to_s.empty?
 
-      subject = Peregrine::Bus::Subjects.telemetry('tp', 'scanner', 'exiting', tp_id)
+      subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(tp_id)
       @publisher.publish(subject, {
                            tp_id: tp_id,
-                           status: 'exiting',
+                           state: 'exiting',
+                           reason: @draining ? 'sigterm' : 'idle_timeout',
                            timestamp: Time.current.iso8601
                          }, status: 'exiting')
     end
