@@ -26,6 +26,20 @@ RSpec.describe Bus::ScanRequestConsumer do
 
       expect(described_class.new(adapter:).next_request).to be_nil
     end
+
+    it 'acks and drops a smoke:true message rather than returning it (#1166)' do
+      publisher, adapter = bus_pair(subject_name)
+      publisher.publish(subject_name, { 'scan_uuid' => 's1', 'profile' => 'standard', 'smoke' => true })
+
+      expect(described_class.new(adapter:).next_request).to be_nil
+    end
+
+    it 'returns a smoke:false message normally' do
+      publisher, adapter = bus_pair(subject_name)
+      publisher.publish(subject_name, { 'scan_uuid' => 's1', 'profile' => 'standard', 'smoke' => false })
+
+      expect(described_class.new(adapter:).next_request).to eq('scan_uuid' => 's1', 'profile' => 'standard', 'smoke' => false)
+    end
   end
 
   describe '#next_request (adapter raises)' do
