@@ -1,0 +1,77 @@
+# frozen_string_literal: true
+
+require 'sequel_helper'
+
+RSpec.describe Bus::WorkerLoop do
+  let(:consumer) { instance_double(Bus::ScanRequestConsumer) }
+  let(:publisher) { instance_double(Bus::Publisher, publish: nil) }
+  let(:times) { [] }
+  let(:clock) { -> { times.shift } }
+  let(:job_runner) { instance_double(ScanJobRunner, call: nil) }
+
+  def worker(drain_idle_seconds: 10)
+    described_class.new(consumer:, publisher:, drain_idle_seconds:, poll_interval: 0, clock:)
+  end
+
+  before do
+    allow(InstanceMetadata).to receive(:tp_id).and_return('tp-1')
+    allow(ScanJobRunner).to receive(:new).and_return(job_runner)
+  end
+
+  describe '#run' do
+    it 'runs a job for each pulled request, then idle-exits once the drain timeout elapses' do
+      bus_request = { 'job_id' => 'j1', 'profile' => 'standard', 'target_url' => 'https://example.com' }
+      allow(consumer).to receive(:next_request).and_return(bus_request, nil)
+      times.push(0, 5, 8, 20) # boot, post-job reset, idle-check(not yet), idle-check(timed out)
+
+      worker.run
+
+      expect(job_runner).to have_received(:call)
+    end
+
+    it 'publishes a worker-level exiting telemetry event on the correct subject' do
+      allow(consumer).to receive(:next_request).and_return(nil)
+      times.push(0, 100) # boot, idle-check immediately timed out
+
+      worker.run
+
+      expect(publisher).to have_received(:publish).with(
+        'peregrine.telemetry.tp.scanner.exiting.tp-1',
+        hash_including(tp_id: 'tp-1', status: 'exiting'),
+        status: 'exiting'
+      )
+    end
+
+    it 'skips the exiting publish when tp_id is absent (off-bus)' do
+      allow(InstanceMetadata).to receive(:tp_id).and_return('')
+      allow(consumer).to receive(:next_request).and_return(nil)
+      times.push(0, 100)
+
+      worker.run
+
+      expect(publisher).not_to have_received(:publish)
+    end
+
+    it 'drain! stops the loop before its next pull, without waiting on an idle timeout' do
+      allow(consumer).to receive(:next_request)
+      times.push(0)
+      w = worker
+      w.drain!
+
+      w.run
+
+      expect(consumer).not_to have_received(:next_request)
+    end
+
+    it 'sets and clears the per-job ENV identity around a raising job, without the exception escaping' do
+      allow(job_runner).to receive(:call).and_raise(StandardError, 'boom')
+      bus_request = { 'job_id' => 'j1', 'transaction_id' => 't1', 'environment' => 'staging' }
+      allow(consumer).to receive(:next_request).and_return(bus_request, nil)
+      times.push(0, 5, 8, 20)
+
+      expect { worker.run }.not_to raise_error
+      expect(ENV.fetch('SCAN_UUID', nil)).to be_nil
+      expect(ENV.fetch('TRANSACTION_ID', nil)).to be_nil
+    end
+  end
+end
