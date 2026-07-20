@@ -91,4 +91,28 @@ RSpec.describe InstanceMetadata do
       expect(stub).to have_been_requested.once
     end
   end
+
+  describe '.on_gce?' do
+    let(:id_url) { "#{described_class::METADATA_BASE}/id" }
+
+    it 'is true when the metadata server answers' do
+      stub_request(:get, id_url).to_return(status: 200, body: '1234567890')
+
+      expect(described_class.on_gce?).to be(true)
+    end
+
+    it 'is false off-GCE (metadata unreachable)' do
+      stub_request(:get, id_url).to_return(status: 404)
+
+      expect(described_class.on_gce?).to be(false)
+    end
+
+    it 'memoises — fetches the metadata server at most once' do
+      stub = stub_request(:get, id_url).to_return(status: 200, body: '1')
+
+      2.times { described_class.on_gce? }
+
+      expect(stub).to have_been_requested.once
+    end
+  end
 end
