@@ -17,6 +17,11 @@ gem "google-cloud-storage", "~> 1.44"
 # BigQuery for finding history
 gem "google-cloud-bigquery", "~> 1.49"
 
+# Secret Manager — self-fetching TP model (scanner#1182, arch#672): the
+# instance SA's ADC fetches the bus keyset + Synadia NATS creds directly
+# instead of reading a launcher-injected file.
+gem "google-cloud-secret_manager", "~> 2.2"
+
 # HTTP client for CVE APIs and webhooks
 gem "faraday", "~> 2.7"
 
