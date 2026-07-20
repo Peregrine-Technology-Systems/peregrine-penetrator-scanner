@@ -29,16 +29,29 @@ RSpec.describe Bus::WorkerLoop do
       expect(job_runner).to have_received(:call)
     end
 
-    it 'publishes a worker-level exiting telemetry event on the correct subject' do
+    it 'publishes exiting on the SAME heartbeat subject as ControlPlaneLoop, never a separate .exiting. subject' do
       allow(consumer).to receive(:next_request).and_return(nil)
       times.push(0, 100) # boot, idle-check immediately timed out
 
       worker.run
 
       expect(publisher).to have_received(:publish).with(
-        'peregrine.telemetry.tp.scanner.exiting.tp-1',
-        hash_including(tp_id: 'tp-1', status: 'exiting'),
+        'peregrine.telemetry.tp.scanner.heartbeat.tp-1',
+        hash_including(tp_id: 'tp-1', state: 'exiting', reason: 'idle_timeout'),
         status: 'exiting'
+      )
+    end
+
+    it 'reports reason: sigterm when exiting was triggered by drain!, not an idle timeout' do
+      allow(consumer).to receive(:next_request)
+      times.push(0)
+      w = worker
+      w.drain!
+
+      w.run
+
+      expect(publisher).to have_received(:publish).with(
+        anything, hash_including(reason: 'sigterm'), anything
       )
     end
 
@@ -72,6 +85,36 @@ RSpec.describe Bus::WorkerLoop do
       expect { worker.run }.not_to raise_error
       expect(ENV.fetch('SCAN_UUID', nil)).to be_nil
       expect(ENV.fetch('TRANSACTION_ID', nil)).to be_nil
+    end
+  end
+
+  describe '.default_drain_idle_seconds' do
+    around do |example|
+      original = ENV.to_h.slice('SCANNER_DRAIN_IDLE_SECONDS', 'TP_DRAIN_IDLE_SECONDS')
+      example.run
+      ENV['SCANNER_DRAIN_IDLE_SECONDS'] = original['SCANNER_DRAIN_IDLE_SECONDS']
+      ENV['TP_DRAIN_IDLE_SECONDS'] = original['TP_DRAIN_IDLE_SECONDS']
+    end
+
+    it 'falls back to 480 when neither override is set' do
+      ENV.delete('SCANNER_DRAIN_IDLE_SECONDS')
+      ENV.delete('TP_DRAIN_IDLE_SECONDS')
+
+      expect(described_class.default_drain_idle_seconds).to eq(480)
+    end
+
+    it 'prefers the shared fleet-wide TP_DRAIN_IDLE_SECONDS over the default' do
+      ENV.delete('SCANNER_DRAIN_IDLE_SECONDS')
+      ENV['TP_DRAIN_IDLE_SECONDS'] = '600'
+
+      expect(described_class.default_drain_idle_seconds).to eq(600)
+    end
+
+    it 'prefers the per-class SCANNER_DRAIN_IDLE_SECONDS over the shared fleet-wide one' do
+      ENV['SCANNER_DRAIN_IDLE_SECONDS'] = '90'
+      ENV['TP_DRAIN_IDLE_SECONDS'] = '600'
+
+      expect(described_class.default_drain_idle_seconds).to eq(90)
     end
   end
 end
