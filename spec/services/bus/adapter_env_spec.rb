@@ -115,5 +115,47 @@ RSpec.describe Bus::AdapterEnv do
       expect(Penetrator.logger).to have_received(:warn).with(/adapter construction failed/)
     end
   end
+
+  # Self-fetching TP model (scanner#1182, arch#672) — on GCE the bus is
+  # mandatory and construction is fail-loud, never silent-idle.
+  describe 'on GCE (self-fetch, scanner#1182)' do
+    before { allow(InstanceMetadata).to receive(:on_gce?).and_return(true) }
+
+    it '.enabled? is unconditionally true, regardless of env vars' do
+      expect(described_class.enabled?).to be(true)
+    end
+
+    it '.key_provider self-fetches via CompositeKeyProvider spanning the data-plane subjects (peregrine-bus#70)' do
+      provider = instance_double(Bus::CompositeKeyProvider)
+      allow(Bus::CompositeKeyProvider).to receive(:for_subjects).and_return(provider)
+
+      expect(described_class.key_provider).to eq(provider)
+      expect(Bus::CompositeKeyProvider).to have_received(:for_subjects).with(
+        *Bus::AdapterEnv::DATA_PLANE_SUBJECTS,
+        provider_class: Peregrine::Bus::Gcp::SmKeyProvider,
+        project: Peregrine::Bus::Gcp::SmKeyProvider::DEFAULT_PROJECT
+      )
+    end
+
+    it '.build_transport defaults to nats (not pubsub) and self-fetches creds, connecting direct to Synadia' do
+      allow(Bus::NatsCredsFetcher).to receive(:new).and_return(instance_double(Bus::NatsCredsFetcher, fetch: '/dev/shm/peregrine/synadia.creds'))
+      nats_class = stub_nats_connect!
+
+      described_class.build_transport
+
+      expect(nats_class).to have_received(:connect)
+        .with('connect.ngs.global', user_credentials: '/dev/shm/peregrine/synadia.creds')
+    end
+
+    it '.adapter re-raises construction errors — fail-loud, never silent-idle' do
+      ENV['BUS_BUCKET'] = 'bucket'
+      stub_gcs_storage!
+      stub_nats_connect!
+      allow(Bus::NatsCredsFetcher).to receive(:new).and_return(instance_double(Bus::NatsCredsFetcher, fetch: '/dev/shm/peregrine/synadia.creds'))
+      allow(Bus::CompositeKeyProvider).to receive(:for_subjects).and_raise(StandardError, 'no grant')
+
+      expect { described_class.adapter }.to raise_error(StandardError, 'no grant')
+    end
+  end
 end
 # rubocop:enable RSpec/VerifiedDoubles

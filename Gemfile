@@ -17,6 +17,11 @@ gem "google-cloud-storage", "~> 1.44"
 # BigQuery for finding history
 gem "google-cloud-bigquery", "~> 1.49"
 
+# Secret Manager — self-fetching TP model (scanner#1182, arch#672): the
+# instance SA's ADC fetches the bus keyset + Synadia NATS creds directly
+# instead of reading a launcher-injected file.
+gem "google-cloud-secret_manager", "~> 1.5"
+
 # HTTP client for CVE APIs and webhooks
 gem "faraday", "~> 2.7"
 
@@ -30,7 +35,7 @@ gem "faraday", "~> 2.7"
 # cold CI agents; see scripts/woodpecker/lib/git-dep-auth.sh.
 source "https://rubygems.pkg.github.com/Peregrine-Technology-Systems" do
   gem "peregrine_bus", "~> 0.5"
-  gem "peregrine_bus_gcp", "~> 0.1"
+  gem "peregrine_bus_gcp", "~> 0.3"
   gem "peregrine_bus_nats", "~> 0.1"
 end
 
