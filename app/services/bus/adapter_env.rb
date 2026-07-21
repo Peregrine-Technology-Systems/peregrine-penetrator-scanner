@@ -10,10 +10,14 @@ module Bus
   #   optional, and construction is FAIL-LOUD (scanner#1182 — the
   #   self-fetching TP model explicitly rules out silent-idle: an
   #   unprovisioned/mis-granted TP must crash at boot, diagnosable, not run
-  #   quietly off-bus). Keyset + Synadia creds are self-fetched from Secret
-  #   Manager via the instance SA's ADC (KeysetFetcher / NatsCredsFetcher) —
-  #   the launcher-injected /dev/shm/keyset.json + NATS_CREDS file model is a
-  #   confirmed dev-environment artifact, not the production target.
+  #   quietly off-bus). Keyset is self-fetched via peregrine-bus#70's shared
+  #   `Peregrine::Bus::Gcp::SmKeyProvider` (fanned across our 3 data-plane
+  #   subjects by CompositeKeyProvider — SmKeyProvider is scoped to exactly
+  #   one subject per instance, verified against its shipped source); Synadia
+  #   creds are self-fetched via our own NatsCredsFetcher (a separate concern,
+  #   not covered by #70). The launcher-injected /dev/shm/keyset.json +
+  #   NATS_CREDS file model is a confirmed dev-environment artifact, not the
+  #   production target.
   # - OFF GCE (local dev, CI, tests): unchanged from #1106 — disabled (nil)
   #   unless BUS_BUCKET + BUS_KEYSET_PATH are explicitly set, fail-soft on any
   #   construction error. Every existing dev/CI workflow is untouched.
@@ -75,9 +79,18 @@ module Bus
     end
 
     def key_provider
-      return KeysetFetcher.new.fetch(*DATA_PLANE_SUBJECTS) if InstanceMetadata.on_gce?
+      return self_fetch_key_provider if InstanceMetadata.on_gce?
 
       Peregrine::Bus::StaticKeyProvider.from_file(ENV.fetch('BUS_KEYSET_PATH'))
+    end
+
+    def self_fetch_key_provider
+      require 'peregrine/bus/gcp'
+      CompositeKeyProvider.for_subjects(
+        *DATA_PLANE_SUBJECTS,
+        provider_class: Peregrine::Bus::Gcp::SmKeyProvider,
+        project: ENV.fetch('BUS_KEYSET_PROJECT', Peregrine::Bus::Gcp::SmKeyProvider::DEFAULT_PROJECT)
+      )
     end
 
     def build_transport

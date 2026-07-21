@@ -32,4 +32,10 @@ RSpec.describe Bus::NatsCredsFetcher do
 
     expect { fetcher.fetch }.to raise_error(StandardError, 'denied')
   end
+
+  it 'defaults to the peregrine-production project + shared secret id, matching infra\'s confirmed contract' do
+    fresh = described_class.new
+    expect(fresh.instance_variable_get(:@project)).to eq('peregrine-production')
+    expect(described_class::SECRET_ID).to eq('peregrine-production--synadia-creds')
+  end
 end
