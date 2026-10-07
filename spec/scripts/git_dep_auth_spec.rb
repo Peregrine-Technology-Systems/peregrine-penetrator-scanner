@@ -9,6 +9,12 @@ RSpec.describe 'scripts/woodpecker/lib/git-dep-auth.sh' do # rubocop:disable RSp
   let(:lib) { File.expand_path('../../scripts/woodpecker/lib/git-dep-auth.sh', __dir__) }
   let(:bin) { Dir.mktmpdir }
   let(:gcloud_log) { File.join(bin, 'gcloud.log') }
+  # The CI step running this suite has ALREADY exported the real packages token
+  # (test.sh sources this helper first). Clear every credential-bearing var so the
+  # child sees only fakes, and redact token-shaped strings from captured output as
+  # a second layer — a failure message must never print a real credential (#1206).
+  let(:inherited) { %w[BUNDLE_RUBYGEMS__PKG__GITHUB__COM GH_PACKAGES_TOKEN PACKAGES_READ_PROJECT CI] }
+  let(:token_shape) { /(ghp|gho|ghs|ghu|github_pat)_[A-Za-z0-9_]+/ }
 
   def fake_gcloud(exit_code:, output: '')
     path = File.join(bin, 'gcloud')
@@ -18,8 +24,20 @@ RSpec.describe 'scripts/woodpecker/lib/git-dep-auth.sh' do # rubocop:disable RSp
 
   def source_lib(env)
     script = "set -euo pipefail; . #{lib}; echo \"VAR=${BUNDLE_RUBYGEMS__PKG__GITHUB__COM:-}\""
-    base = { 'PATH' => "#{bin}:/usr/bin:/bin", 'GH_PACKAGES_TOKEN' => nil, 'CI' => nil }
-    Open3.capture3(base.merge(env), 'bash', '-c', script)
+    base = inherited.to_h { |k| [k, nil] }.merge('PATH' => "#{bin}:/usr/bin:/bin")
+    out, err, status = Open3.capture3(base.merge(env), 'bash', '-c', script)
+    [out.gsub(token_shape, '[REDACTED]'), err.gsub(token_shape, '[REDACTED]'), status]
+  end
+
+  it 'does not leak a credential the parent process already exported' do
+    fake_gcloud(exit_code: 1)
+    saved = ENV.fetch('BUNDLE_RUBYGEMS__PKG__GITHUB__COM', nil)
+    ENV['BUNDLE_RUBYGEMS__PKG__GITHUB__COM'] = 'x-access-token:parent-real'
+    out, = source_lib({})
+
+    expect(out).to eq("VAR=\n")
+  ensure
+    ENV['BUNDLE_RUBYGEMS__PKG__GITHUB__COM'] = saved
   end
 
   it 'uses the agent-hook-exported GH_PACKAGES_TOKEN without calling gcloud' do
