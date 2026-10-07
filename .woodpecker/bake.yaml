@@ -22,7 +22,7 @@ steps:
     commands:
       # peregrine-ci-app installation token (same pattern as release.yaml) —
       # needs actions:write on peregrine-infrastructure (granted app-side).
-      - gsutil cp gs://ci-runners-de-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
+      - gsutil cp gs://peregrine-production-agent-hooks/scripts/get-gh-app-installation-token.sh /tmp/get-gh-token.sh
       - chmod +x /tmp/get-gh-token.sh
       - eval "$(/tmp/get-gh-token.sh)"
       # Bake the tag on release, else the branch on a manual verification run.
