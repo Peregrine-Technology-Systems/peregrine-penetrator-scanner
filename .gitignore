@@ -68,3 +68,7 @@ CLAUDE.md
 
 # Pre-publish lint: local internal-specifics denylist (never published)
 .sensitive-extra-patterns
+
+# Session transcripts (recorded automatically; #1207). Ignored until reviewed: one long
+# session was ~3 MB and git never forgets. No vault mirror in this repo, so one path.
+/docs/transcripts/
