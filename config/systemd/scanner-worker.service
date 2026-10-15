@@ -9,7 +9,7 @@
 # instance template, then runs `systemctl enable --now scanner-worker.service`.
 #
 # Env contract (infra writes /etc/peregrine/scanner.env; checked by worker-preflight.rb):
-#   NATS_URL, BUS_BUCKET, BUS_KEYSET_PROJECT, GOOGLE_CLOUD_PROJECT   (all REQUIRED)
+#   NATS_URL, BUS_BUCKET, BUS_KEYSET_PROJECT, GOOGLE_CLOUD_PROJECT, GCS_BUCKET   (all REQUIRED)
 # The keyset and the Synadia creds are NOT in the env file: the worker self-fetches
 # both over ADC as its own service account.
 #

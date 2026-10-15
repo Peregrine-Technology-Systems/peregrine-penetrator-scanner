@@ -16,7 +16,7 @@ RSpec.describe 'scanner-worker.service bake contract (#1209)' do # rubocop:disab
   let(:render) { root.join('.bake/render-unit.rb').to_s }
   let(:required_env) do
     { 'NATS_URL' => 'tls://connect.ngs.global:4222', 'BUS_BUCKET' => 'b',
-      'BUS_KEYSET_PROJECT' => 'p', 'GOOGLE_CLOUD_PROJECT' => 'p' }
+      'BUS_KEYSET_PROJECT' => 'p', 'GOOGLE_CLOUD_PROJECT' => 'p', 'GCS_BUCKET' => 'r' }
   end
 
   # key => [values], per section; repeated keys (ExecStartPre) keep every value.
