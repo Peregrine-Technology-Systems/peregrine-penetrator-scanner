@@ -22,9 +22,9 @@ module Bus
   #   unless BUS_BUCKET + BUS_KEYSET_PATH are explicitly set, fail-soft on any
   #   construction error. Every existing dev/CI workflow is untouched.
   #
-  # Transport is chosen by BUS_TRANSPORT (default "pubsub" off-GCE, "nats" on
-  # GCE — the interim corporate-bus flip, scanner#1135, is the production
-  # transport now). On GCE, NATS connects DIRECTLY to connect.ngs.global (no
+  # Transport is chosen by BUS_TRANSPORT, default "nats" everywhere (Pub/Sub is
+  # retired; "pubsub" works only when set explicitly, #1221). An unknown value
+  # raises. On GCE, NATS connects DIRECTLY to connect.ngs.global (no
   # local nats-leaf — also a dev-environment artifact per arch#672).
   module AdapterEnv
     module_function
@@ -94,13 +94,18 @@ module Bus
     end
 
     def build_transport
-      case ENV.fetch('BUS_TRANSPORT', InstanceMetadata.on_gce? ? 'nats' : 'pubsub')
+      case (name = ENV.fetch('BUS_TRANSPORT', 'nats'))
       when 'pubsub'
         require 'peregrine/bus/gcp'
         require 'google/cloud/pubsub'
         Peregrine::Bus::Gcp::PubSubTransport.new(client: Google::Cloud::PubSub.new)
       when 'nats'
         build_nats_transport
+      else
+        # An unknown value used to fall through to nil, silently running the worker
+        # off-bus (even on GCE, #1221). Name it; on GCE this propagates, off GCE the
+        # construction-error rescue in .adapter turns it into a warning.
+        raise ArgumentError, "unknown BUS_TRANSPORT #{name.inspect} (expected 'nats' or 'pubsub')"
       end
     end
 
@@ -109,7 +114,10 @@ module Bus
       require 'nats/client'
 
       creds = InstanceMetadata.on_gce? ? NatsCredsFetcher.new.fetch : ENV.fetch('NATS_CREDS', nil)
-      return nil if creds.to_s.empty?
+      if creds.to_s.empty?
+        Penetrator.logger.warn('[Bus] NATS_CREDS is unset; bus disabled (set it to a Synadia .creds path)')
+        return nil
+      end
 
       # No local nats-leaf — connect directly to Synadia (arch#672). Off-GCE
       # NATS_URL stays explicit (dev/CI point at a local leaf or test server).
