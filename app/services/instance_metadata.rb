@@ -42,10 +42,21 @@ class InstanceMetadata
                end
     end
 
+    # True when the metadata server actually answers — the discriminator
+    # between a real deployed TP instance and local dev/CI/tests (scanner#1182:
+    # the self-fetching TP model is mandatory-and-fail-loud on GCE, optional
+    # and fail-soft everywhere else). Memoised.
+    def on_gce?
+      return @on_gce if defined?(@on_gce) && !@on_gce.nil?
+
+      @on_gce = !fetch('id').nil?
+    end
+
     # Test seam — clears the memoised values between examples.
     def reset!
       @boot_image = nil
       @tp_id = nil
+      @on_gce = nil
     end
 
     private

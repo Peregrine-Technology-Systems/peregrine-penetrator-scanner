@@ -4,6 +4,22 @@
 set -euo pipefail
 command -v ruby   >/dev/null || { echo "FAIL: ruby not on PATH"; exit 1; }
 test -f bin/scan          || { echo "FAIL: bin/scan missing"; exit 1; }
+
+# scanner-worker.service (#1209): infra's boot script enables it and FAILS the
+# boot loudly if it is absent — so assert, post-scrub, that it is present, wired to the env
+# file infra writes, fully rendered, and that the ruby/bundle it will PATH to really exist.
+UNIT=/etc/systemd/system/scanner-worker.service
+test -f "$UNIT" || { echo "FAIL: $UNIT missing (MIG boot unit, scanner#1209)"; exit 1; }
+grep -q '^EnvironmentFile=/etc/peregrine/scanner.env$' "$UNIT" \
+  || { echo "FAIL: $UNIT does not read EnvironmentFile=/etc/peregrine/scanner.env"; exit 1; }
+if grep -q '@RUBY_BIN_DIR@' "$UNIT"; then echo "FAIL: $UNIT still has the @RUBY_BIN_DIR@ placeholder (render did not run)"; exit 1; fi
+UNIT_RUBY_DIR=$(sed -n 's/^Environment=PATH=\([^:]*\):.*/\1/p' "$UNIT")
+test -n "$UNIT_RUBY_DIR" || { echo "FAIL: $UNIT has no Environment=PATH ruby dir"; exit 1; }
+test -x "$UNIT_RUBY_DIR/ruby" || { echo "FAIL: unit PATH dir $UNIT_RUBY_DIR has no ruby"; exit 1; }
+test -x "$UNIT_RUBY_DIR/bundle" || { echo "FAIL: unit PATH dir $UNIT_RUBY_DIR has no bundle"; exit 1; }
+for f in .bake/run.sh .bake/worker-preflight.rb; do
+  test -f "$f" || { echo "FAIL: $f missing (scanner-worker.service runs it)"; exit 1; }
+done
 bundle check              || { echo "FAIL: bundle check (gems not fully placed)"; exit 1; }
 
 # Assert every probe binary survived the post-scrub image (scanner#1012). The list
