@@ -34,7 +34,7 @@ RSpec.describe Bus::NatsCredsFetcher do
   end
 
   it 'defaults to the peregrine-production project + shared secret id, matching infra\'s confirmed contract' do
-    fresh = described_class.new
+    fresh = described_class.new(client:) # inject: the default client needs ADC (#1204)
     expect(fresh.instance_variable_get(:@project)).to eq('peregrine-production')
     expect(described_class::SECRET_ID).to eq('peregrine-production--synadia-creds')
   end
