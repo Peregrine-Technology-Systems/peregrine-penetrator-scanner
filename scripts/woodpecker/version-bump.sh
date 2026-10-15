@@ -371,8 +371,7 @@ fi
 # bake.yaml (repository_dispatch → infra TP baker), which bakes the gem-complete
 # txn-scanner-app GCE image FROM txn-scanner-base. No container image tagging here.
 
-# Pipeline-status notification (tag / release) is published to the ci-events
-# Pub/Sub topic by the notify-status step (#780); Slack is deprecated, so no
-# direct webhook call here.
+# No pipeline-status notification is published from here (or from any CI step,
+# #1202): Pub/Sub is retired and Campfire gets failures and deploys from the scaler.
 
 echo "=== Release ${TAG} complete ==="
