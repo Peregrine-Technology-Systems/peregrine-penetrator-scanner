@@ -60,12 +60,13 @@ RSpec.describe Bus::AdapterEnv do
       expect(described_class.adapter).to be_nil
     end
 
-    it 'builds a real adapter once BUS_BUCKET + BUS_KEYSET_PATH are both present (pubsub default)' do
+    it 'builds a Pub/Sub adapter only when BUS_TRANSPORT=pubsub is set explicitly (retired; no longer the default)' do
       Tempfile.create(['keyset', '.json']) do |f|
         f.write('{"current":{},"keys":{}}')
         f.flush
         ENV['BUS_BUCKET'] = 'bucket'
         ENV['BUS_KEYSET_PATH'] = f.path
+        ENV['BUS_TRANSPORT'] = 'pubsub'
 
         stub_gcs_storage!
         pubsub_class = Class.new
@@ -93,22 +94,53 @@ RSpec.describe Bus::AdapterEnv do
       end
     end
 
-    it 'degrades to no adapter (fail-soft) when BUS_TRANSPORT=nats but NATS_CREDS is unset' do
+    it 'defaults to NATS off GCE when BUS_TRANSPORT is unset (Pub/Sub is retired, #1221)' do
+      Tempfile.create(['keyset', '.json']) do |f|
+        f.write('{"current":{},"keys":{}}')
+        f.flush
+        set_nats_env!(f.path)
+        ENV.delete('BUS_TRANSPORT')
+        stub_gcs_storage!
+        nats_class = stub_nats_connect!
+
+        expect(described_class.adapter).to be_a(Peregrine::Bus::Adapter)
+        expect(nats_class).to have_received(:connect)
+          .with('nats://example.invalid:4222', user_credentials: '/dev/shm/peregrine/synadia.creds')
+      end
+    end
+
+    it 'degrades to no adapter (fail-soft) when BUS_TRANSPORT=nats but NATS_CREDS is unset, and SAYS so' do
       Tempfile.create(['keyset', '.json']) do |f|
         f.write('{"current":{},"keys":{}}')
         f.flush
         set_nats_env!(f.path, creds: nil)
         stub_gcs_storage!
         nats_class = stub_nats_connect!
+        allow(Penetrator.logger).to receive(:warn)
 
         expect(described_class.adapter).to be_nil
         expect(nats_class).not_to have_received(:connect)
+        expect(Penetrator.logger).to have_received(:warn).with(/NATS_CREDS/)
       end
     end
 
-    it 'is fail-soft — returns nil and logs a warning on construction error' do
+    it 'treats an unknown BUS_TRANSPORT as a construction error (warned, not a silent disable) off GCE' do
       ENV['BUS_BUCKET'] = 'bucket'
       ENV['BUS_KEYSET_PATH'] = '/nonexistent/keyset.json'
+      ENV['BUS_TRANSPORT'] = 'carrier-pigeon'
+      allow(Penetrator.logger).to receive(:warn)
+
+      expect(described_class.adapter).to be_nil
+      expect(Penetrator.logger).to have_received(:warn).with(/BUS_TRANSPORT.*carrier-pigeon/)
+    end
+
+    it 'is fail-soft — returns nil and logs a warning on construction error' do
+      # A WORKING transport, so the keyset path is the only thing that can fail. (This
+      # example used to pass for the wrong reason: the old Pub/Sub default blew up on an
+      # unstubbed Google::Cloud::PubSub before the keyset was ever read, #1221.)
+      set_nats_env!('/nonexistent/keyset.json')
+      stub_gcs_storage!
+      stub_nats_connect!
       allow(Penetrator.logger).to receive(:warn)
 
       expect(described_class.adapter).to be_nil
@@ -123,6 +155,12 @@ RSpec.describe Bus::AdapterEnv do
 
     it '.enabled? is unconditionally true, regardless of env vars' do
       expect(described_class.enabled?).to be(true)
+    end
+
+    it 'fails LOUD on an unknown BUS_TRANSPORT instead of silently running off-bus' do
+      ENV['BUS_TRANSPORT'] = 'carrier-pigeon'
+
+      expect { described_class.adapter }.to raise_error(ArgumentError, /BUS_TRANSPORT.*carrier-pigeon/)
     end
 
     it '.key_provider self-fetches via CompositeKeyProvider spanning the data-plane subjects (peregrine-bus#70)' do
