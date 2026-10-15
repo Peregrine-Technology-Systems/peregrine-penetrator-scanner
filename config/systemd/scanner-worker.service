@@ -1,0 +1,53 @@
+# Peregrine Penetrator Scanner — bus worker systemd unit (#1209).
+#
+# Boots the scanner straight into its bus worker (bin/scan -> Bus::WorkerLoop) on a
+# tp-monitor-managed GCE MIG instance (tp-monitor#733: boot directly into the worker,
+# no separate launcher stage). Same shape as the analyzer's analyzer-worker.service.
+#
+# Installed by .bake/install.sh (rendered via .bake/render-unit.rb) and NOT enabled
+# at bake: infra's tp-boot startup-script writes /etc/peregrine/scanner.env from the
+# instance template, then runs `systemctl enable --now scanner-worker.service`.
+#
+# Env contract (infra writes /etc/peregrine/scanner.env; checked by worker-preflight.rb):
+#   NATS_URL, BUS_BUCKET, BUS_KEYSET_PROJECT, GOOGLE_CLOUD_PROJECT   (all REQUIRED)
+# The keyset and the Synadia creds are NOT in the env file: the worker self-fetches
+# both over ADC as its own service account.
+#
+# EnvironmentFile has NO leading "-": a missing env file must fail the unit, never
+# start a worker with an empty environment.
+
+[Unit]
+Description=Peregrine Penetrator Scanner — bus worker (Transaction Processor)
+Documentation=https://github.com/Peregrine-Technology-Systems/peregrine-penetrator-scanner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/app
+EnvironmentFile=/etc/peregrine/scanner.env
+# @RUBY_BIN_DIR@ is resolved at bake time from the image's own ruby (install.sh), not
+# guessed: a systemd service does not inherit the login PATH the launcher-era path had.
+# HOME is not set for a User-less service and bundler wants one.
+Environment=PATH=@RUBY_BIN_DIR@:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/root
+ExecStartPre=/usr/bin/env ruby /opt/app/.bake/worker-preflight.rb
+ExecStart=/opt/app/.bake/run.sh
+
+# Restart on crash, but NOT forever on a misconfiguration: after 3 failures in 60s the
+# unit enters `failed` and stays there — loud and inspectable, never a silent loop. A
+# clean idle-exit (exit 0, the drain path) is not a failure, so it is NOT restarted:
+# the VM idles until tp-monitor's depth-driven target scales the MIG to zero.
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# SIGTERM -> Bus::WorkerLoop#drain!: the in-flight scan always finishes, then exit 0.
+# 11400s = the longest scan profile (180 min, deep/thorough) + 10 min; a spec derives
+# this floor from config/scan_profiles so it cannot drift below a profile.
+KillSignal=SIGTERM
+TimeoutStopSec=11400
+
+[Install]
+WantedBy=multi-user.target
