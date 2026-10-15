@@ -11,6 +11,17 @@ bundle config set --local without 'development test'
 bundle install --jobs 4
 echo "[.bake/install] gems vendored: $(bundle list 2>/dev/null | grep -c '\*') gems"
 
+# ── scanner-worker.service (#1209): the MIG boot unit. Rendered with THIS
+# image's real ruby bin dir (a systemd service does not inherit the login PATH), and
+# deliberately NOT enabled here — infra's tp-boot startup-script writes
+# /etc/peregrine/scanner.env and then runs `systemctl enable --now`. Assignment on its
+# own line so `set -e` aborts if ruby is not on PATH (inside dirname it would yield ".").
+RUBY_PATH="$(command -v ruby)"
+ruby .bake/render-unit.rb config/systemd/scanner-worker.service \
+  /etc/systemd/system/scanner-worker.service "$(dirname "$RUBY_PATH")"
+chmod 0644 /etc/systemd/system/scanner-worker.service
+echo "[.bake/install] scanner-worker.service installed (not enabled; ruby dir $(dirname "$RUBY_PATH"))"
+
 # ── Probe tools (#1026): scanner-specific probe binaries not (yet) in the oven
 # base catalog. apt/pip/npm are available in the app bake pre-scrub; the installed
 # tools survive the scrub (only build-essential/gcc/make are purged). Eventual
