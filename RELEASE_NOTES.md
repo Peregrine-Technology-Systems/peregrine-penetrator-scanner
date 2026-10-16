@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.13.1 — 2026-10-16
 - fix: the bus transport now defaults to NATS everywhere, and an unknown `BUS_TRANSPORT` no longer silently disables the bus (#1221). Operator direction: Pub/Sub is retired. `Bus::AdapterEnv` defaulted to `pubsub` off GCE (`nats` only on GCE), so a dev or CI run with `BUS_BUCKET` + `BUS_KEYSET_PATH` built a Pub/Sub transport. The `case` also had no `else`, so any unrecognized value returned `nil` and the worker ran off-bus quietly, even on GCE where the self-fetch model rules out silent-idle; it now raises `ArgumentError` naming the value (propagates on GCE, warned and disabled off GCE). A missing `NATS_CREDS` off GCE now logs a warning instead of silently disabling the bus. `pubsub` still works if set explicitly; removing that branch is a separate decision. The fail-soft spec was passing for the wrong reason (an unstubbed `Google::Cloud::PubSub` raised before the keyset was read); it now uses a working NATS transport so the keyset is what fails. RED captured; both guards disarm-tested. No change on GCE for a correctly configured worker. (#1221)
 
 ## v1.13.0 — 2026-10-15
