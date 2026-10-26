@@ -14,7 +14,8 @@ RSpec.describe Bus::Publisher do
   describe '.for' do
     it 'constructs an enabled publisher over an injected substrate + key provider' do
       publisher = described_class.for(substrate: Peregrine::Bus::MemorySubstrate.new,
-                                      key_provider: keyset_for(subject_name))
+                                      key_provider: keyset_for(subject_name),
+                                      account: Bus::GrammarEnv.account)
       expect(publisher.enabled?).to be(true)
     end
   end
@@ -26,7 +27,7 @@ RSpec.describe Bus::Publisher do
       id = publisher.publish(subject_name, { 'state' => 'completed', 'scan_uuid' => 's1' }, job_id: 's1', status: 'completed')
 
       expect(id).to be_a(String)
-      delivered = adapter.consume(subject_name).map { |pt| JSON.parse(pt) }
+      delivered = consume_plain(adapter, subject_name).map { |pt| JSON.parse(pt) }
       expect(delivered).to eq([{ 'state' => 'completed', 'scan_uuid' => 's1' }])
     end
 
@@ -39,6 +40,19 @@ RSpec.describe Bus::Publisher do
       result = nil
       expect { result = publisher.publish(unkeyed, {}) }.not_to raise_error
       expect(result).to be_nil
+      expect(Penetrator.logger).to have_received(:warn).with(/publish failed/)
+    end
+  end
+
+  describe '#publish (no publisher organization, envelope v2)' do
+    it 'refuses to publish and says so, rather than sealing for a guessed organization' do
+      adapter = Peregrine::Bus::Adapter.new(
+        substrate: Peregrine::Bus::MemorySubstrate.new, transport: Peregrine::Bus::MemoryTransport.new,
+        key_provider: keyset_for(subject_name), account: Bus::GrammarEnv.account
+      )
+      allow(Penetrator.logger).to receive(:warn)
+
+      expect(described_class.new(adapter).publish(subject_name, { 'a' => 1 })).to be_nil
       expect(Penetrator.logger).to have_received(:warn).with(/publish failed/)
     end
   end
