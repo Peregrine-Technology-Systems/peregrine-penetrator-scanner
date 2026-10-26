@@ -30,4 +30,16 @@ RSpec.describe Bus::GrammarEnv do
 
     expect(described_class.token).to eq('staging')
   end
+
+  describe '.account' do
+    { 'production' => 'production', 'staging' => 'staging', 'development' => 'dev', 'test' => 'dev' }.each do |env, account|
+      it "maps #{env.inspect} to the bus account #{account.inspect}" do
+        expect(described_class.account(env)).to eq(account)
+      end
+    end
+
+    it 'never yields an account outside the library\'s set, even for an unknown environment' do
+      expect(Peregrine::Bus::KeyScope::ACCOUNTS).to include(described_class.account('Production'))
+    end
+  end
 end

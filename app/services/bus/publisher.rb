@@ -28,8 +28,8 @@ module Bus
     # the seam the tests (MemorySubstrate + MemoryTransport + StaticKeyProvider) and
     # the future deploy wiring use. `transport` defaults to a MemoryTransport so
     # existing single-arg call sites (substrate + key_provider only) keep working.
-    def self.for(substrate:, key_provider:, transport: Peregrine::Bus::MemoryTransport.new, t_mode: false)
-      new(Peregrine::Bus::Adapter.new(substrate:, transport:, key_provider:, t_mode:))
+    def self.for(substrate:, key_provider:, account:, transport: Peregrine::Bus::MemoryTransport.new, organization_id: nil)
+      new(Peregrine::Bus::Adapter.new(substrate:, transport:, key_provider:, account:, organization_id:))
     end
 
     def initialize(adapter)
