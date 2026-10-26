@@ -73,6 +73,8 @@ module Bus
 
     def run_job(bus_request)
       payload = ScanRequestPayload.new(bus_request)
+      return InvalidRequestReporter.new(publisher: @publisher).call(payload, 'missing target_url') unless payload.target_urls
+
       ENV['SCAN_UUID'] = payload.job_id
       ENV['TRANSACTION_ID'] = payload.transaction_id
       ENV['ENVIRONMENT'] = payload.environment
@@ -80,7 +82,7 @@ module Bus
       ScanJobRunner.new(
         profile: payload.profile || 'standard',
         target_name: payload.target_name || 'Default Target',
-        target_urls: payload.target_urls || ['http://localhost:8080']
+        target_urls: payload.target_urls
       ).call
     rescue StandardError => e
       Penetrator.logger.error("[WorkerLoop] job failed: #{e.message}")
@@ -101,7 +103,7 @@ module Bus
       tp_id = InstanceMetadata.tp_id
       return if tp_id.to_s.empty?
 
-      subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(tp_id)
+      subject = HeartbeatSubject.for(tp_id)
       @publisher.publish(subject, {
                            tp_id: tp_id,
                            state: 'exiting',
