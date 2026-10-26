@@ -76,6 +76,34 @@ RSpec.describe Bus::WorkerLoop do
       expect(consumer).not_to have_received(:next_request)
     end
 
+    it 'refuses a request with no target_url instead of scanning localhost (#1235)' do
+      bus_request = { 'job_id' => 'j1', 'transaction_id' => 't1', 'environment' => 'staging', 'profile' => 'standard' }
+      allow(consumer).to receive(:next_request).and_return(bus_request, nil)
+      allow(Penetrator.logger).to receive(:error)
+      times.push(0, 5, 8, 20)
+
+      worker.run
+
+      expect(ScanJobRunner).not_to have_received(:new)
+      expect(Penetrator.logger).to have_received(:error).with(/invalid scan\.requested for job "j1".*target_url/)
+      expect(publisher).to have_received(:publish).with(
+        Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed'),
+        hash_including(job_id: 'j1', transaction_id: 't1', environment: 'staging',
+                       state: 'failed', reason: 'invalid_request'),
+        job_id: 'j1', status: 'failed'
+      )
+    end
+
+    it 'still runs a request that has a target_url' do
+      bus_request = { 'job_id' => 'j1', 'target_url' => 'https://example.com' }
+      allow(consumer).to receive(:next_request).and_return(bus_request, nil)
+      times.push(0, 5, 8, 20)
+
+      worker.run
+
+      expect(ScanJobRunner).to have_received(:new).with(hash_including(target_urls: ['https://example.com']))
+    end
+
     it 'sets and clears the per-job ENV identity around a raising job, without the exception escaping' do
       allow(job_runner).to receive(:call).and_raise(StandardError, 'boom')
       bus_request = { 'job_id' => 'j1', 'transaction_id' => 't1', 'environment' => 'staging' }
