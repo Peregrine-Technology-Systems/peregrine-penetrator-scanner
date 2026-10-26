@@ -106,7 +106,7 @@ class ControlPlaneLoop
   def publish_bus_heartbeat(progress)
     return if @identity.nil? || @identity.tp_id.to_s.empty?
 
-    subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(@identity.tp_id)
+    subject = Bus::HeartbeatSubject.for(@identity.tp_id)
     @publisher.publish(subject, {
                          tp_id: @identity.tp_id,
                          status: 'running',
