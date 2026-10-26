@@ -36,7 +36,7 @@ gem "faraday", "~> 2.7"
 source "https://rubygems.pkg.github.com/Peregrine-Technology-Systems" do
   gem "peregrine_bus", "~> 0.5"
   gem "peregrine_bus_gcp", "~> 0.3"
-  gem "peregrine_bus_nats", "~> 0.1"
+  gem "peregrine_bus_nats", "~> 1.0"
 end
 
 # UUID support

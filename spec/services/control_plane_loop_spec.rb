@@ -162,14 +162,13 @@ RSpec.describe ControlPlaneLoop do
     end
 
     it 'uses the grammar-locked tp.scanner heartbeat subject, keyed on the processor instance' do
-      expect(Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat('tp-9'))
-        .to eq('peregrine.telemetry.tp.scanner.heartbeat.tp-9')
+      expect(Bus::HeartbeatSubject.for('tp-9')).to eq('peregrine.telemetry.tp.scanner.heartbeat.tp-9')
     end
 
     it 'publishes the tp.scanner heartbeat carrying tp-id + in_flight txn ids in the value' do
       identity = ScanIdentity.new(scan_uuid: 'scan-123', transaction_id: 'txn-1',
                                   environment: 'production', trace_id: nil, tp_id: 'tp-9')
-      subj = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat('tp-9')
+      subj = Bus::HeartbeatSubject.for('tp-9')
       publisher, adapter = bus_pair(subj)
       allow(StorageService).to receive(:new).and_return(instance_double(StorageService, upload_json: nil))
 

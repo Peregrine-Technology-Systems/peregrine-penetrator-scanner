@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'peregrine/bus/nats/errors'
+
 module Bus
   # Consumer-side half of the scanner's Transaction Processor conversion
   # (scanner#1106, restored by #1152 after PR #1117 removed it against a
@@ -39,9 +41,33 @@ module Bus
     def next_request
       return nil unless @adapter
 
-      plaintext = @adapter.consume(SUBJECT).first
-      return nil if plaintext.nil?
+      chosen = nil
+      @adapter.consume(SUBJECT) do |plaintext|
+        # One request per call. The transport hands over a whole batch and the
+        # core acks anything the block does not :nack, so every extra is
+        # requeued for the next call instead of being acked and lost (#1208).
+        next :nack if chosen
 
+        chosen = decode(plaintext)
+        nil
+      end
+      chosen
+    rescue Peregrine::Bus::Nats::DurableNotFoundError, Peregrine::Bus::Nats::JetStreamDeniedError
+      # A missing durable or a denied bind is a deployment fault, not an empty
+      # queue; reading it as "nothing to do" hides a worker that can never
+      # receive work (#1203).
+      raise
+    rescue StandardError => e
+      Penetrator.logger.warn("[Bus] scan.requested consume failed: #{e.message}")
+      nil
+    end
+
+    private
+
+    # The parsed payload, or nil for a message that must be dropped (acked):
+    # malformed JSON would otherwise redeliver forever, and a smoke:true marker
+    # means "discard without acting".
+    def decode(plaintext)
       payload = JSON.parse(plaintext)
       if payload['smoke'] == true
         Penetrator.logger.info('[Bus] scan.requested dropped — smoke:true (provenance marker, not a real scan)')
@@ -49,8 +75,8 @@ module Bus
       end
 
       payload
-    rescue StandardError => e
-      Penetrator.logger.warn("[Bus] scan.requested consume failed: #{e.message}")
+    rescue JSON::ParserError => e
+      Penetrator.logger.warn("[Bus] scan.requested dropped — malformed payload: #{e.message}")
       nil
     end
   end
