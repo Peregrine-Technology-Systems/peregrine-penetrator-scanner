@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.13.2 — 2026-10-26
 - fix: refuse a `scan.requested` that has no `target_url` instead of scanning `http://localhost:8080` (#1235). The worker used to fall back to loopback, finish, and publish a success-shaped `scan.completed` for the wrong target. It now logs an error, runs no job, and publishes `scan.failed` with `reason: invalid_request` and the request's identity (`job_id`, `transaction_id`, `environment`). The `reason` and `detail` fields are additive.
 - fix: stop `Bus::ScanRequestConsumer#next_request` from acking and dropping every pending `scan.requested` behind the first (#1208). The NATS transport pulls up to 100 messages per fetch, and the core's no-block `consume` acks the whole batch, so a worker that restarted with a backlog lost up to 99 requests. It now uses the block form and `:nack`s everything past the one it keeps, so the extras are redelivered. It also acks and drops a malformed payload instead of leaving it to redeliver forever. The kept message is still acked before the job runs, which is at-most-once; that is tracked separately.
 - fix: re-raise `DurableNotFoundError` and `JetStreamDeniedError` from `next_request` instead of reading them as an empty queue (#1203). A missing durable or a denied bind is a deployment fault; swallowing it made a worker that can never receive work look idle.
