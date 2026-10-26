@@ -1,6 +1,7 @@
 # Release Notes
 
 ## Unreleased
+- fix: treat a whitespace-only `target_url` as absent (#1241). The #1235 refusal only caught a missing or empty value, so `" "` was scanned as `[" "]`. `Bus::ScanRequestPayload` now trims the URL and returns `nil` for a blank one, so the existing `scan.failed` (`reason: invalid_request`) path applies. Found in engineering's review of the v1.13.2 promotion.
 
 ## v1.13.2 — 2026-10-26
 - fix: refuse a `scan.requested` that has no `target_url` instead of scanning `http://localhost:8080` (#1235). The worker used to fall back to loopback, finish, and publish a success-shaped `scan.completed` for the wrong target. It now logs an error, runs no job, and publishes `scan.failed` with `reason: invalid_request` and the request's identity (`job_id`, `transaction_id`, `environment`). The `reason` and `detail` fields are additive.
