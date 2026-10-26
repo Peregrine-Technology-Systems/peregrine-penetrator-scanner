@@ -101,7 +101,7 @@ module Bus
       tp_id = InstanceMetadata.tp_id
       return if tp_id.to_s.empty?
 
-      subject = Peregrine::Bus::Subjects::Penetrator.scanner_heartbeat(tp_id)
+      subject = HeartbeatSubject.for(tp_id)
       @publisher.publish(subject, {
                            tp_id: tp_id,
                            state: 'exiting',
