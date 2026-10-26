@@ -33,6 +33,24 @@ RSpec.describe Bus::ScanRequestPayload do
     end
   end
 
+  describe 'with a blank target_url (#1241)' do
+    [nil, '', ' ', "\n", " \t "].each do |blank|
+      it "treats #{blank.inspect} as absent, for both target_urls and target_name" do
+        payload = described_class.new('job_id' => 'job-1', 'target_url' => blank)
+
+        expect(payload.target_urls).to be_nil
+        expect(payload.target_name).to be_nil
+      end
+    end
+
+    it 'strips surrounding whitespace from a real URL' do
+      payload = described_class.new('target_url' => "  https://example.com/app\n")
+
+      expect(payload.target_urls).to eq(['https://example.com/app'])
+      expect(payload.target_name).to eq('example.com')
+    end
+  end
+
   describe 'with a nil payload (disabled/off-bus)' do
     let(:payload) { described_class.new(nil) }
 

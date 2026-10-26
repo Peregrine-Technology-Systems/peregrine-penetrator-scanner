@@ -94,6 +94,16 @@ RSpec.describe Bus::WorkerLoop do
       )
     end
 
+    it 'also refuses a request whose target_url is only whitespace (#1241)' do
+      allow(consumer).to receive(:next_request).and_return({ 'job_id' => 'j1', 'target_url' => "  \n" }, nil)
+      allow(Penetrator.logger).to receive(:error)
+      times.push(0, 5, 8, 20)
+
+      worker.run
+
+      expect(ScanJobRunner).not_to have_received(:new)
+    end
+
     it 'still runs a request that has a target_url' do
       bus_request = { 'job_id' => 'j1', 'target_url' => 'https://example.com' }
       allow(consumer).to receive(:next_request).and_return(bus_request, nil)
