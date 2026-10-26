@@ -21,6 +21,13 @@ module Bus
     TOKENS = { 'production' => nil, 'staging' => 'staging',
                'development' => 'dev', 'dev' => 'dev', 'test' => 'dev' }.freeze
 
+    # The bus account the transport is connected to (a library argument, validated
+    # against production/staging/dev). Derived from the same token, so the account
+    # and the subjects can never disagree about the environment.
+    def account(env = Penetrator.env)
+      token(env) || 'production'
+    end
+
     def token(env = Penetrator.env)
       return TOKENS.fetch(env) if TOKENS.key?(env)
 

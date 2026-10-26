@@ -61,7 +61,7 @@ RSpec.describe ControlPlaneLoop do
       instance.start
       instance.stop
 
-      msg = JSON.parse(adapter.consume(subj).first)
+      msg = JSON.parse(consume_plain(adapter, subj).first)
       expect(msg['tp_id']).to eq('tp-9')
       expect(msg['status']).to eq('started')
       expect(msg['in_flight']).to eq(['txn-1'])
@@ -179,7 +179,7 @@ RSpec.describe ControlPlaneLoop do
       instance.update_progress(current_tool: 'nuclei', findings_count: 2)
       instance.send(:tick)
 
-      msg = JSON.parse(adapter.consume(subj).first)
+      msg = JSON.parse(consume_plain(adapter, subj).first)
       expect(msg['tp_id']).to eq('tp-9')
       expect(msg['in_flight']).to eq(['txn-1'])
       expect(msg['current_tool']).to eq('nuclei')

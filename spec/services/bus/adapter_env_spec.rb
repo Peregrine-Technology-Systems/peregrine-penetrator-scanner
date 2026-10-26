@@ -94,6 +94,39 @@ RSpec.describe Bus::AdapterEnv do
       end
     end
 
+    describe 'envelope v2 wiring (#1229)' do
+      def build_adapter_with(organization_id)
+        Tempfile.create(['keyset', '.json']) do |f|
+          f.write('{"current":{},"keys":{}}')
+          f.flush
+          set_nats_env!(f.path)
+          stub_gcs_storage!
+          stub_nats_connect!
+          ENV['ORGANIZATION_ID'] = organization_id
+          allow(Peregrine::Bus::Adapter).to receive(:new).and_call_original
+          described_class.adapter
+        end
+      ensure
+        ENV.delete('ORGANIZATION_ID')
+      end
+
+      it 'builds the adapter for the deploy account, the publisher organization and the open counter' do
+        build_adapter_with('a17429fb-f0dd-40cd-999d-7d28d3efa5f5')
+
+        expect(Peregrine::Bus::Adapter).to have_received(:new).with(
+          hash_including(account: Bus::GrammarEnv.account,
+                         organization_id: 'a17429fb-f0dd-40cd-999d-7d28d3efa5f5',
+                         metrics: Bus::EnvelopeMetrics.instance)
+        )
+      end
+
+      it 'passes no organization when ORGANIZATION_ID is blank, so a publish refuses rather than guessing' do
+        build_adapter_with('  ')
+
+        expect(Peregrine::Bus::Adapter).to have_received(:new).with(hash_including(organization_id: nil))
+      end
+    end
+
     it 'defaults to NATS off GCE when BUS_TRANSPORT is unset (Pub/Sub is retired, #1221)' do
       Tempfile.create(['keyset', '.json']) do |f|
         f.write('{"current":{},"keys":{}}')

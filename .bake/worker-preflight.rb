@@ -10,7 +10,9 @@
 # APP_ENV is required because it selects the bus grammar token (#1243): the scanner never
 # reads RACK_ENV, and the default ("development") would put a production worker on the dev
 # subject, where it would idle green and never see work.
-REQUIRED = %w[NATS_URL BUS_BUCKET BUS_KEYSET_PROJECT GOOGLE_CLOUD_PROJECT GCS_BUCKET APP_ENV].freeze
+# ORGANIZATION_ID is the publisher organization for envelope v2 (#1229): without it every
+# scan.completed / scan.failed publish is refused, so a worker would finish scans and report nothing.
+REQUIRED = %w[NATS_URL BUS_BUCKET BUS_KEYSET_PROJECT GOOGLE_CLOUD_PROJECT GCS_BUCKET APP_ENV ORGANIZATION_ID].freeze
 
 missing = REQUIRED.select { |name| ENV.fetch(name, '').strip.empty? }
 exit 0 if missing.empty?
