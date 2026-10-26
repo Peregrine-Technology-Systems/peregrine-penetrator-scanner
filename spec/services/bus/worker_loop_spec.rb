@@ -87,7 +87,7 @@ RSpec.describe Bus::WorkerLoop do
       expect(ScanJobRunner).not_to have_received(:new)
       expect(Penetrator.logger).to have_received(:error).with(/invalid scan\.requested for job "j1".*target_url/)
       expect(publisher).to have_received(:publish).with(
-        Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed'),
+        Bus::ScanSubjects.terminal('failed'),
         hash_including(job_id: 'j1', transaction_id: 't1', environment: 'staging',
                        state: 'failed', reason: 'invalid_request'),
         job_id: 'j1', status: 'failed'

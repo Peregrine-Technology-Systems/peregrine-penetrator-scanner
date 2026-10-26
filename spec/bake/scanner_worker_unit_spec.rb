@@ -16,7 +16,8 @@ RSpec.describe 'scanner-worker.service bake contract (#1209)' do # rubocop:disab
   let(:render) { root.join('.bake/render-unit.rb').to_s }
   let(:required_env) do
     { 'NATS_URL' => 'tls://connect.ngs.global:4222', 'BUS_BUCKET' => 'b',
-      'BUS_KEYSET_PROJECT' => 'p', 'GOOGLE_CLOUD_PROJECT' => 'p', 'GCS_BUCKET' => 'r' }
+      'BUS_KEYSET_PROJECT' => 'p', 'GOOGLE_CLOUD_PROJECT' => 'p', 'GCS_BUCKET' => 'r',
+      'APP_ENV' => 'production' }
   end
 
   # key => [values], per section; repeated keys (ExecStartPre) keep every value.
@@ -94,6 +95,15 @@ RSpec.describe 'scanner-worker.service bake contract (#1209)' do # rubocop:disab
 
       expect(status).not_to be_success
       expect(err).to include('BUS_BUCKET')
+    end
+
+    # The scanner reads APP_ENV, never RACK_ENV (#1243). Unset, a production worker would
+    # derive the dev grammar token and listen on a subject nothing publishes to.
+    it 'refuses to start when APP_ENV is unset, rather than defaulting to the dev subject' do
+      _out, err, status = run_ruby(preflight, env: required_env.except('APP_ENV'))
+
+      expect(status).not_to be_success
+      expect(err).to include('APP_ENV')
     end
 
     it 'passes when every required variable is set' do
