@@ -31,8 +31,12 @@ module Bus
 
       pointer = Peregrine::Bus::ClaimCheck.parse(File.read(@path))
       sealed = substrate.get(pointer.blob_uri)
-      plaintext = Peregrine::Bus::Envelope.parse(sealed).open(key_provider: key_provider, expected_subject: pointer.subject)
-      JSON.parse(plaintext)
+      opened = Peregrine::Bus::Envelope.parse(sealed).open(
+        key_provider: key_provider, expected_subject: pointer.subject,
+        expected_organization_id: Peregrine::Bus::ANY_ORGANIZATION,
+        account: GrammarEnv.account, metrics: EnvelopeMetrics.instance
+      )
+      JSON.parse(opened.plaintext)
     end
 
     private
