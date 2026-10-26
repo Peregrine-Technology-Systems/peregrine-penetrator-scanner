@@ -20,8 +20,6 @@ module Bus
   # nil and bin/scan falls back to its ENV-injected launch parameters (VM
   # metadata → env, the pre-bus path).
   class ScanRequestConsumer
-    SUBJECT = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'requested')
-
     def initialize(adapter: AdapterEnv.adapter)
       @adapter = adapter
     end
@@ -42,7 +40,7 @@ module Bus
       return nil unless @adapter
 
       chosen = nil
-      @adapter.consume(SUBJECT) do |plaintext|
+      @adapter.consume(ScanSubjects.requested) do |plaintext|
         # One request per call. The transport hands over a whole batch and the
         # core acks anything the block does not :nack, so every extra is
         # requeued for the next call instead of being acked and lost (#1208).

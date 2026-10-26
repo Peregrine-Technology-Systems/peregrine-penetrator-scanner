@@ -169,7 +169,7 @@ RSpec.describe Bus::AdapterEnv do
 
       expect(described_class.key_provider).to eq(provider)
       expect(Bus::CompositeKeyProvider).to have_received(:for_subjects).with(
-        *Bus::AdapterEnv::DATA_PLANE_SUBJECTS,
+        *Bus::ScanSubjects.data_plane,
         provider_class: Peregrine::Bus::Gcp::SmKeyProvider,
         project: Peregrine::Bus::Gcp::SmKeyProvider::DEFAULT_PROJECT
       )

@@ -29,18 +29,6 @@ module Bus
   module AdapterEnv
     module_function
 
-    # The data-plane subjects this TP needs key material for for
-    # self-fetch (scanner#1182). Telemetry-plane subjects (start/heartbeat/
-    # exiting) are per-instance — whether they key the same way is an open
-    # question flagged back to infra, not guessed here; Bus::Publisher#publish
-    # already fails soft per-call, so a missing telemetry key degrades a
-    # heartbeat publish rather than crashing the worker.
-    DATA_PLANE_SUBJECTS = [
-      Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'requested'),
-      Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'completed'),
-      Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
-    ].freeze
-
     def adapter
       return nil unless enabled?
 
@@ -87,7 +75,7 @@ module Bus
     def self_fetch_key_provider
       require 'peregrine/bus/gcp'
       CompositeKeyProvider.for_subjects(
-        *DATA_PLANE_SUBJECTS,
+        *ScanSubjects.data_plane,
         provider_class: Peregrine::Bus::Gcp::SmKeyProvider,
         project: ENV.fetch('BUS_KEYSET_PROJECT', Peregrine::Bus::Gcp::SmKeyProvider::DEFAULT_PROJECT)
       )

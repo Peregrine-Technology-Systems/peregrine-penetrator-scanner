@@ -1,6 +1,7 @@
 # Release Notes
 
 ## Unreleased
+- fix: put the deploy environment's grammar token on the scanner's `scan.requested`, `scan.completed` and `scan.failed` subjects (#1243). The orchestrator marks them (`staging` in staging, `dev` for development, dev, test or anything unknown, unmarked only for an exact `production`) and the scanner built them all unmarked, so no staging or dev request ever reached a scanner and a staging scanner would have published `scan.completed` on the production subject. `Bus::GrammarEnv` mirrors the orchestrator's mapping and `Bus::ScanSubjects` builds the subjects for the consumer, the completion publisher, the invalid-request reporter and the key-fetch list. The production subjects are unchanged. `scanner-worker.service` now fails its preflight when `APP_ENV` is unset: the scanner reads `APP_ENV` and never `RACK_ENV`, and the default would put a production worker on the dev subject. Telemetry subjects are unchanged (#1231).
 - fix: treat a whitespace-only `target_url` as absent (#1241). The #1235 refusal only caught a missing or empty value, so `" "` was scanned as `[" "]`. `Bus::ScanRequestPayload` now trims the URL and returns `nil` for a blank one, so the existing `scan.failed` (`reason: invalid_request`) path applies. Found in engineering's review of the v1.13.2 promotion.
 
 ## v1.13.2 — 2026-10-26
