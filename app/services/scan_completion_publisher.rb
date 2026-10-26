@@ -22,7 +22,7 @@ class ScanCompletionPublisher
   end
 
   def emit
-    subject = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', state)
+    subject = Bus::ScanSubjects.terminal(state)
     @publisher.publish(subject, payload, job_id: @identity.scan_uuid, status: state)
   end
 

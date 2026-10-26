@@ -12,7 +12,7 @@ RSpec.describe Bus::InvalidRequestReporter do
     described_class.new(publisher:).call(payload, 'missing target_url')
 
     expect(publisher).to have_received(:publish).with(
-      described_class::SUBJECT,
+      Bus::ScanSubjects.terminal('failed'),
       hash_including(job_id: 'j1', transaction_id: 't1', state: 'failed',
                      reason: 'invalid_request', detail: 'missing target_url'),
       job_id: 'j1', status: 'failed'

@@ -20,7 +20,9 @@ module BusHelper
     current = {}
     keys = {}
     subjects.each do |s|
-      [s, Peregrine::Bus::Subjects.tee_to_staging(s)].uniq.each do |subj|
+      # A dev-scoped subject has no staging sibling (the gem refuses to tee it), so key just itself.
+      siblings = s.split('.')[1] == 'dev' ? [s] : [s, Peregrine::Bus::Subjects.tee_to_staging(s)]
+      siblings.uniq.each do |subj|
         current[subj] = version
         keys["#{subj}:#{version}"] = Base64.strict_encode64(Peregrine::Bus::Sealer.random_key)
       end

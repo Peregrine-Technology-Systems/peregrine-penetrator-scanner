@@ -7,7 +7,10 @@
 # GCS_BUCKET is required because StorageService silently falls back to LOCAL DISK when it
 # is unset (#942): a worker would scan, report completed, and lose every result when the
 # ephemeral VM exits.
-REQUIRED = %w[NATS_URL BUS_BUCKET BUS_KEYSET_PROJECT GOOGLE_CLOUD_PROJECT GCS_BUCKET].freeze
+# APP_ENV is required because it selects the bus grammar token (#1243): the scanner never
+# reads RACK_ENV, and the default ("development") would put a production worker on the dev
+# subject, where it would idle green and never see work.
+REQUIRED = %w[NATS_URL BUS_BUCKET BUS_KEYSET_PROJECT GOOGLE_CLOUD_PROJECT GCS_BUCKET APP_ENV].freeze
 
 missing = REQUIRED.select { |name| ENV.fetch(name, '').strip.empty? }
 exit 0 if missing.empty?
