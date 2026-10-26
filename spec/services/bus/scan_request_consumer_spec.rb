@@ -4,7 +4,7 @@ require 'sequel_helper'
 require 'peregrine/bus/nats'
 
 RSpec.describe Bus::ScanRequestConsumer do
-  let(:subject_name) { Bus::ScanRequestConsumer::SUBJECT }
+  let(:subject_name) { Bus::ScanSubjects.requested }
 
   describe '#next_request (disabled)' do
     it 'returns nil when no adapter is wired' do
@@ -73,6 +73,30 @@ RSpec.describe Bus::ScanRequestConsumer do
 
       expect(described_class.new(adapter:).next_request).to be_nil
       expect(Penetrator.logger).to have_received(:warn).with(/malformed/)
+    end
+  end
+
+  describe '#next_request (grammar env, #1243)' do
+    def publish_on(subject, id)
+      publisher, adapter = bus_pair(subject)
+      publisher.publish(subject, { 'scan_uuid' => id })
+      adapter
+    end
+
+    it 'reads the unmarked production subject in production' do
+      allow(Penetrator).to receive(:env).and_return('production')
+      adapter = publish_on('peregrine.data.task.penetrator.scan.requested', 'prod-1')
+
+      expect(described_class.new(adapter:).next_request).to eq('scan_uuid' => 'prod-1')
+    end
+
+    it 'reads the staging-marked subject in staging, and never the production one' do
+      allow(Penetrator).to receive(:env).and_return('staging')
+      staged = publish_on('peregrine.staging.data.task.penetrator.scan.requested', 'stg-1')
+      unmarked = publish_on('peregrine.data.task.penetrator.scan.requested', 'prod-1')
+
+      expect(described_class.new(adapter: staged).next_request).to eq('scan_uuid' => 'stg-1')
+      expect(described_class.new(adapter: unmarked).next_request).to be_nil
     end
   end
 

@@ -12,7 +12,7 @@ RSpec.describe ScanCompletionPublisher do
   end
 
   it 'emits scan.completed with a claim-check pointer that round-trips through the adapter' do
-    subj = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'completed')
+    subj = Bus::ScanSubjects.terminal('completed')
     publisher, adapter = bus_pair(subj)
 
     described_class.new(scan, exporter:, identity:, publisher:).emit
@@ -27,7 +27,7 @@ RSpec.describe ScanCompletionPublisher do
 
   it 'maps a failed scan onto the scan.failed subject' do
     failed = create(:scan, :running).tap { |s| s.status = 'failed' }
-    subj = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
+    subj = Bus::ScanSubjects.terminal('failed')
     publisher, adapter = bus_pair(subj)
 
     described_class.new(failed, exporter:, identity:, publisher:).emit
@@ -37,7 +37,7 @@ RSpec.describe ScanCompletionPublisher do
 
   it 'maps a cancelled scan onto the scan.failed subject (saga treats it as failure)' do
     cancelled = create(:scan, :running).tap { |s| s.status = 'cancelled' }
-    subj = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
+    subj = Bus::ScanSubjects.terminal('failed')
     publisher, adapter = bus_pair(subj)
 
     described_class.new(cancelled, exporter:, identity:, publisher:).emit
