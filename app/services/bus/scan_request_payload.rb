@@ -35,8 +35,7 @@ module Bus
     # name from the URL host rather than defaulting every bus-triggered scan
     # to the literal "Default Target".
     def target_name
-      url = @raw['target_url']
-      return nil if url.to_s.empty?
+      return nil unless url
 
       URI.parse(url).host
     rescue URI::InvalidURIError
@@ -44,10 +43,16 @@ module Bus
     end
 
     def target_urls
-      url = @raw['target_url']
-      return nil if url.to_s.empty?
+      url && [url]
+    end
 
-      [url]
+    private
+
+    # The trimmed target_url, or nil when it is absent, empty or only whitespace
+    # (#1241) — all of which mean "no target", never a URL to scan.
+    def url
+      value = @raw['target_url'].to_s.strip
+      value.empty? ? nil : value
     end
   end
 end

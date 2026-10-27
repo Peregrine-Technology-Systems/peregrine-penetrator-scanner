@@ -7,7 +7,6 @@ module Bus
   # would turn bad upstream input into a success-shaped result.
   class InvalidRequestReporter
     REASON = 'invalid_request'
-    SUBJECT = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
 
     def initialize(publisher:)
       @publisher = publisher
@@ -15,7 +14,7 @@ module Bus
 
     def call(payload, problem)
       Penetrator.logger.error("[WorkerLoop] invalid scan.requested for job #{payload.job_id.inspect}: #{problem}")
-      @publisher.publish(SUBJECT, body(payload, problem), job_id: payload.job_id, status: 'failed')
+      @publisher.publish(ScanSubjects.terminal('failed'), body(payload, problem), job_id: payload.job_id, status: 'failed')
     end
 
     private

@@ -349,7 +349,8 @@ Most of these are injected by the org-native launcher; a local run only needs `S
 | `SCAN_CALLBACK_SECRET` | Bearer token for the callback heartbeat | -- |
 | `LOG_FORMAT` | `json` for Cloud Logging (the baked default), else human-readable | -- |
 | `LOG_LEVEL` | Logger level | `INFO` |
-| `APP_ENV` | App environment (selects the per-VM SQLite DB file) | `development` |
+| `APP_ENV` | App environment: selects the per-VM SQLite DB file and the bus grammar token (`production` is unmarked, `staging` is `staging`, anything else is `dev`). The worker preflight refuses to start without it; the scanner never reads `RACK_ENV` | `development` |
+| `ORGANIZATION_ID` | Publisher organization UUID for envelope v2 (#1229). Without it every `scan.completed`/`scan.failed` publish is refused; the worker preflight requires it | -- |
 | `BOOT_IMAGE` / `GIT_COMMIT` | Image + commit stamps for the export envelope | metadata |
 
 > **No Slack / SMTP / email / AI / CVE-API env vars.** Those integrations were extracted from the scanner (Slack in #816; AI/CVE enrichment and report generation earlier) — the scanner is a headless probe-runner that emits findings to GCS + the bus. GCS resolves its GCP project from Application Default Credentials / the GCE metadata server, so there is **no** `GOOGLE_CLOUD_PROJECT` env var in the runtime.

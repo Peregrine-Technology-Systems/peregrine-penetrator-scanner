@@ -12,9 +12,10 @@ RSpec.describe Bus::JobPointerResolver do
   # matching ClaimCheck — the shape the launcher would write to the tmpfs
   # pointer file (minus the launcher's own metadata plumbing).
   def seal_and_point(payload)
-    key_id = key_provider.current_key_id(subject_name)
+    key_id = Peregrine::Bus::KeyScope.scoped(key_provider.current_key_id(subject_name), Bus::GrammarEnv.account)
     key = key_provider.key(key_id)
-    envelope = Peregrine::Bus::Envelope.seal(subject: subject_name, key_id:, key:, plaintext: JSON.generate(payload))
+    envelope = Peregrine::Bus::Envelope.seal(subject: subject_name, key_id:, key:, plaintext: JSON.generate(payload),
+                                             organization_id: BusHelper::ORGANIZATION)
     blob_uri = Peregrine::Bus::Subjects.object_path(subject_name, SecureRandom.uuid)
     substrate.put(blob_uri, envelope.to_json)
     Peregrine::Bus::ClaimCheck.new(subject: subject_name, blob_uri:, key_id:, ts: Time.current.iso8601, job_id: 'job-1')

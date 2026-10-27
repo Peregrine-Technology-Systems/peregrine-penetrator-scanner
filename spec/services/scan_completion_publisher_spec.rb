@@ -12,12 +12,12 @@ RSpec.describe ScanCompletionPublisher do
   end
 
   it 'emits scan.completed with a claim-check pointer that round-trips through the adapter' do
-    subj = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'completed')
+    subj = Bus::ScanSubjects.terminal('completed')
     publisher, adapter = bus_pair(subj)
 
     described_class.new(scan, exporter:, identity:, publisher:).emit
 
-    msg = JSON.parse(adapter.consume(subj).first)
+    msg = JSON.parse(consume_plain(adapter, subj).first)
     expect(msg['state']).to eq('completed')
     expect(msg['schema_version']).to eq('2.1')
     expect(msg['scanner_result_uri']).to eq('bucket' => 'reports-bkt', 'object' => 'scan-results/t/s/scan_results.json', 'sha256' => 'deadbeef')
@@ -27,22 +27,22 @@ RSpec.describe ScanCompletionPublisher do
 
   it 'maps a failed scan onto the scan.failed subject' do
     failed = create(:scan, :running).tap { |s| s.status = 'failed' }
-    subj = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
+    subj = Bus::ScanSubjects.terminal('failed')
     publisher, adapter = bus_pair(subj)
 
     described_class.new(failed, exporter:, identity:, publisher:).emit
 
-    expect(adapter.consume(subj).length).to eq(1)
+    expect(consume_plain(adapter, subj).length).to eq(1)
   end
 
   it 'maps a cancelled scan onto the scan.failed subject (saga treats it as failure)' do
     cancelled = create(:scan, :running).tap { |s| s.status = 'cancelled' }
-    subj = Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
+    subj = Bus::ScanSubjects.terminal('failed')
     publisher, adapter = bus_pair(subj)
 
     described_class.new(cancelled, exporter:, identity:, publisher:).emit
 
-    expect(adapter.consume(subj).length).to eq(1)
+    expect(consume_plain(adapter, subj).length).to eq(1)
   end
 
   it 'no-ops when the publisher is disabled (GCS status.json is the durable fallback)' do

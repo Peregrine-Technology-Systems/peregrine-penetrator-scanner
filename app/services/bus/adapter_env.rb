@@ -29,18 +29,6 @@ module Bus
   module AdapterEnv
     module_function
 
-    # The data-plane subjects this TP needs key material for for
-    # self-fetch (scanner#1182). Telemetry-plane subjects (start/heartbeat/
-    # exiting) are per-instance — whether they key the same way is an open
-    # question flagged back to infra, not guessed here; Bus::Publisher#publish
-    # already fails soft per-call, so a missing telemetry key degrades a
-    # heartbeat publish rather than crashing the worker.
-    DATA_PLANE_SUBJECTS = [
-      Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'requested'),
-      Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'completed'),
-      Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed')
-    ].freeze
-
     def adapter
       return nil unless enabled?
 
@@ -51,13 +39,22 @@ module Bus
         substrate: substrate,
         transport: transport,
         key_provider: key_provider,
-        t_mode: ENV['BUS_T_MODE'] == 'true'
+        account: GrammarEnv.account,
+        organization_id: organization_id,
+        metrics: EnvelopeMetrics.instance
       )
     rescue StandardError => e
       raise if InstanceMetadata.on_gce?
 
       Penetrator.logger.warn("[Bus] adapter construction failed: #{e.message}")
       nil
+    end
+
+    # The publisher's verified organization (envelope v2, arch#1180). Set from tp-env
+    # (ORGANIZATION_ID); the worker preflight requires it. Blank means this adapter
+    # can consume but a publish refuses (organization_required), never a guessed value.
+    def organization_id
+      ENV['ORGANIZATION_ID'].to_s.strip.then { |value| value.empty? ? nil : value }
     end
 
     def enabled?
@@ -87,7 +84,7 @@ module Bus
     def self_fetch_key_provider
       require 'peregrine/bus/gcp'
       CompositeKeyProvider.for_subjects(
-        *DATA_PLANE_SUBJECTS,
+        *ScanSubjects.data_plane,
         provider_class: Peregrine::Bus::Gcp::SmKeyProvider,
         project: ENV.fetch('BUS_KEYSET_PROJECT', Peregrine::Bus::Gcp::SmKeyProvider::DEFAULT_PROJECT)
       )

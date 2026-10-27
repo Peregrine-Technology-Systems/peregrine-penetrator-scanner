@@ -87,11 +87,21 @@ RSpec.describe Bus::WorkerLoop do
       expect(ScanJobRunner).not_to have_received(:new)
       expect(Penetrator.logger).to have_received(:error).with(/invalid scan\.requested for job "j1".*target_url/)
       expect(publisher).to have_received(:publish).with(
-        Peregrine::Bus::Subjects::Penetrator.stage_state('scan', 'failed'),
+        Bus::ScanSubjects.terminal('failed'),
         hash_including(job_id: 'j1', transaction_id: 't1', environment: 'staging',
                        state: 'failed', reason: 'invalid_request'),
         job_id: 'j1', status: 'failed'
       )
+    end
+
+    it 'also refuses a request whose target_url is only whitespace (#1241)' do
+      allow(consumer).to receive(:next_request).and_return({ 'job_id' => 'j1', 'target_url' => "  \n" }, nil)
+      allow(Penetrator.logger).to receive(:error)
+      times.push(0, 5, 8, 20)
+
+      worker.run
+
+      expect(ScanJobRunner).not_to have_received(:new)
     end
 
     it 'still runs a request that has a target_url' do
