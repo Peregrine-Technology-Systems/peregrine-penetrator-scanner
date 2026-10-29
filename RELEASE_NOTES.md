@@ -1,6 +1,8 @@
 # Release Notes
 
 ## Unreleased
+
+## v1.15.1 — 2026-10-29
 - fix: stop the scan preflight refusing a target because its certificate is untrusted (#1267). `ScanOrchestrator#preflight_check` ran a TLS HEAD with peer verification, so a self-signed, expired or wrong-name certificate failed the preflight with "certificate verify failed" and the scan stopped before any tool ran, which made weak-TLS targets unscannable (observed against a self-signed target on 2026-10-29). The check now lives in `TargetReachability`: a certificate-verification failure is logged as a warning and the check is repeated without verifying the chain, so the preflight answers "reachable?", not "trusted?". DNS errors, refused or timed-out connections, and handshake failures that are not about the certificate still fail it. Reachability only: the scan tools make their own TLS decisions, and how each reports an untrusted certificate is still to be verified (the retire.js mirror uses `wget` without a bypass flag and is expected to fail on such a target).
 
 ## v1.15.0 — 2026-10-29
