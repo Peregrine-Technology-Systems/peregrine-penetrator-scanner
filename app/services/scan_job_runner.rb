@@ -52,6 +52,16 @@ class ScanJobRunner
     Result.new(scan:, passed:)
   end
 
+  # emit returns the sealed blob uri, or nil when the bus is disabled or the publish
+  # failed (#1254) — say which, so the console never claims a publish that did not happen.
+  def report_bus_publish(blob_uri)
+    if blob_uri
+      puts "  Published scan completion to the bus (#{blob_uri})"
+    else
+      puts '  NOT published to the bus (disabled or failed); GCS status.json remains the durable fallback'
+    end
+  end
+
   def full_result(scan, audit)
     # Export versioned JSON to GCS
     puts "\n--- Scan Results Export ---"
@@ -77,8 +87,7 @@ class ScanJobRunner
     # Publish the bus completion event (#1009): a claim-check pointer to the report
     # blob, never the bytes. Inert until the bus substrate is wired at deploy; the GCS
     # status.json above stays the orchestrator's durable fallback.
-    ScanCompletionPublisher.new(scan, exporter:, identity:).emit
-    puts '  Published scan completion to the bus'
+    report_bus_publish(ScanCompletionPublisher.new(scan, exporter:, identity:).emit)
 
     audit.scan_completed(scan, gcs_path: gcs_scan_results_path)
 
