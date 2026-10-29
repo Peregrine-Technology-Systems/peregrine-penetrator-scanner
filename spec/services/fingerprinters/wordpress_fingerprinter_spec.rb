@@ -38,6 +38,7 @@ RSpec.describe Fingerprinters::WordpressFingerprinter do
     stub_request(:get, 'https://wp.example.com/wp-json/').to_return(status: 404)
     stub_request(:get, 'https://wp.example.com/readme.html').to_return(status: 404)
     stub_request(:get, 'https://wp.example.com/wp-login.php').to_return(status: 404)
+    stub_request(:get, 'https://wp.example.com/wp-content/themes/astra/style.css').to_return(status: 404)
   end
 
   describe '#cms_name' do
@@ -54,7 +55,9 @@ RSpec.describe Fingerprinters::WordpressFingerprinter do
       expect(result[:cms]).to eq('wordpress')
       expect(result[:confidence]).to be >= 0.8
       expect(result[:core_version]).to eq('6.4.2')
-      expect(result[:components]).to eq([])
+      expect(result[:components]).to eq(
+        [{ kind: 'theme', slug: 'astra', version: nil, confidence: 0.2 }]
+      )
     end
 
     it 'returns sub-threshold confidence for a plain HTML page' do
@@ -114,6 +117,43 @@ RSpec.describe Fingerprinters::WordpressFingerprinter do
 
       result = detector.detect
       expect(result[:confidence]).to eq(0.0)
+    end
+  end
+
+  describe 'component enumeration' do
+    let(:fixture_html) { File.read(Penetrator.root.join('spec/fixtures/wordpress/home.html')) }
+
+    it 'makes zero extra requests when WordPress is not detected' do
+      stub_request(:get, 'https://wp.example.com')
+        .to_return(status: 200, body: '<html><img src="/wp-content/plugins/foo/a.png"></html>')
+
+      result = detector.detect
+      expect(result[:components]).to eq([])
+      expect(a_request(:get, /wp-content/)).not_to have_been_made
+    end
+
+    it 'fills components and fetches readme.txt and style.css when WordPress is detected' do
+      stub_request(:get, 'https://wp.example.com').to_return(status: 200, body: fixture_html)
+      stub_request(:get, %r{wp-content/plugins/.*/readme.txt}).to_return(status: 404)
+      stub_request(:get, 'https://wp.example.com/wp-content/plugins/contact-form-7/readme.txt')
+        .to_return(status: 200, body: "Stable tag: 5.9.3\n")
+      stub_request(:get, 'https://wp.example.com/wp-content/themes/astra/style.css')
+        .to_return(status: 200, body: "/*\nVersion: 4.6.5\n*/")
+
+      components = detector.detect[:components]
+      expect(components).to include(
+        a_hash_including(kind: 'plugin', slug: 'contact-form-7', version: '5.9.3'),
+        a_hash_including(kind: 'theme', slug: 'astra', version: '4.6.5'),
+        a_hash_including(kind: 'plugin', slug: 'elementor', version: '3.18.0')
+      )
+    end
+
+    it 'does not raise when a component fetch times out' do
+      stub_request(:get, 'https://wp.example.com').to_return(status: 200, body: fixture_html)
+      stub_request(:get, %r{wp-content/(plugins|themes)/[^/]+/(readme.txt|style.css)}).to_timeout
+
+      components = detector.detect[:components]
+      expect(components).to include(a_hash_including(slug: 'contact-form-7', version: '5.8.1'))
     end
   end
 
