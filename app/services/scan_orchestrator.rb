@@ -121,10 +121,7 @@ class ScanOrchestrator
 
   def preflight_check
     scan.target.url_list.each do |url|
-      uri = URI.parse(url)
-      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: 10, read_timeout: 10) do |http|
-        http.head(uri.path.empty? ? '/' : uri.path)
-      end
+      TargetReachability.new(url).call
       Penetrator.logger.info("[Preflight] Reachable: #{url}")
     rescue StandardError => e
       raise "Target unreachable: #{url} — #{e.message}"
