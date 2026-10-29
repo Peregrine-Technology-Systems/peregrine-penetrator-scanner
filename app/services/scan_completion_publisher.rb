@@ -21,6 +21,8 @@ class ScanCompletionPublisher
     @publisher = publisher
   end
 
+  # Returns the sealed blob uri when published, nil when the bus is disabled or the
+  # publish failed (Bus::Publisher#publish), so callers can report the truth (#1254).
   def emit
     subject = Bus::ScanSubjects.terminal(state)
     @publisher.publish(subject, payload, job_id: @identity.scan_uuid, status: state)

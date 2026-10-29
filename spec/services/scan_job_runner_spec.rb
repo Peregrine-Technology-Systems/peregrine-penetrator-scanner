@@ -37,6 +37,26 @@ RSpec.describe ScanJobRunner do
       expect(mock_audit).to have_received(:scan_completed)
     end
 
+    it 'does not claim the bus publish happened when emit returns nil (disabled or failed)' do
+      allow(mock_completion_publisher).to receive(:emit).and_return(nil)
+
+      expect { runner.call }.to output(/NOT published to the bus.*status\.json.*durable fallback/).to_stdout
+      expect { runner.call }.not_to output(/Published scan completion to the bus/).to_stdout
+    end
+
+    it 'reports the blob uri when emit returns one' do
+      allow(mock_completion_publisher).to receive(:emit).and_return('blob-123')
+
+      expect { runner.call }.to output(/Published scan completion to the bus \(blob-123\)/).to_stdout
+      expect { runner.call }.not_to output(/NOT published/).to_stdout
+    end
+
+    it 'never fails the scan when the bus publish did not happen' do
+      allow(mock_completion_publisher).to receive(:emit).and_return(nil)
+
+      expect(runner.call.passed).to be(true)
+    end
+
     it 'reuses an existing target by name rather than creating a duplicate' do
       create(:target, name: 'example.com', urls: ['https://example.com'].to_json)
 
