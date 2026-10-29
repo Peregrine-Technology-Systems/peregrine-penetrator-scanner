@@ -25,6 +25,12 @@ RSpec.describe ScanCompletionPublisher do
     expect(msg['completed_at']).to be_present
   end
 
+  it 'returns the blob uri when published (the truthy counterpart of the disabled nil)' do
+    publisher, = bus_pair(Bus::ScanSubjects.terminal('completed'))
+
+    expect(described_class.new(scan, exporter:, identity:, publisher:).emit).to be_present
+  end
+
   it 'maps a failed scan onto the scan.failed subject' do
     failed = create(:scan, :running).tap { |s| s.status = 'failed' }
     subj = Bus::ScanSubjects.terminal('failed')
