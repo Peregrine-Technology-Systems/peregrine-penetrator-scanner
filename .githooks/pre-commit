@@ -116,7 +116,8 @@ if [ "$CURRENT_BRANCH" != "development" ] && [ "$CURRENT_BRANCH" != "staging" ] 
       # abort the commit under `set -e` if the toolchain is missing/errors.
       # shellcheck disable=SC2086
       "$DOC_SCRIPT" $CHANGED_MD 2>/dev/null || true
-      GENERATED=$(find docs/pdf -name '*.pdf' -newer .git/index 2>/dev/null | wc -l | tr -d ' ')
+      # .git is a file in a worktree, so ask git where the index is (#1255)
+      GENERATED=$(find docs/pdf -name '*.pdf' -newer "$(git rev-parse --git-path index)" 2>/dev/null | wc -l | tr -d ' ') || GENERATED=0
       [ "$GENERATED" -gt 0 ] && echo "✅ Generated $GENERATED branded PDF(s) locally (not committed — public repo)" || true
     elif command -v pandoc &>/dev/null && command -v xelatex &>/dev/null; then
       # Fallback: plain pandoc (no branding, no Mermaid diagrams)
@@ -146,7 +147,7 @@ fi
 
 # Record tested SHA so pre-push can skip re-running tests
 if [ "$DOCS_ONLY" = false ]; then
-  git rev-parse HEAD > .git/last-tested-sha 2>/dev/null || true
+  git rev-parse HEAD > "$(git rev-parse --git-path last-tested-sha)" 2>/dev/null || true
 fi
 
 echo "✅ All pre-commit checks passed"
