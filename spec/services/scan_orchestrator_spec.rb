@@ -184,6 +184,15 @@ RSpec.describe ScanOrchestrator do
       expect(WebMock).to have_requested(:head, 'https://example.com/')
     end
 
+    it 'checks reachability, not certificate trust (#1267)' do
+      stub_request(:head, 'https://example.com/').to_return(status: 200)
+      allow(TargetReachability).to receive(:new).and_call_original
+
+      orchestrator.execute
+
+      expect(TargetReachability).to have_received(:new).with('https://example.com')
+    end
+
     it 'fails scan immediately when target is unreachable' do
       stub_request(:head, 'https://example.com/').to_raise(Errno::ECONNREFUSED.new('Connection refused'))
 
