@@ -51,7 +51,8 @@ export BUNDLE_WITHOUT="development"
 # shellcheck source=scripts/woodpecker/lib/git-dep-auth.sh
 . "$(dirname "$0")/lib/git-dep-auth.sh"
 bundle install --jobs 4 --retry 3
-APP_ENV=test bundle exec rspec --format documentation
+# bus_transaction specs need a real nats-server and run in integration-test.yaml (#1276)
+APP_ENV=test bundle exec rspec --tag '~bus_transaction' --format documentation
 
 # Enforce minimum coverage
 if [ -f coverage/.last_run.json ]; then
