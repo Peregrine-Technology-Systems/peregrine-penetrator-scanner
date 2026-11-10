@@ -5,6 +5,7 @@ when:
 
 depends_on:
   - ci
+  - integration-test
 
 labels:
   platform: linux

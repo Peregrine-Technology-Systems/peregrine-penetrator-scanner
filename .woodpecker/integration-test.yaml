@@ -1,0 +1,34 @@
+# Bus transaction test — hard gate (global MUST HAVE Rule #14, arch#1319, #1276).
+#
+# A real nats-server carries a sealed scan.requested through the real
+# Bus::WorkerLoop and back. depends_on: [ci] so it never runs when unit tests
+# fail; promote.yaml depends on this workflow too. A missing nats-server FAILS.
+when:
+  - event: push
+    branch:
+      exclude: [main, "merge/*", "sync/*", "release/*"]
+
+labels:
+  platform: linux
+
+depends_on: [ci]
+
+steps:
+  - name: bus-transaction
+    image: bash
+    commands:
+      # Run once per code change: staging whose tree equals development was
+      # already tested there (tree identity, as skip-if-tested.sh does).
+      - |
+        if [ "$CI_COMMIT_BRANCH" = "staging" ]; then
+          git fetch origin development --quiet || true
+          if [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse 'origin/development^{tree}' 2>/dev/null)" ]; then
+            echo "==> Skipping: staging tree identical to development (already tested)"
+            exit 0
+          fi
+        fi
+      - export BUNDLE_WITHOUT="development"
+      - . scripts/woodpecker/lib/git-dep-auth.sh
+      - bundle install --jobs 4 --retry 3
+      - command -v nats-server || { echo "ERROR: nats-server is not on this agent's PATH"; exit 1; }
+      - APP_ENV=test COVERAGE_MINIMUM=0 bundle exec rspec --tag bus_transaction --format documentation

@@ -6,7 +6,7 @@ SimpleCov.start do
   add_filter '/config/'
   add_filter '/db/'
   add_filter '/vendor/'
-  minimum_coverage 90
+  minimum_coverage ENV.fetch('COVERAGE_MINIMUM', 90).to_i
 end
 
 ENV['APP_ENV'] = 'test'
